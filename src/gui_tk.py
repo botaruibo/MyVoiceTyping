@@ -16,6 +16,7 @@ from .utils.config_manager import ConfigManager
 class VoiceInputGUI:
     def __init__(self, app: Any):
         self.app = app
+        self.app_name = "闪电输入法"
         self.config_manager = ConfigManager()
 
         try:
@@ -24,7 +25,7 @@ class VoiceInputGUI:
             pass
 
         self.root = ctk.CTk()
-        self.root.title("无界输入法")
+        self.root.title(self.app_name)
         self.root.geometry("800x600")
 
         # --- 将窗口居中 ---
@@ -144,7 +145,7 @@ class VoiceInputGUI:
         sidebar_border.pack(side="left", fill="y")
         sidebar_border.pack_propagate(False)
 
-        ctk.CTkLabel(sidebar, text="无界输入法", font=ctk.CTkFont(size=20, weight="bold")).pack(pady=20)
+        ctk.CTkLabel(sidebar, text=self.app_name, font=ctk.CTkFont(size=20, weight="bold")).pack(pady=20)
 
         nav_buttons = [
             ("主页", "home"),
@@ -189,11 +190,11 @@ class VoiceInputGUI:
         content_area.grid_rowconfigure(0, weight=1)
         content_area.grid_columnconfigure(0, weight=1)
 
-        self.pages["home"] = self._create_placeholder_page(content_area, "主页")
-        self.pages["dictionary"] = self._create_placeholder_page(content_area, "词典")
+        self.pages["home"] = self._create_home_page(content_area, "主页")
+        # self.pages["dictionary"] = self._create_placeholder_page(content_area, "词典")
         self.pages["about"] = self._create_placeholder_page(content_area, "关于")
         self.pages["settings"] = self._create_settings_page(content_area)
-        self.pages["provider"] = self._build_provider_settings_page(content_area)
+        # self.pages["provider"] = self._build_provider_settings_page(content_area)
 
         for page in self.pages.values():
             page.grid(row=0, column=0, sticky="nsew")
@@ -236,6 +237,81 @@ class VoiceInputGUI:
         )
         ctk.CTkLabel(page, text="开发中…", text_color="gray").pack(anchor="w", padx=20)
         return page
+
+    def _create_home_page(self, parent: ctk.CTkFrame, title: str) -> ctk.CTkFrame:
+        """
+                创建主页,展示应用的欢迎信息和核心功能。
+                """
+        page = ctk.CTkFrame(parent, fg_color="transparent")
+        page.grid_rowconfigure(0, weight=1)
+        page.grid_columnconfigure(0, weight=1)
+
+        # --- 内容居中容器 ---
+        content_frame = ctk.CTkFrame(page, fg_color="transparent")
+        content_frame.grid(row=0, column=0)
+
+        # --- 主标题 ---
+        main_headline_text = f"告别打字, 用 AI 语音输入 \n  速度快 4 倍"
+        main_headline = ctk.CTkLabel(
+            content_frame,
+            text=main_headline_text,
+            font=ctk.CTkFont(size=40, weight="bold"),
+            justify="center",
+        )
+        main_headline.pack(pady=(0, 20), padx=20)
+
+        # --- 副标题 ---
+        sub_headline_text = "AI 对话、AI 编程、文档写作、聊天回复...全场景都能用, 支持所有应用"
+        sub_headline = ctk.CTkLabel(
+            content_frame,
+            text=sub_headline_text,
+            font=ctk.CTkFont(size=16),
+            text_color="gray",
+            wraplength=550,
+            justify="center",
+        )
+        sub_headline.pack(pady=10, padx=20)
+
+        # --- 试用提示 ---
+        trial_label = ctk.CTkLabel(
+            content_frame,
+            text="按住快捷键，立刻试用",
+            font=ctk.CTkFont(size=14),
+            text_color="gray",
+        )
+        trial_label.pack(pady=(40, 10), padx=20)
+
+        # --- 试用输入框 ---
+        self.home_trial_textbox = ctk.CTkTextbox(
+            content_frame,
+            height=100,
+            corner_radius=8,
+            border_width=1,
+            font=ctk.CTkFont(size=14),
+        )
+        self.home_trial_textbox.pack(fill="x", expand=True, padx=40, pady=(0, 20))
+
+        placeholder_text = "请按住快捷键，说一段文字"
+
+        # --- Placeholder Logic ---
+        def _add_placeholder(event=None):
+            if self.home_trial_textbox and not self.home_trial_textbox.get("1.0", "end-1c"):
+                self.home_trial_textbox.insert("1.0", placeholder_text)
+                self.home_trial_textbox.configure(text_color="gray")
+
+        def _remove_placeholder(event=None):
+            if self.home_trial_textbox and self.home_trial_textbox.get("1.0", "end-1c") == placeholder_text:
+                self.home_trial_textbox.delete("1.0", "end")
+                default_text_color = ctk.ThemeManager.theme["CTkTextbox"]["text_color"]
+                self.home_trial_textbox.configure(text_color=default_text_color)
+
+        if self.home_trial_textbox:
+            self.home_trial_textbox.bind("<FocusIn>", _remove_placeholder)
+            self.home_trial_textbox.bind("<FocusOut>", _add_placeholder)
+            _add_placeholder()
+
+        return page
+
 
     def _create_settings_page(self, parent: ctk.CTkFrame) -> ctk.CTkFrame:
         page = ctk.CTkFrame(parent, fg_color="transparent")
