@@ -77,6 +77,12 @@ class VoiceInputGUI:
     # -------------------------
 
     def _build_ui(self) -> None:
+        """
+        构建主 UI 界面。
+        - 左侧为导航侧边栏。
+        - 右侧为内容区域，包含页面和底部状态栏。
+        """
+        # 主窗口布局
         self.root.grid_rowconfigure(0, weight=1)
         self.root.grid_columnconfigure(0, weight=0, minsize=200)
         self.root.grid_columnconfigure(1, weight=0, minsize=1)
@@ -117,6 +123,9 @@ class VoiceInputGUI:
         return ctk.CTkImage(light_image=light_img, dark_image=dark_img, size=(16, 16))
 
     def _create_sidebar(self) -> None:
+        """
+        创建左侧的导航侧边栏。
+        """
         sidebar = ctk.CTkFrame(
             self.root,
             width=200,
@@ -139,26 +148,17 @@ class VoiceInputGUI:
 
         nav_buttons = [
             ("主页", "home"),
-            # ("词典", "dictionary"),
             ("设置", "settings"),
-            # ("服务", "provider"),
             ("关于", "about"),
         ]
-
-        icon_letters = {
-            "home": "H",
-            "dictionary": "D",
-            "settings": "S",
-            "provider": "P",
-            "about": "I",
-        }
+        icon_letters = {"home": "H", "settings": "S", "about": "I"}
 
         self._nav_buttons = {}
         for text, page_name in nav_buttons:
             icon = self._nav_icons.get(page_name)
             if icon is None:
                 icon = self._create_nav_icon(icon_letters.get(page_name, "•"))
-                if icon is not None:
+                if icon:
                     self._nav_icons[page_name] = icon
 
             btn = ctk.CTkButton(
@@ -176,11 +176,10 @@ class VoiceInputGUI:
             btn.pack(fill="x", padx=10, pady=5)
             self._nav_buttons[page_name] = btn
 
+        # --- 底部退出按钮 ---
         footer = ctk.CTkFrame(sidebar, fg_color="transparent")
         footer.pack(side="bottom", fill="x", padx=10, pady=10)
 
-        self._status_label = ctk.CTkLabel(footer, text=self.status_var.get(), text_color="gray")
-        self._status_label.pack(anchor="center")
 
         ctk.CTkButton(footer, text="退出", command=self.exit_application).pack(fill="x", pady=(8, 0))
 
@@ -193,13 +192,38 @@ class VoiceInputGUI:
         self.pages["home"] = self._create_placeholder_page(content_area, "主页")
         self.pages["dictionary"] = self._create_placeholder_page(content_area, "词典")
         self.pages["about"] = self._create_placeholder_page(content_area, "关于")
-
         self.pages["settings"] = self._create_settings_page(content_area)
         self.pages["provider"] = self._build_provider_settings_page(content_area)
 
         for page in self.pages.values():
             page.grid(row=0, column=0, sticky="nsew")
             page.grid_remove()
+
+        self._create_status_bar(content_area)
+
+    def _create_status_bar(self, parent: ctk.CTkFrame) -> None:
+        """
+        在右侧内容区的底部创建状态栏。
+        """
+        status_bar_frame = ctk.CTkFrame(
+            parent,
+            height=30,
+            corner_radius=0,
+            fg_color=self._sidebar_bg_color,
+            border_width=1,
+            border_color=("gray85", "gray20"),
+        )
+        status_bar_frame.grid(row=1, column=0, sticky="sew")
+        status_bar_frame.pack_propagate(False)
+
+        self._status_label = ctk.CTkLabel(
+            status_bar_frame,
+            textvariable=self.status_var,
+            text_color="gray",
+            font=ctk.CTkFont(size=12),
+        )
+        self._status_label.pack(side="right", padx=10)
+
 
     # -------------------------
     # Pages
@@ -283,7 +307,7 @@ class VoiceInputGUI:
         def _save_var_on_event(entry: ctk.CTkEntry, var: tk.StringVar, key: str) -> None:
             def _save(_evt=None) -> None:
                 self.config_manager.set(key, (var.get() or "").strip())
-                self.update_status("已保存配置（部分配置需重启生效）")
+                self.update_status_success("已保存配置（部分配置需重启生效）")
 
             entry.bind("<Return>", _save)
             entry.bind("<FocusOut>", _save)
@@ -301,7 +325,7 @@ class VoiceInputGUI:
 
         def _on_stt_provider_change(v: str) -> None:
             self.config_manager.set("stt_provider", v)
-            self.update_status("已保存配置（切换 STT 提供者需重启生效）")
+            self.update_status_success("已保存配置（切换 STT 提供者需重启生效）")
 
         stt_provider_menu = ctk.CTkOptionMenu(
             stt_provider_row,
@@ -514,19 +538,19 @@ class VoiceInputGUI:
 
             # 规则 4: 任何情况下都不支持的键
             if any(k in FORBIDDEN_KEYS for k in keys):
-                self.update_status("无效按键: Tab/Esc/Enter等不可用")
+                self.update_status_error("无效按键: Tab/Esc/Enter等不可用")
                 return False
 
             has_modifier = any(k in MODIFIER_KEYS for k in keys)
 
             # 规则 1: 单个键必须是修饰键
             if len(keys) == 1 and not has_modifier:
-                self.update_status("无效快捷键: 单个按键必须是修饰键")
+                self.update_status_error("无效快捷键: 单个按键必须是修饰键")
                 return False
 
             # 规则 2: 组合键必须包含修饰键
             if len(keys) > 1 and not has_modifier:
-                self.update_status("无效快捷键: 组合键必须包含修饰键")
+                self.update_status_error("无效快捷键: 组合键必须包含修饰键")
                 return False
 
             return True
@@ -601,12 +625,24 @@ class VoiceInputGUI:
 
             # 在保存前验证快捷键
             if not _validate_hotkey(pressed_keys):
-                # 验证失败，重置状态并恢复UI
+                # --- 显示错误状态 ---
+                error_color = ("#D32F2F", "#FF5252")  # 深/浅色模式下的红色
+                original_border_color = entry.cget("border_color")
+
+                entry.configure(border_color=error_color)
+
+                def _revert_error_state():
+                    if entry.winfo_exists():
+                        entry.configure(border_color=original_border_color)
+
+                entry.after(3000, _revert_error_state)
+
+                # --- 重置捕获状态并恢复UI ---
                 _reset_capture_state()
                 initial_hotkey = self.config_manager.get(config_key, "") or ""
                 _update_ui(initial_hotkey)
                 # 短暂显示错误后清除
-                self.after(3000, lambda: self.update_status("就绪"))
+                entry.after(3000, lambda: self.update_status_info("就绪"))
                 return
 
             hotkey_str = _format_hotkey_for_save(pressed_keys)
@@ -652,7 +688,7 @@ class VoiceInputGUI:
 
             print(f"准备将热键 '{config_key}' 从 '{current_hotkey}' 更新为 '{new_hotkey}'。")
             self.config_manager.set(config_key, new_hotkey)
-            self.update_status("配置已保存，正在重新加载热键...")
+            self.update_status_success("配置已保存，正在重新加载热键...")
 
             if hasattr(self.app, "reload_hotkeys"):
                 try:
@@ -663,10 +699,10 @@ class VoiceInputGUI:
                     # 调用主应用的重载方法
                     self.app.reload_hotkeys()
 
-                    self.update_status("热键已生效")
+                    self.update_status_success("热键已生效")
                     print(f"热键 '{config_key}' 已成功重载。")
                 except Exception as e:
-                    self.update_status(f"热键重载失败: {e}")
+                    self.update_status_error(f"热键重载失败: {e}")
                     print(f"热键重载失败: {e}")
             else:
                 print("警告: app 对象上未找到 reload_hotkeys 方法。")
@@ -869,6 +905,36 @@ class VoiceInputGUI:
             self.root.after(0, _update)
         except Exception:
             _update()
+
+    def update_status_info(self, text: str) -> None:
+        """
+        以“信息”状态更新状态栏。
+        - 文本为灰色。
+        - 无图标。
+        """
+        if self._status_label:
+            self.status_var.set(text)
+            self._status_label.configure(text_color="gray")
+
+    def update_status_success(self, text: str) -> None:
+        """
+        以“成功”状态更新状态栏。
+        - 文本为绿色。
+        - 前缀为 ✅。
+        """
+        if self._status_label:
+            self.status_var.set(f"✅ {text}")
+            self._status_label.configure(text_color=("#007A00", "#00C500"))  # Dark/Light green
+
+    def update_status_error(self, text: str) -> None:
+        """
+        以“错误”状态更新状态栏。
+        - 文本为红色。
+        - 前缀为 ⚠️。
+        """
+        if self._status_label:
+            self.status_var.set(f"⚠️ {text}")
+            self._status_label.configure(text_color=("#C40000", "#FF5555"))  # Dark/Light red
 
     def run(self) -> None:
         self.root.mainloop()
