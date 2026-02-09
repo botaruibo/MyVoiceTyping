@@ -14,9 +14,9 @@ from .utils.config_manager import ConfigManager
 
 
 class VoiceInputGUI:
-    def __init__(self, app: Any):
+    def __init__(self, app: Any, app_name: str):
         self.app = app
-        self.app_name = "闪电输入法"
+        self.app_name = app_name
         self.config_manager = ConfigManager()
 
         try:
@@ -261,7 +261,7 @@ class VoiceInputGUI:
         main_headline.pack(pady=(0, 20), padx=20)
 
         # --- 副标题 ---
-        sub_headline_text = "AI 对话、AI 编程、文档写作、聊天回复...全场景都能用, 支持所有应用"
+        sub_headline_text = "使用场景：AI 聊天 、AI 编程、文档写作、聊天回复...支持所有应用"
         sub_headline = ctk.CTkLabel(
             content_frame,
             text=sub_headline_text,

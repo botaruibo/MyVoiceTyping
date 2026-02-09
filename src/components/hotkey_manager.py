@@ -277,7 +277,7 @@ class HotkeyManager:
 
     def start_listening(self):
         """开始监听热键"""
-        print("Starting hotkey listener...")
+        print(f"🚀 开始监听热键...")
         with keyboard.Listener(
             on_press=self.on_press,
             on_release=self.on_release

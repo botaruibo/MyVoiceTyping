@@ -16,6 +16,7 @@ from .gui_tk import VoiceInputGUI
 
 class TypelessApp:
     def __init__(self):
+        self.app_name = "闪电输入法"
         self.config_manager = None
 
         self.audio_recorder = AudioRecorder()
@@ -162,10 +163,10 @@ class TypelessApp:
                 self._is_processing = False
 
     def run(self) -> None:
-        print("🚀 启动无界说1...")
+        print(f"🚀 {self.app_name} 启动中...")
 
         # 1) 启动后初始化 VoiceInputGUI
-        self.gui = VoiceInputGUI(self)
+        self.gui = VoiceInputGUI(self, app_name=self.app_name)
 
         # 1.1) 启动系统托盘（若可用）
         if self.tray_icon is not None:
@@ -183,10 +184,10 @@ class TypelessApp:
         # 3) 异步线程加载 stt 对象
         # 4) 同时异步线程启动热键监听
         if getattr(self.gui, "root", None) is not None:
-            # self.gui.root.after(0, self.init_stt_async)
+            self.gui.root.after(0, self.init_stt_async)
             self.gui.root.after(0, self.start_listening_hotkey)
         else:
-            # self.init_stt_async()
+            self.init_stt_async()
             self.start_listening_hotkey()
 
         self.gui.run()
