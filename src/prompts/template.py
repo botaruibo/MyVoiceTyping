@@ -41,9 +41,9 @@ def render_with_sub(name_main: str, name_sub: str, **kwargs) -> str:
     result = template(name_main, systems_infos=sub_content, **kwargs)
     return result
 
-def get_fin_prompt_template() -> str:
+def get_format_text_prompt_template() -> str:
     """
-    直接渲染返回财务系统提示信息
+    直接渲染返回格式化文本系统提示信息
     """
     template_content = render_with_sub("main_prompt", "parameters")
     return template_content

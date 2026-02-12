@@ -3,8 +3,8 @@
 """
 from langchain_openai import ChatOpenAI
 from ..config import Config
-from ..prompts import get_fin_prompt_template
-
+from ..prompts import get_format_text_prompt_template
+from langchain_core.messages import HumanMessage, SystemMessage
 
 class Rewrite:
     def __init__(self):
@@ -23,7 +23,7 @@ class Rewrite:
                     model=model_name,
                     base_url=self.config.BASE_URL,
                     api_key=api_key_str,  # 确保是字符串类型
-                    temperature=0.3
+                    temperature=0.6
                 )
                 remote_clients[model_name] = client
 
@@ -31,15 +31,31 @@ class Rewrite:
         except ImportError as e:
             raise ValueError(f"链接远程LLM提供者失败: {e}")
 
-    def _rewrite_with_remote_llm(self, raw_text):
-        """使用远程LLM进行语义重构"""
+    def _rewrite_with_cloud_llm_single_turn(self, raw_text):
+        """
+        使用远程LLM进行语义重构.会使用单个模型改写文本
+        """
+
+
+        messages = [
+            SystemMessage(content=get_format_text_prompt_template()),
+            HumanMessage(content=raw_text)
+        ]
+        client = self.remote_clients[self.config.MODEL_NAME]
+        response = client.invoke(messages)
+        return response.content
+
+    def _rewrite_with_cloud_llm_multi_turn(self, raw_text):
+        """
+        使用远程LLM进行语义重构.会使用多个模型改写并评估
+        """
 
         from langchain_core.messages import HumanMessage, SystemMessage
         import asyncio
         # 使用初始化好的客户端数组进行调用
         results = {}
         messages = [
-            SystemMessage(content=get_fin_prompt_template()),
+            SystemMessage(content=get_format_text_prompt_template()),
             HumanMessage(content=raw_text)
         ]
 
@@ -67,17 +83,22 @@ class Rewrite:
         try:
             import requests
 
-            ollama_url = "http://localhost:11434/api/generate"
+            ollama_url = "http://localhost:11434/api/chat"
+            prompt_template = get_format_text_prompt_template()
             payload = {
                 "model": self.config.OLLAMA_MODEL,
-                "prompt": f"请优化以下文本，使其更通顺、准确：\n\n{raw_text}",
+                "messages": [
+                            {"role": "system", "content": prompt_template},
+                            {"role": "user", "content": raw_text}
+                ],
                 "stream": False
             }
 
             response = requests.post(ollama_url, json=payload)
             if response.status_code == 200:
                 result = response.json()
-                return result.get('response', raw_text)
+                print(f"Ollama请求成功: {result}")
+                return result.get('message', {}).get('content', raw_text)
             else:
                 print(f"Ollama请求失败: {response.status_code}")
                 return raw_text
@@ -89,16 +110,18 @@ class Rewrite:
             return raw_text
 
     def rewrite(self, raw_text):
-        """执行语义重构"""
-        if not self.config.USE_REWRITE:
+        """
+        结构化改写文本
+        """
+        if not self.config.FORMAT_TEXT:
             return raw_text
 
-        if self.config.REWRITE_MODE == 'ollama':
+        if self.config.LLM_TEXT_PROVIDER == 'ollama_llm':
             return self._rewrite_with_ollama(raw_text)
-        elif self.config.REWRITE_MODE == 'remote_llm':
-            return self._rewrite_with_remote_llm(raw_text)
+        elif self.config.LLM_TEXT_PROVIDER == 'cloud_llm':
+            return self._rewrite_with_cloud_llm_single_turn(raw_text)
         else:
-            print(f"未知的重写模式: {self.config.REWRITE_MODE}")
+            print(f"未知的重写模式: {self.config.LLM_TEXT_PROVIDER}")
             return raw_text
 
     def _evaluate_results(self, results, original_text):
@@ -112,7 +135,7 @@ class Rewrite:
                 eval_content += f'    "S{i}": "{result}",\n'
             eval_content = eval_content.rstrip(',\n') + "}"
 
-            evaluation_prompt = f'你是一个语言专家,你需要对用户输入的内容进行评估，对以下重写结果S1, S2等，基于完整性和语法语义等选出最好的一个，最后只输出最好的一个，不需要其他任何解释。输出格式为：{{"S1": "xxx"}}或{{"S2": "xxx"}}'
+            evaluation_prompt = f'你是一个语言专家,你需要对用户输入的内容进行评估，对以下重写结果S1, S2等，基于语义逻辑的完整性和语法语义等选出最好的一个，最后只输出最好的一个，不需要其他任何解释。输出格式为：{{"S1": "xxx"}}或{{"S2": "xxx"}}'
 
             messages = [
                 SystemMessage(content=evaluation_prompt),
@@ -138,3 +161,11 @@ class Rewrite:
             print(f"评估重写结果时出错: {e}")
             # 出错时返回第一个结果
             return list(results.values())[0]
+
+if __name__ == "__main__":
+    # from src.config import Config
+    # config = Config()
+    rewriter = Rewrite()
+    raw_text = "你好，我想购买一个商品括号占时。"
+    result = rewriter.rewrite(raw_text)
+    print(result)

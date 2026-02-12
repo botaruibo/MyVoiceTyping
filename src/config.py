@@ -55,20 +55,20 @@ class Config:
         return str(self._config_manager.get_temp_audio_path())
     
     @property
-    def USE_REWRITE(self):
-        return self._config_manager.get("use_rewrite", False)
+    def FORMAT_TEXT(self):
+        return self._config_manager.get("format_text", False)
     
-    @USE_REWRITE.setter
-    def USE_REWRITE(self, value):
-        self._config_manager.set("use_rewrite", value)
+    @FORMAT_TEXT.setter
+    def FORMAT_TEXT(self, value):
+        self._config_manager.set("format_text", value)
     
     @property
-    def REWRITE_MODE(self):
-        return self._config_manager.get("rewrite_mode", "remote_llm")
-    
-    @REWRITE_MODE.setter
-    def REWRITE_MODE(self, value):
-        self._config_manager.set("rewrite_mode", value)
+    def LLM_TEXT_PROVIDER(self):
+        return self._config_manager.get("llm_text_provider", "cloud_llm")
+
+    @LLM_TEXT_PROVIDER.setter
+    def LLM_TEXT_PROVIDER(self, value):
+        self._config_manager.set("llm_text_provider", value)
     
     @property
     def OLLAMA_MODEL(self):
@@ -136,26 +136,32 @@ class Config:
     def get_temp_audio_path(self):
         """获取临时音频文件路径"""
         return self._config_manager.get_temp_audio_path()
-
-
-# 创建全局配置实例
-config_instance = Config()
-
-
-# 为了保持向后兼容性，我们仍然暴露这些属性作为类级别的常量
-RECORD_HOTKEY = config_instance.RECORD_HOTKEY
-SAMPLE_RATE = config_instance.SAMPLE_RATE
-CHUNK_SIZE = config_instance.CHUNK_SIZE
-FORMAT = config_instance.FORMAT
-STT_PROVIDER = config_instance.STT_PROVIDER
-OPENAI_API_KEY = config_instance.OPENAI_API_KEY
-DEEPGRAM_API_KEY = config_instance.DEEPGRAM_API_KEY
-TEMP_AUDIO_PATH = config_instance.TEMP_AUDIO_PATH
-USE_REWRITE = config_instance.USE_REWRITE
-REWRITE_MODE = config_instance.REWRITE_MODE
-OLLAMA_MODEL = config_instance.OLLAMA_MODEL
-API_KEY = config_instance.API_KEY
-BASE_URL = config_instance.BASE_URL
-MODEL_NAME = config_instance.MODEL_NAME
-FUNASR_DEVICE = config_instance.FUNASR_DEVICE
-REMOTE_LLM_MODELS = config_instance.REMOTE_LLM_MODELS
+    
+    @property
+    def MUTE_SPEAKER(self) -> bool:
+        """是否在录音期间静音系统外放。
+    
+        /**
+         * 配置项：`mute_speaker`
+         *
+         * 说明：
+         * - `true`：在录音开始前静音系统外放，录音结束后恢复原状态
+         * - `false`：不做任何处理
+         *
+         * @returns {boolean} 是否启用录音期间静音外放
+         */
+        """
+    
+        return bool(self._config_manager.get("mute_speaker", False))
+    
+    @MUTE_SPEAKER.setter
+    def MUTE_SPEAKER(self, value: bool) -> None:
+        """设置是否在录音期间静音系统外放。
+    
+        /**
+         * @param value 是否启用
+         * @returns {void}
+         */
+        """
+    
+        self._config_manager.set("mute_speaker", bool(value))

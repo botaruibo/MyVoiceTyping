@@ -1,3 +1,3 @@
-from .template import get_fin_prompt_template
+from .template import get_format_text_prompt_template
 
-__all__ = ["get_fin_prompt_template"]
+__all__ = ["get_format_text_prompt_template"]

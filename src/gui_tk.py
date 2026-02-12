@@ -1,5 +1,6 @@
 import tkinter as tk
 from typing import Any, Dict, Optional
+import random, sys
 
 import customtkinter as ctk
 
@@ -47,6 +48,9 @@ class VoiceInputGUI:
         self.status_var = tk.StringVar(value="就绪")
         self._status_label: Optional[ctk.CTkLabel] = None
 
+        self._recording_overlay: Optional[ctk.CTkToplevel] = None
+        self._recording_overlay_label: Optional[ctk.CTkLabel] = None
+        self._recording_overlay_progress: Optional[ctk.CTkProgressBar] = None
         self._nav_buttons: Dict[str, ctk.CTkButton] = {}
         self._nav_icons: Dict[str, ctk.CTkImage] = {}
         self._nav_font = ctk.CTkFont(size=16)
@@ -62,10 +66,10 @@ class VoiceInputGUI:
             pass
 
         self.pages: Dict[str, ctk.CTkFrame] = {}
-        self.current_page: Optional[str] = "settings"
+        self.current_page: Optional[str] = "home"
 
         self._build_ui()
-        self.show_page("settings")
+        self.show_page("home")
 
         # 让窗口尽快渲染：放到主循环启动后执行，避免 `update()` 在某些环境下卡死。
         try:
@@ -344,7 +348,6 @@ class VoiceInputGUI:
         hotkey_settings_container = ctk.CTkFrame(page, fg_color="transparent")
         hotkey_settings_container.grid(row=3, column=0, padx=20, pady=0, sticky="ew")
         hotkey_settings_container.grid_columnconfigure(1, weight=1)  # 输入框列占满剩余空间
-
         # --- 热键设置项 ---
         self._create_hotkey_setting(
             hotkey_settings_container,
@@ -747,9 +750,7 @@ class VoiceInputGUI:
 
         def _on_bubble_leave(event) -> None:
             change_button.place_forget()
-
-
-        # --- Core Logic ---
+# --- Core Logic ---
         def _save(new_hotkey: str) -> None:
             """
             保存热键，并强制重新加载所有热键配置以确保监听生效。
@@ -1131,3 +1132,260 @@ class VoiceInputGUI:
             self.root.focus_force()
         except Exception:
             pass
+
+    def _ensure_recording_overlay(self) -> None:
+        """
+        /**
+         * 确保“录音提示框浮层”已创建。
+         *
+         * 视觉效果：
+         * - 屏幕底部居中
+         * - 小卡片 + 文案 + 动画（不确定进度条）
+         *
+         * 说明：
+         * - 该浮层是独立 Toplevel，不依赖主窗口是否在当前页面。
+         * - 用于按下快捷键开始录音时的即时反馈。
+         *
+         * @returns {void}
+         */
+        """
+
+        if self.root is None:
+            return
+        if self._recording_overlay and self._recording_overlay.winfo_exists():
+            return
+
+        # 使用原生 Toplevel：在 macOS 上更稳定地支持透明窗口背景
+        overlay = tk.Toplevel(self.root)
+
+        # 尽早让窗口“不可见”，避免系统在默认位置/默认背景短暂绘制
+        try:
+            overlay.wm_attributes("-alpha", 0.0)
+        except Exception as e:
+            print(f"⚠️ 设置录音浮层 alpha=0 失败（可忽略）: {e}")
+
+        try:
+            overlay.geometry("1x1+0+0")
+        except Exception:
+            pass
+
+        try:
+            overlay.withdraw()
+        except Exception:
+            pass
+
+        try:
+            overlay.overrideredirect(True)
+        except Exception as e:
+            print(f"⚠️ 设置录音浮层无边框失败（可忽略）: {e}")
+
+        try:
+            overlay.wm_attributes("-topmost", True)
+        except Exception as e:
+            print(f"⚠️ 设置录音浮层置顶失败（可忽略）: {e}")
+
+        width = 100
+        height = 40
+        screen_width = self.root.winfo_screenwidth()
+        screen_height = self.root.winfo_screenheight()
+        x = (screen_width - width) // 2
+        y = screen_height - height - 100
+
+        # 透明背景策略：
+        # - macOS：-transparent + systemTransparent
+        # - Windows：-transparentcolor + 颜色键
+        # - Linux：通常不支持形状透明，这里尽量不报错
+        if sys.platform == "darwin":
+            try:
+                overlay.wm_attributes("-transparent", True)
+            except Exception as e:
+                print(f"⚠️ macOS 设置 -transparent 失败（可能导致白底）: {e}")
+
+            try:
+                overlay.configure(bg="systemTransparent")
+            except Exception as e:
+                print(f"⚠️ macOS 设置 systemTransparent 失败（可能导致白底）: {e}")
+
+            transparent_key_color: Optional[str] = None
+        else:
+            transparent_key_color = "#ff00ff"  # 选一个不常用的“色键”
+            try:
+                overlay.configure(bg=transparent_key_color)
+                overlay.wm_attributes("-transparentcolor", transparent_key_color)
+            except Exception as e:
+                print(f"⚠️ 设置透明色键失败（可忽略，可能导致方形背景）: {e}")
+
+        try:
+            overlay.geometry(f"{width}x{height}+{x}+{y}")
+        except Exception as e:
+            print(f"⚠️ 设置录音浮层尺寸/位置失败（可忽略）: {e}")
+
+        # 容器：圆角胶囊
+        # 关键：bg_color 设为 transparent（或透明色键），否则圆角外侧可能露出白底
+        container_bg_color = "transparent" if transparent_key_color is None else transparent_key_color
+        container_frame = ctk.CTkFrame(
+            overlay,
+            fg_color="black",
+            bg_color=container_bg_color,
+            corner_radius=height // 2,
+            border_width=1,
+            border_color="white",
+        )
+        container_frame.pack(fill="both", expand=True)
+
+        self._recording_overlay_animation = SoundWaveAnimation(
+            container_frame, width=width - 20, height=height - 10
+        )
+        self._recording_overlay_animation.pack(pady=5, padx=10)
+
+        self._recording_overlay = overlay
+
+    def show_recording_overlay(self, text: str = "录音中…") -> None:
+        """
+        /**
+         * 显示录音提示浮层并开始动画。
+         *
+         * 关键：
+         * - _ensure_recording_overlay 里会把窗口 alpha 设为 0（完全透明）来避免闪白。
+         * - 所以这里必须在 deiconify 后恢复 alpha=1，否则你会“看不到浮窗”。
+         *
+         * @param {string} text - 预留参数：后续可用于显示文案。
+         * @returns {void}
+         */
+        """
+        self._ensure_recording_overlay()
+        if not self._recording_overlay:
+            return
+    
+        overlay = self._recording_overlay
+    
+        try:
+            overlay.deiconify()
+            overlay.lift()
+        except Exception as e:
+            print(f"⚠️ 显示录音浮层失败（可忽略）: {e}")
+            return
+    
+        # macOS：部分环境下需要在窗口映射后重新设置透明属性才更稳定
+        if sys.platform == "darwin":
+            try:
+                overlay.wm_attributes("-transparent", True)
+            except Exception as e:
+                print(f"⚠️ macOS 重新设置 -transparent 失败（可能导致白底）: {e}")
+    
+            try:
+                overlay.configure(bg="systemTransparent")
+            except Exception as e:
+                print(f"⚠️ macOS 重新设置 systemTransparent 失败（可能导致白底）: {e}")
+    
+        try:
+            overlay.update_idletasks()
+        except Exception:
+            pass
+    
+        # 恢复可见
+        try:
+            overlay.wm_attributes("-alpha", 1.0)
+        except Exception as e:
+            # 如果这里失败，而 ensure 里 alpha=0 成功了，就会导致整窗不可见
+            print(f"⚠️ 恢复录音浮层 alpha=1 失败（可能导致看不见）: {e}")
+    
+        if self._recording_overlay_animation:
+            try:
+                # 暂时使用随机动画，直到音量数据接入
+                self._recording_overlay_animation.start_random_animation()
+            except Exception as e:
+                print(f"⚠️ 启动录音浮层动画失败（可忽略）: {e}")
+    
+    def hide_recording_overlay(self):
+        """
+        /**
+         * 隐藏录音提示浮层并停止动画。
+         *
+         * @returns {void}
+         */
+        """
+        if not self._recording_overlay:
+            return
+    
+        try:
+            # 先设为透明，进一步减少 withdraw 的闪烁概率
+            try:
+                self._recording_overlay.wm_attributes("-alpha", 0.0)
+            except Exception:
+                pass
+    
+            self._recording_overlay.withdraw()
+        except Exception as e:
+            print(f"⚠️ 隐藏录音浮层失败（可忽略）: {e}")
+    
+        if self._recording_overlay_animation and self._recording_overlay_animation._animation_job:
+            try:
+                self._recording_overlay_animation.after_cancel(self._recording_overlay_animation._animation_job)
+            except Exception as e:
+                print(f"⚠️ 停止录音浮层动画失败（可忽略）: {e}")
+            finally:
+                self._recording_overlay_animation._animation_job = None
+
+    def update_recording_volume(self, volume_level: int):
+        if self._recording_overlay and self._recording_overlay.winfo_viewable():
+            if self._recording_overlay_animation:
+                self._recording_overlay_animation.update_animation(volume_level)
+
+
+class SoundWaveAnimation(ctk.CTkCanvas):
+
+        """
+        一个用 Canvas 实现的音波动画小组件。
+        """
+
+        def __init__(self, master, width=50, height=5, **kwargs):
+            super().__init__(master, width=width, height=height, **kwargs)
+            self.configure(bg="black", highlightthickness=0)
+            self._width = width
+            self._height = height
+            self._animation_job = None
+            self._num_bars = 15
+            self._bar_width = 2
+            self._gap = 2
+            self._min_bar_height = 0
+            self._max_bar_height = height - 5
+
+            total_width = self._num_bars * (self._bar_width + self._gap) - self._gap
+            self._start_x = (width - total_width) / 2
+
+        def _draw_sound_wave(self, volume_level=None):
+            """
+            根据音量级别绘制一帧音波图像。
+            volume_level: 0-100 的整数。如果为 None，则使用随机高度。
+            """
+            self.delete("all")
+            for i in range(self._num_bars):
+                if volume_level is not None:
+                    # 基于音量，中间的音波高，两边的低
+                    distance_from_center = abs(i - self._num_bars // 2)
+                    dampening = 1 - (distance_from_center / (self._num_bars / 2)) ** 2
+                    max_h = self._min_bar_height + (self._max_bar_height - self._min_bar_height) * (
+                                volume_level / 100.0)
+                    bar_height = max(self._min_bar_height, int(max_h * dampening * random.uniform(0.8, 1.2)))
+                else:
+                    bar_height = random.randint(self._min_bar_height, self._max_bar_height)
+
+                x0 = self._start_x + i * (self._bar_width + self._gap)
+                y0 = (self._height - bar_height) / 2
+                x1 = x0 + self._bar_width
+                y1 = y0 + bar_height
+                self.create_rectangle(x0, y0, x1, y1, fill="white", outline="")
+
+        def update_animation(self, volume_level: int):
+            """
+            由外部调用，传入实时音量来更新动画。
+            """
+            self._draw_sound_wave(volume_level)
+
+        def start_random_animation(self):
+            self._animate()
+
+        def _animate(self):
+            self._draw_sound_wave()
+            self._animation_job = self.after(100, self._animate)

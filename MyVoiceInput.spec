@@ -60,6 +60,12 @@ _assert_dir_exists("speech_fsmn_vad_zh-cn-16k-common-pytorch", vad_dir)
 _assert_file_exists("speech_fsmn_vad_zh-cn-16k-common-pytorch", vad_dir / "configuration.json")
 _assert_has_weights("speech_fsmn_vad_zh-cn-16k-common-pytorch", vad_dir)
 
+icon_icns = project_root / "assets" / "icon.icns"
+if not icon_icns.exists():
+    icon_icns = project_root / "icon.icns"
+if not icon_icns.exists():
+    raise SystemExit(f"[spec] icon.icns not found. Expected: {project_root/'assets'/'icon.icns'}")
+
 a = Analysis(
     [str(project_root / 'run.py')],
     pathex=[str(project_root)],
@@ -132,7 +138,7 @@ exe = EXE(
     target_arch='arm64',  # 专门针对 M4 芯片优化
     codesign_identity=None,
     entitlements_file=None,
-    icon='icon.icns',
+    icon=str(icon_icns),
 )
 
 coll = COLLECT(
@@ -149,7 +155,7 @@ coll = COLLECT(
 app = BUNDLE(
     coll,
     name='MyVoiceInput.app',
-    icon='icon.icns',
+    icon=str(icon_icns),
     bundle_identifier=None,
     info_plist={
         "NSMicrophoneUsageDescription": "用于语音输入，需要访问麦克风。",
