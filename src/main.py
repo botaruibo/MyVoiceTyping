@@ -502,7 +502,12 @@ class FlashInputApp:
                 # 录音提示框：尽量先显示，给用户即时反馈（即使静音/打开麦克风稍慢）
             try:
                 if self.gui is not None and hasattr(self.gui, "show_recording_overlay"):
-                    self.gui.show_recording_overlay("录音中…")
+                    # Tk/CTk 组件必须在 GUI 主线程操作；通过 after 切回主线程，避免卡死/随机崩溃
+                    root = getattr(self.gui, "root", None)
+                    if root is not None and hasattr(root, "after"):
+                        root.after(0, lambda: self.gui.show_recording_overlay("录音中…"))
+                    else:
+                        self.gui.show_recording_overlay("录音中…")
             except Exception as e:
                 print(f"⚠️ 显示录音提示框失败（可忽略）: {e}")
 
@@ -533,7 +538,12 @@ class FlashInputApp:
             # 录音提示框：无论 stop 成功与否，都先隐藏
             try:
                 if self.gui is not None and hasattr(self.gui, "hide_recording_overlay"):
-                    self.gui.hide_recording_overlay()
+                    # Tk/CTk 组件必须在 GUI 主线程操作；通过 after 切回主线程，避免卡死/随机崩溃
+                    root = getattr(self.gui, "root", None)
+                    if root is not None and hasattr(root, "after"):
+                        root.after(0, lambda: self.gui.hide_recording_overlay())
+                    else:
+                        self.gui.hide_recording_overlay()
             except Exception as e:
                 print(f"⚠️ 隐藏录音提示框失败（可忽略）: {e}")
 

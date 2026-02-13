@@ -1,6 +1,6 @@
 import tkinter as tk
 from typing import Any, Dict, Optional
-import random, sys
+import sys
 
 import customtkinter as ctk
 
@@ -48,9 +48,13 @@ class VoiceInputGUI:
         self.status_var = tk.StringVar(value="就绪")
         self._status_label: Optional[ctk.CTkLabel] = None
 
-        self._recording_overlay: Optional[ctk.CTkToplevel] = None
-        self._recording_overlay_label: Optional[ctk.CTkLabel] = None
-        self._recording_overlay_progress: Optional[ctk.CTkProgressBar] = None
+        # 录音浮层（纯 Cocoa）：macOS 下使用 NSPanel 非激活面板，不抢占输入光标
+        self._cocoa_recording_overlay = None
+
+        # 录音浮层：音量轮询 job（GUI 主线程）
+        self._recording_overlay_volume_job = None
+        self._recording_overlay_volume_last_seq = -1
+
         self._nav_buttons: Dict[str, ctk.CTkButton] = {}
         self._nav_icons: Dict[str, ctk.CTkImage] = {}
         self._nav_font = ctk.CTkFont(size=16)
@@ -70,6 +74,12 @@ class VoiceInputGUI:
 
         self._build_ui()
         self.show_page("home")
+
+        # macOS：初始化 Cocoa 录音浮层（NSPanel 非激活，不抢占输入光标）
+        try:
+            self._init_cocoa_recording_overlay()
+        except Exception as e:
+            print(f"⚠️ 初始化 Cocoa 录音浮层失败（将禁用录音浮层）: {e}")
 
         # 让窗口尽快渲染：放到主循环启动后执行，避免 `update()` 在某些环境下卡死。
         try:
@@ -1012,7 +1022,6 @@ class VoiceInputGUI:
         if self._status_label:
             self.status_var.set(f"⚠️ {text}")
             self._status_label.configure(text_color=("#C40000", "#FF5555"))  # Dark/Light red
-
     def run(self) -> None:
         self.root.mainloop()
 
@@ -1133,228 +1142,101 @@ class VoiceInputGUI:
         except Exception:
             pass
 
-    def _ensure_recording_overlay(self) -> None:
-        """
-        /**
-         * 确保“录音提示框浮层”已创建。
-         *
-         * 视觉效果：
-         * - 屏幕底部居中
-         * - 小卡片 + 文案 + 动画（不确定进度条）
-         *
-         * 说明：
-         * - 该浮层是独立 Toplevel，不依赖主窗口是否在当前页面。
-         * - 用于按下快捷键开始录音时的即时反馈。
-         *
-         * @returns {void}
-         */
-        """
-
-        if self.root is None:
-            return
-        if self._recording_overlay and self._recording_overlay.winfo_exists():
-            return
-
-        # 使用原生 Toplevel：在 macOS 上更稳定地支持透明窗口背景
-        overlay = tk.Toplevel(self.root)
-
-        # 尽早让窗口“不可见”，避免系统在默认位置/默认背景短暂绘制
-        try:
-            overlay.wm_attributes("-alpha", 0.0)
-        except Exception as e:
-            print(f"⚠️ 设置录音浮层 alpha=0 失败（可忽略）: {e}")
-
-        try:
-            overlay.geometry("1x1+0+0")
-        except Exception:
-            pass
-
-        try:
-            overlay.withdraw()
-        except Exception:
-            pass
-
-        try:
-            overlay.overrideredirect(True)
-        except Exception as e:
-            print(f"⚠️ 设置录音浮层无边框失败（可忽略）: {e}")
-
-        try:
-            overlay.wm_attributes("-topmost", True)
-        except Exception as e:
-            print(f"⚠️ 设置录音浮层置顶失败（可忽略）: {e}")
-
-        width = 100
-        height = 40
-        screen_width = self.root.winfo_screenwidth()
-        screen_height = self.root.winfo_screenheight()
-        x = (screen_width - width) // 2
-        y = screen_height - height - 100
-
-        # 透明背景策略：
-        # - macOS：-transparent + systemTransparent
-        # - Windows：-transparentcolor + 颜色键
-        # - Linux：通常不支持形状透明，这里尽量不报错
-        if sys.platform == "darwin":
-            try:
-                overlay.wm_attributes("-transparent", True)
-            except Exception as e:
-                print(f"⚠️ macOS 设置 -transparent 失败（可能导致白底）: {e}")
-
-            try:
-                overlay.configure(bg="systemTransparent")
-            except Exception as e:
-                print(f"⚠️ macOS 设置 systemTransparent 失败（可能导致白底）: {e}")
-
-            transparent_key_color: Optional[str] = None
-        else:
-            transparent_key_color = "#ff00ff"  # 选一个不常用的“色键”
-            try:
-                overlay.configure(bg=transparent_key_color)
-                overlay.wm_attributes("-transparentcolor", transparent_key_color)
-            except Exception as e:
-                print(f"⚠️ 设置透明色键失败（可忽略，可能导致方形背景）: {e}")
-
-        try:
-            overlay.geometry(f"{width}x{height}+{x}+{y}")
-        except Exception as e:
-            print(f"⚠️ 设置录音浮层尺寸/位置失败（可忽略）: {e}")
-
-        # 容器：圆角胶囊
-        # 关键：bg_color 设为 transparent（或透明色键），否则圆角外侧可能露出白底
-        container_bg_color = "transparent" if transparent_key_color is None else transparent_key_color
-        container_frame = ctk.CTkFrame(
-            overlay,
-            fg_color="black",
-            bg_color=container_bg_color,
-            corner_radius=height // 2,
-            border_width=1,
-            border_color="white",
-        )
-        container_frame.pack(fill="both", expand=True)
-
-        self._recording_overlay_animation = SoundWaveAnimation(
-            container_frame, width=width - 20, height=height - 10
-        )
-        self._recording_overlay_animation.pack(pady=5, padx=10)
-
-        self._recording_overlay = overlay
-
     def show_recording_overlay(self, text: str = "录音中…") -> None:
         """
         /**
-         * 显示录音提示浮层并开始动画。
+         * 显示录音提示浮层（纯 Cocoa）。
          *
-         * 关键：
-         * - _ensure_recording_overlay 里会把窗口 alpha 设为 0（完全透明）来避免闪白。
-         * - 所以这里必须在 deiconify 后恢复 alpha=1，否则你会“看不到浮窗”。
+         * 说明：
+         * - macOS 下使用 NSPanel 非激活面板：不会抢占当前前台应用的输入光标。
+         * - 已移除 Tk/CTk 的 Toplevel 录音浮层实现。
          *
          * @param {string} text - 预留参数：后续可用于显示文案。
          * @returns {void}
          */
         """
-        self._ensure_recording_overlay()
-        if not self._recording_overlay:
-            return
-    
-        overlay = self._recording_overlay
-    
+
         try:
-            overlay.deiconify()
-            overlay.lift()
-        except Exception as e:
-            print(f"⚠️ 显示录音浮层失败（可忽略）: {e}")
-            return
-    
-        # macOS：部分环境下需要在窗口映射后重新设置透明属性才更稳定
-        if sys.platform == "darwin":
-            try:
-                overlay.wm_attributes("-transparent", True)
-            except Exception as e:
-                print(f"⚠️ macOS 重新设置 -transparent 失败（可能导致白底）: {e}")
-    
-            try:
-                overlay.configure(bg="systemTransparent")
-            except Exception as e:
-                print(f"⚠️ macOS 重新设置 systemTransparent 失败（可能导致白底）: {e}")
-    
-        try:
-            overlay.update_idletasks()
+            self._init_cocoa_recording_overlay()
         except Exception:
             pass
-    
-        # 恢复可见
+
+        if self._cocoa_recording_overlay is None:
+            print("⚠️ 录音浮层不可用：Cocoa overlay 未初始化")
+            return
+
         try:
-            overlay.wm_attributes("-alpha", 1.0)
+            self._cocoa_recording_overlay.show()
         except Exception as e:
-            # 如果这里失败，而 ensure 里 alpha=0 成功了，就会导致整窗不可见
-            print(f"⚠️ 恢复录音浮层 alpha=1 失败（可能导致看不见）: {e}")
-    
-        if self._recording_overlay_animation:
-            try:
-                # 改为“全局音量数组 + GUI 轮询”驱动：不再启动随机动画
-                # 启动一次轮询即可（update_recording_volume 内部会自我调度）
-                self.update_recording_volume(0)
-            except Exception as e:
-                print(f"⚠️ 启动录音浮层音量轮询失败（可忽略）: {e}")
-    
+            print(f"⚠️ 显示 Cocoa 录音浮层失败（可忽略）: {e}")
+            return
+
+        # 启动一次轮询即可（update_recording_volume 内部会自我调度）
+        try:
+            self._recording_overlay_volume_last_seq = -1
+            self.update_recording_volume(0)
+        except Exception as e:
+            print(f"⚠️ 启动录音浮层音量轮询失败（可忽略）: {e}")
+
     def hide_recording_overlay(self):
         """
         /**
-         * 隐藏录音提示浮层并停止动画。
+         * 隐藏录音提示浮层（纯 Cocoa）。
          *
          * @returns {void}
          */
         """
-        if not self._recording_overlay:
-            return
-    
+
+        # 停止音量轮询，避免后台持续 after 造成卡顿
         try:
-            # 先设为透明，进一步减少 withdraw 的闪烁概率
-            try:
-                self._recording_overlay.wm_attributes("-alpha", 0.0)
-            except Exception:
-                pass
-    
-            self._recording_overlay.withdraw()
+            job = self._recording_overlay_volume_job
+            if job:
+                try:
+                    self.root.after_cancel(job)
+                except Exception:
+                    pass
+            self._recording_overlay_volume_job = None
+            self._recording_overlay_volume_last_seq = -1
         except Exception as e:
-            print(f"⚠️ 隐藏录音浮层失败（可忽略）: {e}")
-    
-        if self._recording_overlay_animation and self._recording_overlay_animation._animation_job:
-            try:
-                self._recording_overlay_animation.after_cancel(self._recording_overlay_animation._animation_job)
-            except Exception as e:
-                print(f"⚠️ 停止录音浮层动画失败（可忽略）: {e}")
-            finally:
-                self._recording_overlay_animation._animation_job = None
+            print(f"⚠️ 停止录音浮层音量轮询失败（可忽略）: {e}")
+
+        try:
+            self._init_cocoa_recording_overlay()
+        except Exception:
+            pass
+
+        if self._cocoa_recording_overlay is None:
+            return
+
+        try:
+            self._cocoa_recording_overlay.hide()
+        except Exception as e:
+            print(f"⚠️ 隐藏 Cocoa 录音浮层失败（可忽略）: {e}")
 
     def update_recording_volume(self, volume_level: int = 0):
         """
         /**
-         * 录音浮窗：根据“全局音量数组”更新音波高度，并以 after 轮询方式持续刷新。
+         * 录音浮窗：根据“全局音量数组”更新音波高度，并以 after 轮询方式持续刷新（纯 Cocoa）。
          *
-         * 方案说明（最小改动实现）：
-         * - AudioRecorder._record 会周期性写入 `GLOBAL_VOLUME_LEVELS` 与 `GLOBAL_VOLUME_SEQ`。
-         * - 这里在 GUI 主线程轮询读取最新音量值，并驱动 `SoundWaveAnimation.update_animation`。
-         * - 当浮窗不可见时，自动停止轮询（不再继续 after）。
+         * 方案说明：
+         * - AudioRecorder._record 周期性写入 `GLOBAL_VOLUME_LEVELS` 与 `GLOBAL_VOLUME_SEQ`。
+         * - 这里在 GUI 主线程轮询读取最新音量值，并调用 Cocoa overlay 的 `set_volume` 重绘。
+         * - 当浮层不可见时，自动停止轮询。
          *
          * @param {number} volume_level - 兼容参数：外部传入时可忽略；默认从全局数组读取。
          * @returns {void}
          */
         """
 
-        # 若浮窗不可见：停止轮询
+        # 若 Cocoa overlay 不可用或不可见：停止轮询
         try:
-            if not (self._recording_overlay and self._recording_overlay.winfo_viewable()):
-                setattr(self, "_recording_overlay_volume_job", None)
-                setattr(self, "_recording_overlay_volume_last_seq", -1)
+            if self._cocoa_recording_overlay is None or not self._cocoa_recording_overlay.is_visible():
+                self._recording_overlay_volume_job = None
+                self._recording_overlay_volume_last_seq = -1
                 return
         except Exception:
-            setattr(self, "_recording_overlay_volume_job", None)
-            setattr(self, "_recording_overlay_volume_last_seq", -1)
-            return
-
-        if not self._recording_overlay_animation:
+            self._recording_overlay_volume_job = None
+            self._recording_overlay_volume_last_seq = -1
             return
 
         latest_level = int(volume_level) if volume_level is not None else 0
@@ -1375,85 +1257,65 @@ class VoiceInputGUI:
         except Exception as e:
             print(f"⚠️ 导入 audio_recorder 失败（可忽略）: {e}")
 
-        last_seq = getattr(self, "_recording_overlay_volume_last_seq", -1)
+        last_seq = self._recording_overlay_volume_last_seq
         if seq is None or seq != last_seq:
+            lv = max(0, min(100, latest_level))
             try:
-                self._recording_overlay_animation.update_animation(max(0, min(100, latest_level)))
+                self._cocoa_recording_overlay.set_volume(lv)
             except Exception as e:
-                print(f"⚠️ 更新音波动画失败（可忽略）: {e}")
+                print(f"⚠️ 更新 Cocoa 音波失败（可忽略）: {e}")
 
             if seq is not None:
-                setattr(self, "_recording_overlay_volume_last_seq", seq)
+                self._recording_overlay_volume_last_seq = seq
 
         # 轮询：确保同一时间只有一个 after job
-        if getattr(self, "_recording_overlay_volume_job", None):
+        if self._recording_overlay_volume_job:
             return
 
         def _tick() -> None:
-            setattr(self, "_recording_overlay_volume_job", None)
+            self._recording_overlay_volume_job = None
             self.update_recording_volume(0)
 
         try:
-            job = self.root.after(50, _tick)
-            setattr(self, "_recording_overlay_volume_job", job)
+            self._recording_overlay_volume_job = self.root.after(50, _tick)
         except Exception as e:
             print(f"⚠️ 调度音量轮询失败（可忽略）: {e}")
-            setattr(self, "_recording_overlay_volume_job", None)
+            self._recording_overlay_volume_job = None
 
-
-class SoundWaveAnimation(ctk.CTkCanvas):
-
+    def _init_cocoa_recording_overlay(self) -> None:
         """
-        一个用 Canvas 实现的音波动画小组件。
+        /**
+         * 初始化 macOS Cocoa 录音浮层（NSPanel 非激活面板）。
+         *
+         * 目标：
+         * - 纯 Cocoa 实现，不依赖 Tk/CTk 的 Toplevel。
+         * - 显示/更新时不抢占输入光标。
+         * - 支持 Spaces/全屏（collectionBehavior）。
+         *
+         * @returns {void}
+         */
         """
 
-        def __init__(self, master, width=50, height=5, **kwargs):
-            super().__init__(master, width=width, height=height, **kwargs)
-            self.configure(bg="black", highlightthickness=0)
-            self._width = width
-            self._height = height
-            self._animation_job = None
-            self._num_bars = 15
-            self._bar_width = 2
-            self._gap = 2
-            self._min_bar_height = 0
-            self._max_bar_height = height - 5
+        # 非 macOS：不启用录音浮层
+        if sys.platform != "darwin":
+            self._cocoa_recording_overlay = None
+            return
 
-            total_width = self._num_bars * (self._bar_width + self._gap) - self._gap
-            self._start_x = (width - total_width) / 2
+        # 已初始化则跳过
+        if self._cocoa_recording_overlay is not None:
+            return
 
-        def _draw_sound_wave(self, volume_level=None):
-            """
-            根据音量级别绘制一帧音波图像。
-            volume_level: 0-100 的整数。如果为 None，则使用随机高度。
-            """
-            self.delete("all")
-            for i in range(self._num_bars):
-                if volume_level is not None:
-                    # 基于音量，中间的音波高，两边的低
-                    distance_from_center = abs(i - self._num_bars // 2)
-                    dampening = 1 - (distance_from_center / (self._num_bars / 2)) ** 2
-                    max_h = self._min_bar_height + (self._max_bar_height - self._min_bar_height) * (
-                                volume_level / 100.0)
-                    bar_height = max(self._min_bar_height, int(max_h * dampening * random.uniform(0.8, 1.2)))
-                else:
-                    bar_height = random.randint(self._min_bar_height, self._max_bar_height)
+        try:
+            from .components.macos_recording_overlay import CocoaRecordingOverlay
 
-                x0 = self._start_x + i * (self._bar_width + self._gap)
-                y0 = (self._height - bar_height) / 2
-                x1 = x0 + self._bar_width
-                y1 = y0 + bar_height
-                self.create_rectangle(x0, y0, x1, y1, fill="white", outline="")
+            overlay = CocoaRecordingOverlay(width=220, height=60, bottom_margin=100)
+            if not overlay.is_available():
+                print("⚠️ Cocoa 录音浮层不可用（将禁用录音浮层）")
+                self._cocoa_recording_overlay = None
+                return
 
-        def update_animation(self, volume_level: int):
-            """
-            由外部调用，传入实时音量来更新动画。
-            """
-            self._draw_sound_wave(volume_level)
-
-        def start_random_animation(self):
-            self._animate()
-
-        def _animate(self):
-            self._draw_sound_wave()
-            self._animation_job = self.after(100, self._animate)
+            self._cocoa_recording_overlay = overlay
+            print("✅ 已启用 Cocoa 录音浮层（纯 Cocoa，不抢占输入光标）")
+        except Exception as e:
+            self._cocoa_recording_overlay = None
+            print(f"⚠️ Cocoa 录音浮层初始化失败（将禁用录音浮层）: {e}")
