@@ -1292,10 +1292,11 @@ class VoiceInputGUI:
     
         if self._recording_overlay_animation:
             try:
-                # 暂时使用随机动画，直到音量数据接入
-                self._recording_overlay_animation.start_random_animation()
+                # 改为“全局音量数组 + GUI 轮询”驱动：不再启动随机动画
+                # 启动一次轮询即可（update_recording_volume 内部会自我调度）
+                self.update_recording_volume(0)
             except Exception as e:
-                print(f"⚠️ 启动录音浮层动画失败（可忽略）: {e}")
+                print(f"⚠️ 启动录音浮层音量轮询失败（可忽略）: {e}")
     
     def hide_recording_overlay(self):
         """
@@ -1327,10 +1328,77 @@ class VoiceInputGUI:
             finally:
                 self._recording_overlay_animation._animation_job = None
 
-    def update_recording_volume(self, volume_level: int):
-        if self._recording_overlay and self._recording_overlay.winfo_viewable():
-            if self._recording_overlay_animation:
-                self._recording_overlay_animation.update_animation(volume_level)
+    def update_recording_volume(self, volume_level: int = 0):
+        """
+        /**
+         * 录音浮窗：根据“全局音量数组”更新音波高度，并以 after 轮询方式持续刷新。
+         *
+         * 方案说明（最小改动实现）：
+         * - AudioRecorder._record 会周期性写入 `GLOBAL_VOLUME_LEVELS` 与 `GLOBAL_VOLUME_SEQ`。
+         * - 这里在 GUI 主线程轮询读取最新音量值，并驱动 `SoundWaveAnimation.update_animation`。
+         * - 当浮窗不可见时，自动停止轮询（不再继续 after）。
+         *
+         * @param {number} volume_level - 兼容参数：外部传入时可忽略；默认从全局数组读取。
+         * @returns {void}
+         */
+        """
+
+        # 若浮窗不可见：停止轮询
+        try:
+            if not (self._recording_overlay and self._recording_overlay.winfo_viewable()):
+                setattr(self, "_recording_overlay_volume_job", None)
+                setattr(self, "_recording_overlay_volume_last_seq", -1)
+                return
+        except Exception:
+            setattr(self, "_recording_overlay_volume_job", None)
+            setattr(self, "_recording_overlay_volume_last_seq", -1)
+            return
+
+        if not self._recording_overlay_animation:
+            return
+
+        latest_level = int(volume_level) if volume_level is not None else 0
+        seq = None
+
+        try:
+            from .components import audio_recorder as audio_recorder_module
+
+            try:
+                with audio_recorder_module.GLOBAL_VOLUME_LOCK:
+                    seq = int(audio_recorder_module.GLOBAL_VOLUME_SEQ)
+                    if audio_recorder_module.GLOBAL_VOLUME_LEVELS:
+                        latest_level = int(audio_recorder_module.GLOBAL_VOLUME_LEVELS[-1])
+                    else:
+                        latest_level = 0
+            except Exception as e:
+                print(f"⚠️ 读取全局音量缓存失败（可忽略）: {e}")
+        except Exception as e:
+            print(f"⚠️ 导入 audio_recorder 失败（可忽略）: {e}")
+
+        last_seq = getattr(self, "_recording_overlay_volume_last_seq", -1)
+        if seq is None or seq != last_seq:
+            try:
+                self._recording_overlay_animation.update_animation(max(0, min(100, latest_level)))
+            except Exception as e:
+                print(f"⚠️ 更新音波动画失败（可忽略）: {e}")
+
+            if seq is not None:
+                setattr(self, "_recording_overlay_volume_last_seq", seq)
+
+        # 轮询：确保同一时间只有一个 after job
+        if getattr(self, "_recording_overlay_volume_job", None):
+            return
+
+        def _tick() -> None:
+            setattr(self, "_recording_overlay_volume_job", None)
+            self.update_recording_volume(0)
+
+        try:
+            job = self.root.after(50, _tick)
+            setattr(self, "_recording_overlay_volume_job", job)
+        except Exception as e:
+            print(f"⚠️ 调度音量轮询失败（可忽略）: {e}")
+            setattr(self, "_recording_overlay_volume_job", None)
 
 
 class SoundWaveAnimation(ctk.CTkCanvas):

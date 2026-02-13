@@ -202,6 +202,8 @@ class LocalSTTProcessor:
             print(f"本地模型转录文本: {rst}")
             raw_text = rich_transcription_postprocess(rst[0])
             print(f"本地模型转录文本: {raw_text}")
+            if raw_text is None or len(raw_text.strip()) == 0:
+                return ""
             # 对转录文本进行标点恢复
             punctuated_text = self.punc(raw_text)
             print(f"本地模型标点恢复文本: {punctuated_text[0]}")
