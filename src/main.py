@@ -17,7 +17,7 @@ import subprocess
  */"""
 os.environ.setdefault("MYVOICEINPUT_APP_START_TS", str(time.time()))
 
-from .core import STTProcessor, Rewrite, WindowInfo
+from .core import STTProcessor, get_rewriter, WindowInfo
 from .components.audio_recorder import AudioRecorder
 from .components.hotkey_manager import HotkeyManager
 try:
@@ -41,7 +41,7 @@ class FlashInputApp:
         self._speaker_state_lock = threading.Lock()
         self._speaker_prev_settings = None
 
-        self.rewriter = Rewrite()
+        self.rewriter = get_rewriter()
         self.window_info = WindowInfo()
 
         self.hotkey_manager = HotkeyManager()
@@ -612,7 +612,7 @@ class FlashInputApp:
             # 使用大语言模型对转录内容进行格式化优化
             text = self.rewriter.rewrite(text)
             print(f"llm远程改写耗时 {time.time() - trans_time:.2f}s")
-
+            print(f"✅格式化后的文本: {text}")
             self._set_status("写入中…")
             self.write_appname_to_cursor(text)
         except Exception as e:

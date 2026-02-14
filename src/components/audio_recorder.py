@@ -6,7 +6,7 @@ import numpy as np
 import threading
 import time as time_module
 from pathlib import Path
-from ..config import Config
+from ..utils.config_manager import get_config_manager
 from datetime import datetime
 import soundfile as sf
 
@@ -27,7 +27,7 @@ GLOBAL_VOLUME_LOCK = threading.Lock()
 
 class AudioRecorder:
     def __init__(self):
-        self.config = Config()  # 使用新的配置管理器
+        self.config = get_config_manager()  # 使用新的配置管理器
         self.is_recording = False
         self.audio_data = []
         self.stream = None
@@ -153,14 +153,14 @@ class AudioRecorder:
             print(f"⚠️ 清空全局音量缓存失败（可忽略）: {e}")
 
         # 录音参数候选
-        desired_sr = int(getattr(self.config, "SAMPLE_RATE", 16000) or 16000)
-        desired_bs = int(getattr(self.config, "CHUNK_SIZE", 1024) or 1024)
+        desired_sr = int(self.config.get("SAMPLE_RATE", 16000) or 16000)
+        desired_bs = int(self.config.get("CHUNK_SIZE", 1024) or 1024)
 
         # 选择输入设备（内联到 _record，避免改动其它函数）
         device_idx = None
         device_info = None
 
-        config_device = getattr(self.config, "INPUT_DEVICE", None)
+        config_device = self.config.get("INPUT_DEVICE")
         if config_device is not None:
             try:
                 device_idx = int(config_device)
@@ -320,7 +320,7 @@ class AudioRecorder:
         audio_array = audio_array.reshape(-1, 1)
         # 使用soundfile保存
 
-        sf.write(filename, audio_array, self.config.SAMPLE_RATE)
+        sf.write(filename, audio_array, self.config.get("SAMPLE_RATE", 16000))
         return filename
 
     def __del__(self):

@@ -5,12 +5,22 @@ from pathlib import Path
 import tempfile
 from typing import Optional
 
+_instance = None
 _APP_NAME = "MyVoiceInput"
 
+def get_config_manager():
+    """
+    获取 ConfigManager 的全局唯一实例。
+
+    :return: ConfigManager 实例
+    """
+    global _instance
+    if _instance is None:
+        _instance = ConfigManager()
+    return _instance
 
 def _is_frozen() -> bool:
     return bool(getattr(sys, "frozen", False)) or hasattr(sys, "_MEIPASS")
-
 
 def _macos_app_support_root(app_name: str) -> Path:
     return Path.home() / "Library" / "Application Support" / app_name
@@ -64,7 +74,6 @@ def _guess_bundled_data_dir() -> Optional[Path]:
 
     return None
 
-
 class ConfigManager:
     """
     配置管理器，将配置数据存储到本地JSON文件中
@@ -88,7 +97,9 @@ class ConfigManager:
                 self.config_dir = config_dir
                 self.config_file_path = self.config_dir / "app_config.json"
             else:
-                self.config_dir = Path("data/config")
+                # 从项目根目录开始计算路径
+                project_root = Path(__file__).resolve().parents[2]
+                self.config_dir = project_root / "data" / "config"
                 self.config_dir.mkdir(parents=True, exist_ok=True)
                 self.config_file_path = self.config_dir / "app_config.json"
         else:
@@ -186,7 +197,7 @@ class ConfigManager:
 
     def get(self, key, default=None):
         """获取配置值"""
-        return self.config.get(key, default)
+        return self.config.get(key.lower(), default)
 
     def set(self, key, value):
         """设置配置值"""

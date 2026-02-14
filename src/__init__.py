@@ -3,7 +3,7 @@ MyVoiceInput package init
 """
 from .main import FlashInputApp
 from .gui_tk import VoiceInputGUI
-from .config import Config
+from .utils.config_manager import get_config_manager
 
 __version__ = "1.0.0"
 __author__ = "Rober"
@@ -11,5 +11,5 @@ __author__ = "Rober"
 __all__ = [
     "FlashInputApp",
     "VoiceInputGUI", 
-    "Config"
+    "get_config_manager"
 ]

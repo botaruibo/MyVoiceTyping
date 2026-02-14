@@ -211,50 +211,6 @@ class LocalSTTProcessor:
         except Exception as e:
             raise
 
-    # def extract_text_from_sensevoice(self, raw_output) -> str:
-    #     """
-    #     /**
-    #      * 从 SenseVoice 输出中提取“真正的识别文本”。
-    #      *
-    #      * SenseVoice 的 decode 结果可能包含控制 token，例如：
-    #      * - `<|zh|>` 语言标签
-    #      * - `<|NEUTRAL|>` 情绪/风格标签
-    #      * - `<|Speech|>` 任务类型标签
-    #      * - `<|woitn|>` 文本归一化标签
-    #      *
-    #      * 目标：
-    #      * - 移除所有 `<|...|>` 控制 token
-    #      * - 对空白做归一化（去多余空格/换行）
-    #      * - 处理常见“无语音”标记
-    #      *
-    #      * @param raw_output 模型原始输出（支持 `str` 或 `List[str]`）
-    #      * @returns 清洗后的文本
-    #      */
-    #     """
-    #     import re
-    #
-    #     if raw_output is None:
-    #         return ""
-    #
-    #     # 兼容：如果传入的是列表，则拼接
-    #     if isinstance(raw_output, list):
-    #         raw_text = " ".join(str(x) for x in raw_output if x is not None)
-    #     else:
-    #         raw_text = str(raw_output)
-    #
-    #     if not raw_text:
-    #         return ""
-    #
-    #     # 1) 移除所有 <|...|> 控制 token（非贪婪匹配）
-    #     text = re.sub(r"<\|.*?\|>", "", raw_text)
-    #
-    #     # 2) 去掉常见的无语音标记（有些模型会直接输出 nospeech）
-    #     text = re.sub(r"\bnospeech\b", "", text, flags=re.IGNORECASE)
-    #
-    #     # 3) 归一化空白：将连续空白压缩成一个空格
-    #     text = re.sub(r"\s+", " ", text).strip()
-    #
-    #     return text
 
 if __name__ == "__main__":
     """
@@ -266,10 +222,9 @@ if __name__ == "__main__":
      * - 这里将 `test_data/output0.wav` 读取为 `bytes` 后再调用转录，避免类型错误。
      */
     """
+    from ..utils.config_manager import get_config_manager
 
-    from src.config import Config
-
-    config = Config()
+    config = get_config_manager()
     processor = LocalSTTProcessor(config)
 
     project_root = Path(__file__).resolve().parents[2]

@@ -4,25 +4,26 @@
 from datetime import datetime
 from pathlib import Path
 
-from ..config import Config
+from ..utils.config_manager import get_config_manager
 from ..components.audio_recorder import AudioRecorder
 
 
 class STTProcessor:
     def __init__(self):
-        self.config = Config()  # 使用新的配置管理器
+        self.config = get_config_manager()  # 使用新的配置管理器
         self.provider = self._init_provider()
 
     def _init_provider(self):
         """根据配置初始化STT提供者"""
-        if self.config.STT_PROVIDER == "openai_api":
+        stt_provider = self.config.get("STT_PROVIDER")
+        if stt_provider == "openai_api":
             from .stt_cloud_processor import CloudSTTProcessor
             return CloudSTTProcessor(self.config)
-        elif self.config.STT_PROVIDER == "funasr":
+        elif stt_provider == "funasr":
             from .stt_local_processor import LocalSTTProcessor
             return LocalSTTProcessor(self.config)
         else:
-            raise ValueError(f"不支持的STT提供者: {self.config.STT_PROVIDER}")
+            raise ValueError(f"不支持的STT提供者: {stt_provider}")
 
     def transcribe(self, audio_frames):
         """

@@ -11,14 +11,16 @@ except Exception:  # pragma: no cover
     ImageDraw = None
     ImageFont = None
 
-from .utils.config_manager import ConfigManager
+from .utils.config_manager import get_config_manager
+from .core.text_rewrite import get_rewriter
 
 
 class VoiceInputGUI:
     def __init__(self, app: Any, app_name: str):
         self.app = app
         self.app_name = app_name
-        self.config_manager = ConfigManager()
+        self.config_manager = get_config_manager()
+        self.rewriter = get_rewriter()
 
         try:
             ctk.set_appearance_mode("system")
@@ -383,7 +385,66 @@ class VoiceInputGUI:
         #     row=2,
         # )
 
+        # --- 模型设置 ---
+        model_header_frame = ctk.CTkFrame(page, fg_color="transparent")
+        model_header_frame.grid(row=4, column=0, padx=20, pady=(20, 5), sticky="ew")
+        model_header_frame.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(model_header_frame, text="模型设置", font=ctk.CTkFont(size=18, weight="bold")).grid(
+            row=0, column=0, sticky="w"
+        )
+
+        # --- 分割线 ---
+        ctk.CTkFrame(page, height=1, fg_color=("#E0E0E0", "#303030")).grid(
+            row=5, column=0, padx=20, pady=(5, 15), sticky="ew"
+        )
+
+        # --- 模型设置容器 ---
+        model_settings_container = ctk.CTkFrame(page, fg_color="transparent")
+        model_settings_container.grid(row=6, column=0, padx=20, pady=0, sticky="ew")
+        model_settings_container.grid_columnconfigure(1, weight=1)
+
+        # --- API Key 设置 ---
+        api_key_frame = ctk.CTkFrame(model_settings_container, fg_color="transparent")
+        api_key_frame.grid(row=0, column=0, columnspan=2, sticky="ew", pady=5)
+        api_key_frame.grid_columnconfigure(1, weight=1)
+
+        ctk.CTkLabel(api_key_frame, text="模型密钥", font=ctk.CTkFont(size=16)).grid(
+            row=0, column=0, padx=(0, 20), sticky="w"
+        )
+
+        api_key_var = tk.StringVar(value=self.config_manager.get("api_key", ""))
+        self._auto_save_on_change(api_key_var, "api_key")
+        api_key_entry = ctk.CTkEntry(api_key_frame, textvariable=api_key_var)
+        api_key_entry.grid(row=0, column=1, sticky="ew")
+
+        def _save_api_key(event=None):
+            self.config_manager.set("api_key", api_key_var.get())
+
+        api_key_entry.bind("<FocusOut>", _save_api_key)
+
+        test_button = ctk.CTkButton(api_key_frame, text="测试", width=60, command=self._test_api_key)
+        test_button.grid(row=0, column=2, padx=(10, 0))
+
         return page
+
+    def _test_api_key(self):
+        """
+        测试模型密钥是否生效
+        """
+        api_key = self.config_manager.get("api_key")
+        if not api_key:
+            self.update_status_error("模型密钥为空")
+            return
+
+        try:
+            result = self.rewriter.test_remote_llm()
+            if(result is None):
+                self.update_status_success("模型密钥测试成功")
+            else:
+                self.update_status_error(result)
+        except Exception as e:
+            self.update_status_error(f"模型密钥测试失败: {e}")
 
     def _build_provider_settings_page(self, parent: ctk.CTkFrame) -> ctk.CTkFrame:
         page = ctk.CTkScrollableFrame(parent, fg_color="transparent")
@@ -489,6 +550,30 @@ class VoiceInputGUI:
     # -------------------------
     # Widgets helpers
     # -------------------------
+
+    def _auto_save_on_change(self, var: tk.StringVar, key: str) -> None:
+        """
+        为 StringVar 变量添加跟踪回调，当其内容发生变化时，自动将新值保存到配置中。
+        这是一个通用函数，可以用于任何希望在用户输入时自动保存的设置项。
+
+        @param var: 需要跟踪的 tkinter StringVar 对象。
+        @param key: 对应于配置管理器中的键名 (config key)。
+        """
+
+        def _save(*_args) -> None:
+            """
+            回调函数，用于将 StringVar 的当前值保存到配置中。
+            """
+            try:
+                value = var.get()
+                self.config_manager.set(key, value)
+                print(f"配置 '{key}' 已自动更新为 '{value}'")
+            except Exception as e:
+                error_msg = f"自动保存配置 '{key}' 失败: {e}"
+                print(error_msg)
+                self.update_status_error(error_msg)
+
+        var.trace_add("write", _save)
 
     def _create_hotkey_setting(
         self,
@@ -681,7 +766,6 @@ class VoiceInputGUI:
             # 过滤长按导致的重复 KeyPress
             if key_name in down_keys:
                 return "break"
-
             down_keys.add(key_name)
 
             # 第一个键：打开录制窗口
@@ -976,101 +1060,101 @@ class VoiceInputGUI:
     # Status / lifecycle
     # -------------------------
 
-    class VoiceInputGUI:
-        def __init__(self, app: Any, app_name: str):
-            self.app = app
-            self.app_name = app_name
-            self.root = ctk.CTk()
-            self.root.title(self.app_name)
-            self.root.geometry("800x600")
-    
-            # UI 线程（Tk 主线程）任务队列：后台线程只能往队列塞任务，不能直接调用 Tk
-            self._ui_thread_ident = threading.get_ident()
-            self._ui_task_queue: queue.Queue = queue.Queue()
-            self._ui_pump_job = None
-            self._ui_pump_interval_ms = 50
-    
-            try:
-                self.root.after(self._ui_pump_interval_ms, self._ui_pump)
-            except Exception as e:
-                print(f"⚠️ 启动 UI 任务队列轮询失败（可忽略）: {e}")
-    
-        def post_ui(self, func, *args, **kwargs) -> None:
-            """
-            /**
-             * 将函数调度到 GUI 主线程执行（线程安全）。
-             *
-             * 背景：
-             * - Tk/CTk 不是线程安全的；后台线程直接调用 Tk 方法可能导致随机崩溃。
-             * - macOS + PyObjC/输入法框架场景更容易触发 GIL 相关 fatal error。
-             *
-             * 用法：
-             * - 后台线程：`self.post_ui(self.update_status, "...")`
-             * - 主线程：会直接执行（减少延迟）。
-             *
-             * @param {Function} func - 需要在 UI 线程执行的函数。
-             * @returns {void}
-             */
-            """
-            if func is None:
-                return
-    
-            try:
-                if threading.get_ident() == getattr(self, "_ui_thread_ident", None):
-                    func(*args, **kwargs)
-                    return
-            except Exception:
-                pass
-    
-            try:
-                self._ui_task_queue.put((func, args, kwargs))
-            except Exception as e:
-                print(f"⚠️ 投递 UI 任务失败（可忽略）: {e}")
-    
-        def _ui_pump(self) -> None:
-            """
-            /**
-             * UI 主线程轮询任务队列（由 Tk after 驱动）。
-             *
-             * @returns {void}
-             */
-            """
-            processed = 0
-            while processed < 200:
-                try:
-                    func, args, kwargs = self._ui_task_queue.get_nowait()
-                except queue.Empty:
-                    break
-    
-                try:
-                    func(*args, **kwargs)
-                except Exception as e:
-                    print(f"⚠️ 执行 UI 任务失败（可忽略）: {e}")
-                    try:
-                        traceback.print_exc()
-                    except Exception:
-                        pass
-    
-                processed += 1
-    
-            try:
-                self._ui_pump_job = self.root.after(self._ui_pump_interval_ms, self._ui_pump)
-            except Exception:
-                self._ui_pump_job = None
-    
-        def update_status(self, text: str) -> None:
-            if not self.root:
-                return
-    
-            def _update() -> None:
-                self.status_var.set(text)
-                if self._status_label is not None:
-                    try:
-                        self._status_label.configure(text=text)
-                    except Exception:
-                        pass
-    
-            self.post_ui(_update)
+    # class VoiceInputGUI:
+    #     def __init__(self, app: Any, app_name: str):
+    #         self.app = app
+    #         self.app_name = app_name
+    #         self.root = ctk.CTk()
+    #         self.root.title(self.app_name)
+    #         self.root.geometry("800x600")
+    #
+    #         # UI 线程（Tk 主线程）任务队列：后台线程只能往队列塞任务，不能直接调用 Tk
+    #         self._ui_thread_ident = threading.get_ident()
+    #         self._ui_task_queue: queue.Queue = queue.Queue()
+    #         self._ui_pump_job = None
+    #         self._ui_pump_interval_ms = 50
+    #
+    #         try:
+    #             self.root.after(self._ui_pump_interval_ms, self._ui_pump)
+    #         except Exception as e:
+    #             print(f"⚠️ 启动 UI 任务队列轮询失败（可忽略）: {e}")
+    #
+    #     def post_ui(self, func, *args, **kwargs) -> None:
+    #         """
+    #         /**
+    #          * 将函数调度到 GUI 主线程执行（线程安全）。
+    #          *
+    #          * 背景：
+    #          * - Tk/CTk 不是线程安全的；后台线程直接调用 Tk 方法可能导致随机崩溃。
+    #          * - macOS + PyObjC/输入法框架场景更容易触发 GIL 相关 fatal error。
+    #          *
+    #          * 用法：
+    #          * - 后台线程：`self.post_ui(self.update_status, "...")`
+    #          * - 主线程：会直接执行（减少延迟）。
+    #          *
+    #          * @param {Function} func - 需要在 UI 线程执行的函数。
+    #          * @returns {void}
+    #          */
+    #         """
+    #         if func is None:
+    #             return
+    #
+    #         try:
+    #             if threading.get_ident() == getattr(self, "_ui_thread_ident", None):
+    #                 func(*args, **kwargs)
+    #                 return
+    #         except Exception:
+    #             pass
+    #
+    #         try:
+    #             self._ui_task_queue.put((func, args, kwargs))
+    #         except Exception as e:
+    #             print(f"⚠️ 投递 UI 任务失败（可忽略）: {e}")
+    #
+    #     def _ui_pump(self) -> None:
+    #         """
+    #         /**
+    #          * UI 主线程轮询任务队列（由 Tk after 驱动）。
+    #          *
+    #          * @returns {void}
+    #          */
+    #         """
+    #         processed = 0
+    #         while processed < 200:
+    #             try:
+    #                 func, args, kwargs = self._ui_task_queue.get_nowait()
+    #             except queue.Empty:
+    #                 break
+    #
+    #             try:
+    #                 func(*args, **kwargs)
+    #             except Exception as e:
+    #                 print(f"⚠️ 执行 UI 任务失败（可忽略）: {e}")
+    #                 try:
+    #                     traceback.print_exc()
+    #                 except Exception:
+    #                     pass
+    #
+    #             processed += 1
+    #
+    #         try:
+    #             self._ui_pump_job = self.root.after(self._ui_pump_interval_ms, self._ui_pump)
+    #         except Exception:
+    #             self._ui_pump_job = None
+    #
+    #     def update_status(self, text: str) -> None:
+    #         if not self.root:
+    #             return
+    #
+    #         def _update() -> None:
+    #             self.status_var.set(text)
+    #             if self._status_label is not None:
+    #                 try:
+    #                     self._status_label.configure(text=text)
+    #                 except Exception:
+    #                     pass
+    #
+    #         self.post_ui(_update)
 
     def update_status_info(self, text: str) -> None:
         """
