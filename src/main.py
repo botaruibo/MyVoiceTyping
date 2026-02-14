@@ -494,18 +494,40 @@ class FlashInputApp:
         except Exception as e:
             print(f"⚠️ 恢复系统外放失败（可忽略）: {e}")
 
+    def _set_status(self, text: str) -> None:
+        print(text)
+
+        gui = self.gui
+        if gui is None:
+            return
+
+        update_status = getattr(gui, "update_status", None)
+        if not callable(update_status):
+            return
+
+        post_ui = getattr(gui, "post_ui", None)
+        if callable(post_ui):
+            try:
+                post_ui(update_status, text)
+                return
+            except Exception:
+                pass
+
+        try:
+            update_status(text)
+        except Exception:
+            pass
+
     def start_recording(self) -> None:
         try:
             if getattr(self.audio_recorder, "is_recording", False):
                 return
 
-                # 录音提示框：尽量先显示，给用户即时反馈（即使静音/打开麦克风稍慢）
             try:
                 if self.gui is not None and hasattr(self.gui, "show_recording_overlay"):
-                    # Tk/CTk 组件必须在 GUI 主线程操作；通过 after 切回主线程，避免卡死/随机崩溃
-                    root = getattr(self.gui, "root", None)
-                    if root is not None and hasattr(root, "after"):
-                        root.after(0, lambda: self.gui.show_recording_overlay("录音中…"))
+                    post_ui = getattr(self.gui, "post_ui", None)
+                    if callable(post_ui):
+                        post_ui(self.gui.show_recording_overlay, "录音中…")
                     else:
                         self.gui.show_recording_overlay("录音中…")
             except Exception as e:
@@ -535,13 +557,11 @@ class FlashInputApp:
             self._set_status(f"停止录音失败：{e}")
             return
         finally:
-            # 录音提示框：无论 stop 成功与否，都先隐藏
             try:
                 if self.gui is not None and hasattr(self.gui, "hide_recording_overlay"):
-                    # Tk/CTk 组件必须在 GUI 主线程操作；通过 after 切回主线程，避免卡死/随机崩溃
-                    root = getattr(self.gui, "root", None)
-                    if root is not None and hasattr(root, "after"):
-                        root.after(0, lambda: self.gui.hide_recording_overlay())
+                    post_ui = getattr(self.gui, "post_ui", None)
+                    if callable(post_ui):
+                        post_ui(self.gui.hide_recording_overlay)
                     else:
                         self.gui.hide_recording_overlay()
             except Exception as e:
@@ -657,41 +677,109 @@ class FlashInputApp:
                 print(f"⚠️ 切换到主页失败：{e}")
 
         try:
-            self.gui.root.after(0, _do)
+            post_ui = getattr(self.gui, "post_ui", None)
+            if callable(post_ui):
+                post_ui(_do)
+            else:
+                self.gui.root.after(0, _do)
         except Exception:
             _do()
 
-    def write_appname_to_cursor(self, voice_input :str ) -> None:
+    def write_appname_to_cursor(self, voice_input: str) -> None:
         """
-        将当前窗口的 appname 写入光标所在位置
+        /**
+         * 将转写/改写后的文本写入到当前光标所在位置。
+         *
+         * 说明：
+         * - 该方法可能运行在后台线程（转写线程），不得触碰 Tk UI。
+         * - macOS 下优先使用“写入剪贴板 + 系统粘贴（Cmd+V）”，更稳定且支持中文。
+         * - 若剪贴板/粘贴不可用，再回退到逐字输入。
+         *
+         * @param {string} voice_input - 需要写入的文本。
+         * @returns {void}
+         */
         """
         if not voice_input:
-            print("无法获取窗口信息，无法写入 app_name")
+            print("⚠️ 写入文本为空，跳过写入")
             return
 
-        print("写入应用名称:", voice_input)
+        text = str(voice_input)
+        print(f"📝 准备写入文本（长度={len(text)}）")
 
-        try:
-            import pyperclip
-            import subprocess
-            pyperclip.copy(voice_input)
-            subprocess.run(
-                ['osascript', '-e', 'tell application "System Events" to keystroke "v" using {command down}'])
-            print("✅ 粘贴成功")
-            return
-        except ImportError:
-            print("⚠️ 未安装 pyperclip，尝试其他方式")
-        except Exception as e:
-            print("⚠️ 粘贴失败:", e)
+        # macOS：剪贴板 + Cmd+V
+        if sys.platform == "darwin":
+            pasted = False
 
+            # 方案 A：pyperclip
+            try:
+                import pyperclip
+
+                pyperclip.copy(text)
+                print("✅ 已写入剪贴板（pyperclip）")
+
+                try:
+                    subprocess.run(
+                        [
+                            "osascript",
+                            "-e",
+                            'tell application "System Events" to keystroke "v" using {command down}',
+                        ],
+                        check=True,
+                        capture_output=True,
+                        text=True,
+                    )
+                    print("✅ 已触发系统粘贴（Cmd+V）")
+                    pasted = True
+                except Exception as e:
+                    print(f"⚠️ 系统粘贴失败（将尝试 pbcopy 方案）: {e}")
+
+            except Exception as e:
+                print(f"⚠️ pyperclip 不可用（将尝试 pbcopy 方案）: {e}")
+
+            # 方案 B：pbcopy
+            if not pasted:
+                try:
+                    proc = subprocess.Popen(["pbcopy"], stdin=subprocess.PIPE)
+                    try:
+                        proc.communicate(input=text.encode("utf-8"), timeout=2)
+                    except Exception:
+                        try:
+                            proc.kill()
+                        except Exception:
+                            pass
+                        raise
+
+                    if proc.returncode not in (0, None):
+                        raise RuntimeError(f"pbcopy 返回码异常: {proc.returncode}")
+
+                    print("✅ 已写入剪贴板（pbcopy）")
+
+                    subprocess.run(
+                        [
+                            "osascript",
+                            "-e",
+                            'tell application "System Events" to keystroke "v" using {command down}',
+                        ],
+                        check=True,
+                        capture_output=True,
+                        text=True,
+                    )
+                    print("✅ 已触发系统粘贴（Cmd+V）")
+                    pasted = True
+                except Exception as e:
+                    print(f"⚠️ pbcopy 方案失败（将回退逐字输入）: {e}")
+
+            if pasted:
+                return
+
+        # 兜底：逐字输入
         try:
             import pyautogui
-            pyautogui.write(voice_input, interval=0.01)
-            print("✅ 直接输入成功")
-        except ImportError:
-            print("⚠️ 未安装 pyautogui")
+
+            pyautogui.write(text, interval=0.01)
+            print("✅ 已逐字输入完成（pyautogui）")
         except Exception as e:
-            print("❌ 所有输入方案均失败:", e)
+            print(f"❌ 写入失败：所有输入方案均失败: {e}")
 
     def minimize_to_tray(self) -> None:
         if self.tray_icon is not None:
@@ -702,14 +790,22 @@ class FlashInputApp:
 
         if self.gui is not None and hasattr(self.gui, "minimize_to_tray"):
             try:
-                self.gui.minimize_to_tray()
+                post_ui = getattr(self.gui, "post_ui", None)
+                if callable(post_ui):
+                    post_ui(self.gui.minimize_to_tray)
+                else:
+                    self.gui.minimize_to_tray()
             except Exception:
                 pass
 
     def restore_from_tray(self) -> None:
         if self.gui is not None and hasattr(self.gui, "restore_from_tray"):
             try:
-                self.gui.restore_from_tray()
+                post_ui = getattr(self.gui, "post_ui", None)
+                if callable(post_ui):
+                    post_ui(self.gui.restore_from_tray)
+                else:
+                    self.gui.restore_from_tray()
             except Exception:
                 pass
 
@@ -733,7 +829,11 @@ class FlashInputApp:
                     pass
 
         try:
-            self.gui.root.after(0, _quit)
+            post_ui = getattr(self.gui, "post_ui", None)
+            if callable(post_ui):
+                post_ui(_quit)
+            else:
+                self.gui.root.after(0, _quit)
         except Exception:
             _quit()
 

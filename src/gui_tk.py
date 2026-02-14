@@ -976,22 +976,101 @@ class VoiceInputGUI:
     # Status / lifecycle
     # -------------------------
 
-    def update_status(self, text: str) -> None:
-        if not self.root:
-            return
-
-        def _update() -> None:
-            self.status_var.set(text)
-            if self._status_label is not None:
+    class VoiceInputGUI:
+        def __init__(self, app: Any, app_name: str):
+            self.app = app
+            self.app_name = app_name
+            self.root = ctk.CTk()
+            self.root.title(self.app_name)
+            self.root.geometry("800x600")
+    
+            # UI 线程（Tk 主线程）任务队列：后台线程只能往队列塞任务，不能直接调用 Tk
+            self._ui_thread_ident = threading.get_ident()
+            self._ui_task_queue: queue.Queue = queue.Queue()
+            self._ui_pump_job = None
+            self._ui_pump_interval_ms = 50
+    
+            try:
+                self.root.after(self._ui_pump_interval_ms, self._ui_pump)
+            except Exception as e:
+                print(f"⚠️ 启动 UI 任务队列轮询失败（可忽略）: {e}")
+    
+        def post_ui(self, func, *args, **kwargs) -> None:
+            """
+            /**
+             * 将函数调度到 GUI 主线程执行（线程安全）。
+             *
+             * 背景：
+             * - Tk/CTk 不是线程安全的；后台线程直接调用 Tk 方法可能导致随机崩溃。
+             * - macOS + PyObjC/输入法框架场景更容易触发 GIL 相关 fatal error。
+             *
+             * 用法：
+             * - 后台线程：`self.post_ui(self.update_status, "...")`
+             * - 主线程：会直接执行（减少延迟）。
+             *
+             * @param {Function} func - 需要在 UI 线程执行的函数。
+             * @returns {void}
+             */
+            """
+            if func is None:
+                return
+    
+            try:
+                if threading.get_ident() == getattr(self, "_ui_thread_ident", None):
+                    func(*args, **kwargs)
+                    return
+            except Exception:
+                pass
+    
+            try:
+                self._ui_task_queue.put((func, args, kwargs))
+            except Exception as e:
+                print(f"⚠️ 投递 UI 任务失败（可忽略）: {e}")
+    
+        def _ui_pump(self) -> None:
+            """
+            /**
+             * UI 主线程轮询任务队列（由 Tk after 驱动）。
+             *
+             * @returns {void}
+             */
+            """
+            processed = 0
+            while processed < 200:
                 try:
-                    self._status_label.configure(text=text)
-                except Exception:
-                    pass
-
-        try:
-            self.root.after(0, _update)
-        except Exception:
-            _update()
+                    func, args, kwargs = self._ui_task_queue.get_nowait()
+                except queue.Empty:
+                    break
+    
+                try:
+                    func(*args, **kwargs)
+                except Exception as e:
+                    print(f"⚠️ 执行 UI 任务失败（可忽略）: {e}")
+                    try:
+                        traceback.print_exc()
+                    except Exception:
+                        pass
+    
+                processed += 1
+    
+            try:
+                self._ui_pump_job = self.root.after(self._ui_pump_interval_ms, self._ui_pump)
+            except Exception:
+                self._ui_pump_job = None
+    
+        def update_status(self, text: str) -> None:
+            if not self.root:
+                return
+    
+            def _update() -> None:
+                self.status_var.set(text)
+                if self._status_label is not None:
+                    try:
+                        self._status_label.configure(text=text)
+                    except Exception:
+                        pass
+    
+            self.post_ui(_update)
 
     def update_status_info(self, text: str) -> None:
         """
@@ -1295,7 +1374,6 @@ class VoiceInputGUI:
          * @returns {void}
          */
         """
-
         # 非 macOS：不启用录音浮层
         if sys.platform != "darwin":
             self._cocoa_recording_overlay = None
@@ -1308,7 +1386,9 @@ class VoiceInputGUI:
         try:
             from .components.macos_recording_overlay import CocoaRecordingOverlay
 
-            overlay = CocoaRecordingOverlay(width=220, height=60, bottom_margin=100)
+            # 录音浮层尺寸：这里决定“黑色圆角胶囊”整体大小（NSPanel + 内容视图同尺寸）
+            # 你希望缩小到当前的 1/3：220x60 -> 73x20
+            overlay = CocoaRecordingOverlay(width=68, height=32, bottom_margin=40)
             if not overlay.is_available():
                 print("⚠️ Cocoa 录音浮层不可用（将禁用录音浮层）")
                 self._cocoa_recording_overlay = None
