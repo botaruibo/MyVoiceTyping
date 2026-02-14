@@ -434,7 +434,7 @@ def _get_objc_overlay_classes():
                     self._volume_level = 0
 
                     # 浮层内容布局参数（与窗口尺寸强相关）
-                    self._num_bars = 10
+                    self._num_bars = 9
                     self._bar_width = 2
                     self._gap = 3
                     self._padding_x = 0
