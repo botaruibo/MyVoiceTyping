@@ -33,23 +33,146 @@ class FlashInputApp:
         self.app_name = "闪电输入法"
         self.config_manager = None
 
-        self.audio_recorder = AudioRecorder()
+        self.audio_recorder = None
         self.stt_processor = None
+        self.rewriter = None
+        self.window_info = None
+        self.hotkey_manager = None
+        self.tray_icon = None
+
         self._stt_ready = threading.Event()
         self._stt_init_lock = threading.Lock()
         self._stt_init_error = None
+
         self._speaker_state_lock = threading.Lock()
         self._speaker_prev_settings = None
-
-        self.rewriter = get_rewriter()
-        self.window_info = WindowInfo()
-
-        self.hotkey_manager = HotkeyManager()
-        self.tray_icon = TrayIcon(self) if TrayIcon is not None else None
 
         self.gui = None
         self._processing_lock = threading.Lock()
         self._is_processing = False
+
+        self._post_gui_load_started = False
+        self._post_gui_load_lock = threading.Lock()
+
+    def on_gui_ready(self) -> None:
+        """/**
+         * GUI 首次渲染完成后的回调（由 VoiceInputGUI 触发）。
+         *
+         * 设计目标：
+         * - 必须快速返回，不能阻塞 Tk 主线程。
+         * - 所有重型初始化（模型/Quartz/音频/联网/系统钩子等）都应在这里之后启动。
+         *
+         * @returns {void}
+         */"""
+
+        with self._post_gui_load_lock:
+            if self._post_gui_load_started:
+                return
+            self._post_gui_load_started = True
+
+        print("🪟 GUI 已就绪，开始后加载初始化（异步）")
+
+        self._start_post_gui_load_async()
+
+        try:
+            self._init_tray_icon_safe()
+        except Exception as e:
+            print(f"⚠️ 后加载启动托盘失败（可忽略）: {e}")
+
+        try:
+            self.init_stt_async()
+        except Exception as e:
+            print(f"⚠️ 后加载启动 STT 初始化失败（可忽略）: {e}")
+
+        try:
+            self.start_listening_hotkey()
+        except Exception as e:
+            print(f"⚠️ 后加载启动热键监听失败（可忽略）: {e}")
+
+    def _start_post_gui_load_async(self) -> None:
+        """/**
+         * 启动后加载线程：初始化重型对象。
+         *
+         * @returns {void}
+         */"""
+
+        def _worker() -> None:
+            try:
+                self._set_status("后加载初始化中…")
+
+                if self.config_manager is None:
+                    self.config_manager = ConfigManager()
+
+                try:
+                    from .core.text_rewrite import get_rewriter
+
+                    self.rewriter = get_rewriter()
+                    if bool(self.config_manager.get("FORMAT_TEXT")):
+                        self.rewriter.init_remote_llm_async(reason="post_gui_load")
+                except Exception as e:
+                    self.rewriter = None
+                    print(f"⚠️ 初始化 rewriter 失败（将降级为不改写）: {e}")
+
+                try:
+                    from .core.window_info import WindowInfo
+
+                    self.window_info = WindowInfo()
+                except Exception as e:
+                    self.window_info = None
+                    print(f"⚠️ 初始化 WindowInfo 失败（可能影响窗口信息/光标定位）: {e}")
+
+                try:
+                    from .components.audio_recorder import AudioRecorder
+
+                    self.audio_recorder = AudioRecorder()
+                except Exception as e:
+                    self.audio_recorder = None
+                    print(f"⚠️ 初始化 AudioRecorder 失败（将导致无法录音）: {e}")
+
+                try:
+                    if self.hotkey_manager is None:
+                        from .components.hotkey_manager import HotkeyManager
+
+                        self.hotkey_manager = HotkeyManager()
+                except Exception as e:
+                    self.hotkey_manager = None
+                    print(f"⚠️ 初始化 HotkeyManager 失败（将导致无法使用热键）: {e}")
+
+                self._set_status("就绪")
+                print("✅ 后加载初始化完成")
+            except Exception as e:
+                print(f"❌ 后加载初始化异常: {e}")
+                self._set_status(f"后加载初始化失败：{e}")
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _init_tray_icon_safe(self) -> None:
+        """/**
+         * 初始化并启动托盘图标（若依赖可用）。
+         *
+         * 说明：
+         * - 托盘属于可选能力；失败不应影响主流程。
+         * - 放在 GUI 就绪后执行，避免启动阶段导入 PIL/pystray 影响首屏速度。
+         *
+         * @returns {void}
+         */"""
+
+        if self.tray_icon is not None:
+            return
+
+        try:
+            from .components.tray_icon import TrayIcon
+
+            self.tray_icon = TrayIcon(self)
+        except Exception as e:
+            self.tray_icon = None
+            print(f"⚠️ TrayIcon 加载失败，将禁用状态栏图标：{e}")
+            return
+
+        try:
+            self.tray_icon.start()
+        except Exception as e:
+            print(f"⚠️ 启动托盘失败：{e}")
 
     def init_stt_async(self) -> None:
         def _worker() -> None:
@@ -58,6 +181,9 @@ class FlashInputApp:
                     return
                 try:
                     self._set_status("正在初始化语音模型…")
+
+                    from .core.stt_processor import STTProcessor
+
                     self.stt_processor = STTProcessor()
 
                     """/**
@@ -104,9 +230,43 @@ class FlashInputApp:
             except Exception:
                 pass
 
+    def _ensure_audio_recorder(self) -> None:
+        """/**
+         * 确保 AudioRecorder 已初始化（按需延迟创建）。
+         *
+         * @returns {void}
+         */"""
+        if self.audio_recorder is not None:
+            return
+        from .components.audio_recorder import AudioRecorder
+        self.audio_recorder = AudioRecorder()
+
+    def _get_rewriter_safe(self):
+        """/**
+         * 获取 rewriter（按需延迟创建）。
+         *
+         * @returns {Rewrite | null}
+         */"""
+        if self.rewriter is not None:
+            return self.rewriter
+        try:
+            from .core.text_rewrite import get_rewriter
+            self.rewriter = get_rewriter()
+            if self.config_manager is not None and bool(self.config_manager.get("FORMAT_TEXT")):
+                self.rewriter.init_remote_llm_async(reason="lazy_get")
+            return self.rewriter
+        except Exception as e:
+            print(f"⚠️ 获取 rewriter 失败（将降级为不改写）: {e}")
+            self.rewriter = None
+            return None
+
     def _register_hotkeys_from_config(self) -> None:
         if self.config_manager is None:
             self.config_manager = ConfigManager()
+
+        if self.hotkey_manager is None:
+            from .components.hotkey_manager import HotkeyManager
+            self.hotkey_manager = HotkeyManager()
 
         reset = getattr(self.hotkey_manager, "reset_hotkeys", None)
         if callable(reset):
@@ -520,6 +680,8 @@ class FlashInputApp:
 
     def start_recording(self) -> None:
         try:
+            self._ensure_audio_recorder()
+
             if getattr(self.audio_recorder, "is_recording", False):
                 return
 
@@ -608,11 +770,35 @@ class FlashInputApp:
             print("文本转写结果:", text)
             print(f"转录耗时 {time.time() - trans_time:.2f}s（从处理开始算起）")
 
-            trans_time = time.time()
-            # 使用大语言模型对转录内容进行格式化优化
-            text = self.rewriter.rewrite(text)
-            print(f"llm远程改写耗时 {time.time() - trans_time:.2f}s")
-            print(f"✅格式化后的文本: {text}")
+            """/**
+             * 转写后可选的文本改写（LLM）。
+             *
+             * 说明：
+             * - 这里不能假设 `self.rewriter` 一定已完成初始化；GUI 就绪后的后加载是异步的。
+             * - 若改写失败/rewriter 不可用，必须降级为原始转写文本，不能影响“写入”主流程。
+             */"""
+            if not text:
+                print("ℹ️ 转写结果为空，跳过改写")
+            else:
+                try:
+                    if self.config_manager is None:
+                        self.config_manager = ConfigManager()
+
+                    if bool(self.config_manager.get("FORMAT_TEXT")):
+                        self._set_status("改写中…")
+                        rewriter = self._get_rewriter_safe()
+                        if rewriter is None:
+                            print("⚠️ rewriter 不可用，跳过改写")
+                        else:
+                            rewrite_time = time.time()
+                            text = rewriter.rewrite(text)
+                            print(f"llm 远程改写耗时 {time.time() - rewrite_time:.2f}s")
+                            print(f"✅ 格式化后的文本: {text}")
+                    else:
+                        print("ℹ️ FORMAT_TEXT 未开启，跳过改写")
+                except Exception as e:
+                    print(f"⚠️ 文本改写失败（将使用原转写结果）: {e}")
+
             self._set_status("写入中…")
             self.write_appname_to_cursor(text)
         except Exception as e:
@@ -624,6 +810,12 @@ class FlashInputApp:
 
     def run(self) -> None:
         print(f"🚀 {self.app_name} 启动中...")
+
+        try:
+            from .gui_tk import VoiceInputGUI
+        except Exception as e:
+            print(f"❌ GUI 模块加载失败：{e}")
+            raise
 
         # 1) 启动后初始化 VoiceInputGUI
         self.gui = VoiceInputGUI(self, app_name=self.app_name)

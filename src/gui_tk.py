@@ -1260,6 +1260,19 @@ class VoiceInputGUI:
             except Exception:
                 pass
 
+            # """/**
+            #  * GUI 首次渲染完成事件：通知 App 进行后加载。
+            #  *
+            #  * 重要：
+            #  * - 回调必须保持“快速返回”，避免阻塞 Tk 主线程。
+            #  * - 重型初始化应在回调内部启动后台线程完成。
+            #  */"""
+            # try:
+            #     on_gui_ready = getattr(self.app, "on_gui_ready", None)
+            #     if callable(on_gui_ready):
+            #         self.root.after(0, on_gui_ready)
+            # except Exception as e:
+            #     print(f"⚠️ 触发 GUI 就绪回调失败（可忽略）: {e}")
 
     def exit_application(self, sender: Any = None, app_data: Any = None) -> None:
         if hasattr(self.app, "exit_application"):
@@ -1283,6 +1296,27 @@ class VoiceInputGUI:
         except Exception:
             _quit()
 
+    # def _test_api_key(self):
+    #     """
+    #     测试模型密钥是否生效
+    #     """
+    #     api_key = self.config_manager.get("api_key")
+    #     if not api_key:
+    #         self.update_status_error("模型密钥为空")
+    #         return
+    #
+    #     try:
+    #         from .core.text_rewrite import get_rewriter
+    #
+    #         rewriter = get_rewriter()
+    #         result = rewriter.test_remote_llm()
+    #         if result is None:
+    #             self.update_status_success("模型密钥测试成功")
+    #         else:
+    #             self.update_status_error(result)
+    #     except Exception as e:
+    #         self.update_status_error(f"模型密钥测试失败: {e}")
+
     def _initial_paint(self) -> None:
         try:
             self.root.update_idletasks()
@@ -1304,6 +1338,7 @@ class VoiceInputGUI:
             self.root.focus_force()
         except Exception:
             pass
+
 
     def show_recording_overlay(self, text: str = "录音中…") -> None:
         """
