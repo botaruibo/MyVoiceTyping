@@ -4,8 +4,7 @@
 import threading
 from PIL import Image, ImageDraw
 import pystray
-import io
-
+import io, os, sys
 
 class TrayIcon:
     def __init__(self, app):
@@ -121,18 +120,34 @@ class TrayIcon:
 
     def create_tray_icon(self):
         """
-        创建系统托盘图标
-        说明：菜单栏下拉按钮只保留“打开主页 / 退出”。
+        创建系统托盘图标。
+
+        说明：
+        - 为避免 macOS 上 Tk 初始化前触发 Cocoa，这里才导入 `pystray`。
+        - 菜单栏下拉按钮只保留“打开主页 / 退出”。
+
         @returns None
         """
+        try:
+            import pystray
+        except Exception as e:
+            print(f"❌ pystray 导入失败，无法创建托盘图标：{e}")
+            self.icon = None
+            return
+
         image = self._create_image()
 
-        menu = (
-            pystray.MenuItem("打开主页", self._on_open_home),
-            pystray.MenuItem("退出", self._on_quit),
-        )
+        try:
+            menu = (
+                pystray.MenuItem("打开主页", self._on_open_home),
+                pystray.MenuItem("退出", self._on_quit),
+            )
 
-        self.icon = pystray.Icon("MyVoiceInput", image, "无界输入法", menu)
+            self.icon = pystray.Icon("MyVoiceInput", image, "无界输入法", menu)
+        except Exception as e:
+            print(f"❌ 创建托盘图标失败：{e}")
+            self.icon = None
+            return
 
     def start(self):
         """启动系统托盘图标

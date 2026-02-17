@@ -116,58 +116,58 @@ class MacOSImpl:
                 }
         return None
 
-
-def write_appname_to_cursor(window_info: dict) -> None:
-    """
-    将当前窗口的 appname 写入光标所在位置
-    """
-    appname = window_info.get('app_name', '')
-    if not appname:
-        print("无法获取窗口信息，无法写入 app_name")
-        return
-
-    print("写入应用名称:", appname)
-
-    # 使用 pyperclip 复制粘贴（支持中文）
-    try:
-        import pyperclip
-        pyperclip.copy(appname)
-
-        # 使用 Apple Script 粘贴
-        subprocess.run(['osascript', '-e', 'tell application "System Events" to keystroke "v" using {command down}'])
-        print("✅ 粘贴成功")
-        return
-    except ImportError:
-        print("⚠️ 未安装 pyperclip，尝试其他方式")
-    except Exception as e:
-        print("⚠️ 粘贴失败:", e)
-
-    # 备用方案：直接输入（可能不支持中文）
-    try:
-        import pyautogui
-        pyautogui.write(appname, interval=0.01)
-        print("✅ 直接输入成功")
-    except ImportError:
-        print("⚠️ 未安装 pyautogui")
-    except Exception as e:
-        print("❌ 所有输入方案均失败:", e)
+#
+# def write_appname_to_cursor(window_info: dict) -> None:
+#     """
+#     将当前窗口的 appname 写入光标所在位置
+#     """
+#     appname = window_info.get('app_name', '')
+#     if not appname:
+#         print("无法获取窗口信息，无法写入 app_name")
+#         return
+#
+#     print("写入应用名称:", appname)
+#
+#     # 使用 pyperclip 复制粘贴（支持中文）
+#     try:
+#         import pyperclip
+#         pyperclip.copy(appname)
+#
+#         # 使用 Apple Script 粘贴
+#         subprocess.run(['osascript', '-e', 'tell application "System Events" to keystroke "v" using {command down}'])
+#         print("✅ 粘贴成功")
+#         return
+#     except ImportError:
+#         print("⚠️ 未安装 pyperclip，尝试其他方式")
+#     except Exception as e:
+#         print("⚠️ 粘贴失败:", e)
+#
+#     # 备用方案：直接输入（可能不支持中文）
+#     try:
+#         import pyautogui
+#         pyautogui.write(appname, interval=0.01)
+#         print("✅ 直接输入成功")
+#     except ImportError:
+#         print("⚠️ 未安装 pyautogui")
+#     except Exception as e:
+#         print("❌ 所有输入方案均失败:", e)
 
 # --- 使用示例 ---
-if __name__ == "__main__":
-    impl = MacOSImpl()
-    # 模拟 STT 流程，获取光标位置
-    print("请在 3 秒内切换到目标输入框（如 VS Code 或 WPS）...")
-    import time
-
-    time.sleep(3)
-
-    x, y = impl.get_input_cursor_position()
-    info = impl.get_window_at_cursor(x, y)
-
-    # 写入光标位置
-    write_appname_to_cursor(info)
-
-    print("-" * 30)
-    print(f"当前应用: {info})")
-
-    print(f"目标坐标: {(x, y )}")
+# if __name__ == "__main__":
+    # impl = MacOSImpl()
+    # # 模拟 STT 流程，获取光标位置
+    # print("请在 3 秒内切换到目标输入框（如 VS Code 或 WPS）...")
+    # import time
+    #
+    # time.sleep(3)
+    #
+    # x, y = impl.get_input_cursor_position()
+    # info = impl.get_window_at_cursor(x, y)
+    #
+    # # 写入光标位置
+    # write_appname_to_cursor(info)
+    #
+    # print("-" * 30)
+    # print(f"当前应用: {info})")
+    #
+    # print(f"目标坐标: {(x, y )}")
