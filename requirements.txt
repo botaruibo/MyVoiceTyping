@@ -2,7 +2,6 @@ pyobjc-framework-Quartz>=9.2
 pyobjc-framework-ApplicationServices>=9.2
 pyobjc-framework-Cocoa>=9.2
 
-pystray>=0.19.5
 pillow>=10.0.0
 langchain-openai~=1.1.7
 langchain-core~=1.2.7

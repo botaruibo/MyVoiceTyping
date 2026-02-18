@@ -17,16 +17,9 @@ import subprocess
  */"""
 os.environ.setdefault("MYVOICEINPUT_APP_START_TS", str(time.time()))
 
-# from .core import STTProcessor, get_rewriter, WindowInfo
-# from .components.audio_recorder import AudioRecorder
-# from .components.hotkey_manager import HotkeyManager
-# try:
-#     from .components.tray_icon import TrayIcon
-# except Exception as e:
-#     print(f"⚠️ TrayIcon 加载失败，将禁用状态栏图标：{e}")
-#     TrayIcon = None
+
 from .utils.config_manager import ConfigManager
-# from .gui_tk import VoiceInputGUI
+
 
 class FlashInputApp:
     def __init__(self):
@@ -38,7 +31,6 @@ class FlashInputApp:
         self.rewriter = None
         self.window_info = None
         self.hotkey_manager = None
-        self.tray_icon = None
 
         self._stt_ready = threading.Event()
         self._stt_init_lock = threading.Lock()
@@ -73,11 +65,6 @@ class FlashInputApp:
         print("🪟 GUI 已就绪，开始后加载初始化（异步）")
 
         self._start_post_gui_load_async()
-
-        try:
-            self._init_tray_icon_safe()
-        except Exception as e:
-            print(f"⚠️ 后加载启动托盘失败（可忽略）: {e}")
 
         try:
             self.init_stt_async()
@@ -146,33 +133,6 @@ class FlashInputApp:
 
         threading.Thread(target=_worker, daemon=True).start()
 
-    def _init_tray_icon_safe(self) -> None:
-        """/**
-         * 初始化并启动托盘图标（若依赖可用）。
-         *
-         * 说明：
-         * - 托盘属于可选能力；失败不应影响主流程。
-         * - 放在 GUI 就绪后执行，避免启动阶段导入 PIL/pystray 影响首屏速度。
-         *
-         * @returns {void}
-         */"""
-
-        if self.tray_icon is not None:
-            return
-
-        try:
-            from .components.tray_icon import TrayIcon
-
-            self.tray_icon = TrayIcon(on_show=self.restore_from_tray, on_quit=self.exit_application, title=self.app_name)
-        except Exception as e:
-            self.tray_icon = None
-            print(f"⚠️ TrayIcon 加载失败，将禁用状态栏图标：{e}")
-            return
-
-        try:
-            self.tray_icon.start()
-        except Exception as e:
-            print(f"⚠️ 启动托盘失败：{e}")
 
     def init_stt_async(self) -> None:
         def _worker() -> None:
@@ -837,38 +797,38 @@ class FlashInputApp:
 
         self.gui.run()
 
-    def open_home_page(self) -> None:
-        """
-        打开主页（供托盘菜单调用）。
-        行为：恢复窗口 + 切换到“home”页面。
-        @returns None
-        """
-        print("📌 收到打开主页请求（来自托盘）")
-
-        if self.gui is None or getattr(self.gui, "root", None) is None:
-            print("⚠️ GUI 尚未初始化，无法打开主页")
-            return
-
-        def _do() -> None:
-            try:
-                self.gui.restore_from_tray()
-            except Exception as e:
-                print(f"⚠️ 恢复窗口失败：{e}")
-
-            try:
-                # gui_tk.py 里 nav_buttons 已包含 ("主页", "home")
-                self.gui.show_page("home")
-            except Exception as e:
-                print(f"⚠️ 切换到主页失败：{e}")
-
-        try:
-            post_ui = getattr(self.gui, "post_ui", None)
-            if callable(post_ui):
-                post_ui(_do)
-            else:
-                self.gui.root.after(0, _do)
-        except Exception:
-            _do()
+    # def open_home_page(self) -> None:
+    #     """
+    #     打开主页（供托盘菜单调用）。
+    #     行为：恢复窗口 + 切换到“home”页面。
+    #     @returns None
+    #     """
+    #     print("📌 收到打开主页请求（来自托盘）")
+    #
+    #     if self.gui is None or getattr(self.gui, "root", None) is None:
+    #         print("⚠️ GUI 尚未初始化，无法打开主页")
+    #         return
+    #
+    #     def _do() -> None:
+    #         try:
+    #             self.gui.restore_from_tray()
+    #         except Exception as e:
+    #             print(f"⚠️ 恢复窗口失败：{e}")
+    #
+    #         try:
+    #             # gui_tk.py 里 nav_buttons 已包含 ("主页", "home")
+    #             self.gui.show_page("home")
+    #         except Exception as e:
+    #             print(f"⚠️ 切换到主页失败：{e}")
+    #
+    #     try:
+    #         post_ui = getattr(self.gui, "post_ui", None)
+    #         if callable(post_ui):
+    #             post_ui(_do)
+    #         else:
+    #             self.gui.root.after(0, _do)
+    #     except Exception:
+    #         _do()
 
     def write_appname_to_cursor(self, voice_input: str) -> None:
         """
@@ -967,12 +927,6 @@ class FlashInputApp:
             print(f"❌ 写入失败：所有输入方案均失败: {e}")
 
     def minimize_to_tray(self) -> None:
-        if self.tray_icon is not None:
-            try:
-                self.tray_icon.start()
-            except Exception:
-                pass
-
         if self.gui is not None and hasattr(self.gui, "minimize_to_tray"):
             try:
                 post_ui = getattr(self.gui, "post_ui", None)
@@ -995,12 +949,6 @@ class FlashInputApp:
                 pass
 
     def exit_application(self) -> None:
-        if self.tray_icon is not None:
-            try:
-                self.tray_icon.stop()
-            except Exception:
-                pass
-
         if self.gui is None or getattr(self.gui, "root", None) is None:
             return
 

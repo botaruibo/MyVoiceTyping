@@ -89,7 +89,6 @@ a = Analysis(
         'transformers',
         'openai',
         'pyobjc_framework_ApplicationServices',
-        'pystray',
         'PIL',
         'numpy',
         'requests',

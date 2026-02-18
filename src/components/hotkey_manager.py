@@ -277,15 +277,21 @@ class HotkeyManager:
 
     def start_listening(self):
         """开始监听热键"""
+        if self.listener and self.listener.is_alive():
+            print("Hotkey listener is already running.")
+            return
+
         print(f"🚀 开始监听热键...")
-        with keyboard.Listener(
+
+        # 将监听器放在一个单独的线程中运行
+        self.listener = keyboard.Listener(
             on_press=self.on_press,
             on_release=self.on_release
-        ) as listener:
-            self.listener = listener
-            listener.join()
-        print("Hotkey listener stopped.")
+        )
+        self.listener.start()
 
     def stop_listening(self):
         if self.listener:
             self.listener.stop()
+            self.listener = None
+            print("Hotkey listener stopped.")
