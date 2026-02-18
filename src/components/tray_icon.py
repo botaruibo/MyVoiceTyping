@@ -3,12 +3,12 @@
 """
 import threading
 from PIL import Image, ImageDraw
-import pystray
-import io, os, sys
 
 class TrayIcon:
     def __init__(self, app):
-        self.app = app
+        self.on_show = on_show
+        self.on_quit = on_quit
+        self.title = title
         self.icon = None
         self.thread = None
 
@@ -69,27 +69,7 @@ class TrayIcon:
 
         return image
 
-    def _on_open_home(self, icon, item):
-        """
-        打开主页（托盘菜单回调）
-        @param icon: 托盘图标实例（pystray.Icon）
-        @param item: 菜单项实例（pystray.MenuItem）
-        @returns None
-        """
-        print("📌 托盘菜单：打开主页")
-        open_home = getattr(self.app, "open_home_page", None)
-        if callable(open_home):
-            try:
-                open_home()
-                return
-            except Exception as e:
-                print(f"❌ 托盘打开主页失败：{e}")
 
-        # 兜底：至少恢复窗口
-        try:
-            self.app.restore_from_tray()
-        except Exception as e:
-            print(f"❌ 托盘恢复窗口失败：{e}")
 
     def _on_quit(self, icon, item):
         """
@@ -100,8 +80,13 @@ class TrayIcon:
         """
         print("🛑 托盘菜单：退出")
         try:
-            # 只调用 app 的退出逻辑，让它统一处理托盘和 GUI
-            self.app.exit_application()
+            if callable(self.on_quit):
+                try:
+                    self.on_quit()
+                except Exception as e:
+                    print(f"❌ 托盘退出回调执行失败：{e}")
+            else:
+                print("⚠️ 未设置退出回调，已忽略")
         except Exception as e:
             print(f"❌ 托盘退出失败：{e}")
 
@@ -114,7 +99,13 @@ class TrayIcon:
         """
         print("🪟 托盘菜单：显示窗口")
         try:
-            self.app.restore_from_tray()
+            if callable(self.on_show):
+                try:
+                    self.on_show()
+                except Exception as e:
+                    print(f"❌ 托盘显示窗口回调执行失败：{e}")
+            else:
+                print("⚠️ 未设置显示窗口回调，已忽略")
         except Exception as e:
             print(f"❌ 托盘显示窗口失败：{e}")
 
@@ -124,7 +115,7 @@ class TrayIcon:
 
         说明：
         - 为避免 macOS 上 Tk 初始化前触发 Cocoa，这里才导入 `pystray`。
-        - 菜单栏下拉按钮只保留“打开主页 / 退出”。
+        - 菜单栏下拉按钮只保留“显示窗口 / 退出”。
 
         @returns None
         """
@@ -139,11 +130,11 @@ class TrayIcon:
 
         try:
             menu = (
-                pystray.MenuItem("打开主页", self._on_open_home),
+                pystray.MenuItem("显示窗口", self._on_show),
                 pystray.MenuItem("退出", self._on_quit),
             )
 
-            self.icon = pystray.Icon("MyVoiceInput", image, "无界输入法", menu)
+            self.icon = pystray.Icon("MyVoiceInput", image, self.title, menu)
         except Exception as e:
             print(f"❌ 创建托盘图标失败：{e}")
             self.icon = None

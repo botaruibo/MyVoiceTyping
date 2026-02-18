@@ -17,16 +17,16 @@ import subprocess
  */"""
 os.environ.setdefault("MYVOICEINPUT_APP_START_TS", str(time.time()))
 
-from .core import STTProcessor, get_rewriter, WindowInfo
-from .components.audio_recorder import AudioRecorder
-from .components.hotkey_manager import HotkeyManager
-try:
-    from .components.tray_icon import TrayIcon
-except Exception as e:
-    print(f"⚠️ TrayIcon 加载失败，将禁用状态栏图标：{e}")
-    TrayIcon = None
+# from .core import STTProcessor, get_rewriter, WindowInfo
+# from .components.audio_recorder import AudioRecorder
+# from .components.hotkey_manager import HotkeyManager
+# try:
+#     from .components.tray_icon import TrayIcon
+# except Exception as e:
+#     print(f"⚠️ TrayIcon 加载失败，将禁用状态栏图标：{e}")
+#     TrayIcon = None
 from .utils.config_manager import ConfigManager
-from .gui_tk import VoiceInputGUI
+# from .gui_tk import VoiceInputGUI
 
 class FlashInputApp:
     def __init__(self):
@@ -163,7 +163,7 @@ class FlashInputApp:
         try:
             from .components.tray_icon import TrayIcon
 
-            self.tray_icon = TrayIcon(self)
+            self.tray_icon = TrayIcon(on_show=self.restore_from_tray, on_quit=self.exit_application, title=self.app_name)
         except Exception as e:
             self.tray_icon = None
             print(f"⚠️ TrayIcon 加载失败，将禁用状态栏图标：{e}")
@@ -819,13 +819,6 @@ class FlashInputApp:
 
         # 1) 启动后初始化 VoiceInputGUI
         self.gui = VoiceInputGUI(self, app_name=self.app_name)
-
-        # 1.1) 启动系统托盘（若可用）
-        if self.tray_icon is not None:
-            try:
-                self.tray_icon.start()
-            except Exception as e:
-                print(f"⚠️ 启动托盘失败：{e}")
 
         # 2) 加载 config 文件（复用 GUI 的 ConfigManager，避免重复读文件）
         if getattr(self.gui, "config_manager", None) is not None:
