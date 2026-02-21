@@ -9,6 +9,8 @@
 import threading
 from typing import Optional
 
+from sympy import false
+
 from ..utils.config_manager import get_config_manager
 from ..prompts import get_format_text_prompt_template
 
@@ -62,6 +64,7 @@ class Rewrite:
          * @returns {void}
          */
         """
+        print("====rewrite.0")
         with self._remote_init_lock:
             if self._remote_init_started:
                 return
@@ -78,6 +81,10 @@ class Rewrite:
                     print(f"⚠️ 远程文本改写模型初始化失败（将自动降级为不改写）: {err}")
             except Exception as e:
                 print(f"⚠️ 远程文本改写模型初始化异常（将自动降级为不改写）: {e}")
+
+            finally:
+                # 重置初始化状态
+                self._remote_init_started = False
 
         threading.Thread(target=_worker, daemon=True).start()
 

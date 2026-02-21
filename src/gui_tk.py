@@ -1,6 +1,6 @@
 import tkinter as tk
 from typing import Any, Dict, Optional
-import sys
+import sys, time
 
 import customtkinter as ctk
 
@@ -12,22 +12,28 @@ except Exception:  # pragma: no cover
     ImageFont = None
 
 from .utils.config_manager import get_config_manager
-from .core.text_rewrite import get_rewriter
 
 
 class VoiceInputGUI:
     def __init__(self, app: Any, app_name: str):
+        _perf_t0 = time.perf_counter()
         self.app = app
         self.app_name = app_name
+        t0 = time.perf_counter()
         self.config_manager = get_config_manager()
-        self.rewriter = get_rewriter()
+        print(f"[perf] gui:init config_manager: {(time.perf_counter() - t0) * 1000:.1f}ms")
 
+        t0 = time.perf_counter()
         try:
             ctk.set_appearance_mode("system")
         except Exception:
             pass
+        print(f"[perf] gui:init set_appearance_mode: {(time.perf_counter() - t0) * 1000:.1f}ms")
 
+        t0 = time.perf_counter()
         self.root = ctk.CTk()
+        print(f"[perf] gui:init ctk.CTK : {(time.perf_counter() - t0) * 1000:.1f}ms")
+
         self.root.title(self.app_name)
         self.root.geometry("800x600")
 
@@ -74,21 +80,46 @@ class VoiceInputGUI:
         self.pages: Dict[str, ctk.CTkFrame] = {}
         self.current_page: Optional[str] = "home"
 
+        t0 = time.perf_counter()
         self._build_ui()
-        self.show_page("home")
+        print(f"[perf] gui:init build_ui: {(time.perf_counter() - t0) * 1000:.1f}ms")
 
-        # macOS：初始化 Cocoa 录音浮层（NSPanel 非激活，不抢占输入光标）
+        t0 = time.perf_counter()
+        self.show_page("home")
+        print(f"[perf] gui:init show_page(home): {(time.perf_counter() - t0) * 1000:.1f}ms")
+
+        t0 = time.perf_counter()
         try:
             self._init_cocoa_recording_overlay()
         except Exception as e:
             print(f"⚠️ 初始化 Cocoa 录音浮层失败（将禁用录音浮层）: {e}")
+        print(f"[perf] gui:init cocoa_overlay_init: {(time.perf_counter() - t0) * 1000:.1f}ms")
 
-        # 让窗口尽快渲染：放到主循环启动后执行，避免 `update()` 在某些环境下卡死。
+        t0 = time.perf_counter()
         try:
             self.root.after(0, self._initial_paint)
         except Exception:
             pass
+        print(f"[perf] gui:init schedule_initial_paint: {(time.perf_counter() - t0) * 1000:.1f}ms")
 
+        print(f"[perf] gui:init total(before_mainloop): {(time.perf_counter() - _perf_t0) * 1000:.1f}ms")
+
+    def _post_gui_init(self) -> None:
+        """GUI绘制完成后执行的重型初始化任务
+
+        包括：
+        1. 通知应用执行其他重型初始化（如STT）
+        """
+        print("🚀 开始GUI绘制后的重型初始化任务")
+
+        # 2. 通知应用执行其他重型初始化
+        try:
+            on_gui_ready = getattr(self.app, "on_gui_ready", None)
+            if callable(on_gui_ready):
+                on_gui_ready()
+                print("✅ 通知应用执行后加载初始化完成，仅通知成功")
+        except Exception as e:
+            print(f"⚠️ 通知应用执行后加载初始化失败: {e}")
     # -------------------------
     # UI
     # -------------------------
@@ -105,8 +136,13 @@ class VoiceInputGUI:
         self.root.grid_columnconfigure(1, weight=0, minsize=1)
         self.root.grid_columnconfigure(2, weight=1)
 
+        t0 = time.perf_counter()
         self._create_sidebar()
+        print(f"[perf] gui:build_ui sidebar: {(time.perf_counter() - t0) * 1000:.1f}ms")
+
+        t0 = time.perf_counter()
         self._create_content_area()
+        print(f"[perf] gui:build_ui content_area: {(time.perf_counter() - t0) * 1000:.1f}ms")
 
     def _create_nav_icon(self, letter: str) -> Optional[ctk.CTkImage]:
         if Image is None or ImageDraw is None or ImageFont is None:
@@ -438,7 +474,7 @@ class VoiceInputGUI:
             return
 
         try:
-            result = self.rewriter.test_remote_llm()
+            result = self.app.rewriter.test_remote_llm()
             if(result is None):
                 self.update_status_success("模型密钥测试成功")
             else:
@@ -1260,20 +1296,6 @@ class VoiceInputGUI:
             except Exception:
                 pass
 
-            # """/**
-            #  * GUI 首次渲染完成事件：通知 App 进行后加载。
-            #  *
-            #  * 重要：
-            #  * - 回调必须保持“快速返回”，避免阻塞 Tk 主线程。
-            #  * - 重型初始化应在回调内部启动后台线程完成。
-            #  */"""
-            # try:
-            #     on_gui_ready = getattr(self.app, "on_gui_ready", None)
-            #     if callable(on_gui_ready):
-            #         self.root.after(0, on_gui_ready)
-            # except Exception as e:
-            #     print(f"⚠️ 触发 GUI 就绪回调失败（可忽略）: {e}")
-
     def exit_application(self, sender: Any = None, app_data: Any = None) -> None:
         if hasattr(self.app, "exit_application"):
             self.app.exit_application()
@@ -1296,28 +1318,8 @@ class VoiceInputGUI:
         except Exception:
             _quit()
 
-    # def _test_api_key(self):
-    #     """
-    #     测试模型密钥是否生效
-    #     """
-    #     api_key = self.config_manager.get("api_key")
-    #     if not api_key:
-    #         self.update_status_error("模型密钥为空")
-    #         return
-    #
-    #     try:
-    #         from .core.text_rewrite import get_rewriter
-    #
-    #         rewriter = get_rewriter()
-    #         result = rewriter.test_remote_llm()
-    #         if result is None:
-    #             self.update_status_success("模型密钥测试成功")
-    #         else:
-    #             self.update_status_error(result)
-    #     except Exception as e:
-    #         self.update_status_error(f"模型密钥测试失败: {e}")
-
     def _initial_paint(self) -> None:
+        t0 = time.perf_counter()
         try:
             self.root.update_idletasks()
         except Exception:
@@ -1338,6 +1340,17 @@ class VoiceInputGUI:
             self.root.focus_force()
         except Exception:
             pass
+
+        print(f"[perf] gui:initial_paint: {(time.perf_counter() - t0) * 1000:.1f}ms")
+
+        # 在初始绘制完成后再触发重型初始化
+        try:
+            self.root.after_idle(self._post_gui_init)
+        except Exception:
+            try:
+                self.root.after(0, self._post_gui_init)
+            except Exception:
+                pass
 
 
     def show_recording_overlay(self, text: str = "录音中…") -> None:

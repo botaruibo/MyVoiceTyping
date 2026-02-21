@@ -1,10 +1,6 @@
 """
 Utils module init
 """
-from .config_manager import ConfigManager
+from .config_manager import get_config_manager
 
-__all__ = ['ConfigManager']
-
-# from .utils import audio_to_wav_bytes, normalize_audio
-
-# __all__ = ["audio_to_wav_bytes", "normalize_audio"]
+__all__ = ['get_config_manager']

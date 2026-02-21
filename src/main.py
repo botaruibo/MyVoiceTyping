@@ -7,6 +7,7 @@ import sys
 import time
 import threading
 import subprocess
+import rumps
 
 """/**
  * 兜底记录应用启动时间戳（秒）。
@@ -17,13 +18,14 @@ import subprocess
  */"""
 os.environ.setdefault("MYVOICEINPUT_APP_START_TS", str(time.time()))
 
-
-from .utils.config_manager import ConfigManager
+from .utils.config_manager import get_config_manager
 
 
 class FlashInputApp:
     def __init__(self):
         self.app_name = "闪电输入法"
+        # 状态栏应用实例
+        self.status_bar_app = None
         self.config_manager = None
 
         self.audio_recorder = None
@@ -52,43 +54,57 @@ class FlashInputApp:
          *
          * 设计目标：
          * - 必须快速返回，不能阻塞 Tk 主线程。
-         * - 所有重型初始化（模型/Quartz/音频/联网/系统钩子等）都应在这里之后启动。
+         * - 重型初始化统一放到后台线程中执行。
          *
          * @returns {void}
          */"""
-
         with self._post_gui_load_lock:
             if self._post_gui_load_started:
                 return
             self._post_gui_load_started = True
 
         print("🪟 GUI 已就绪，开始后加载初始化（异步）")
-
         self._start_post_gui_load_async()
 
-        try:
-            self.init_stt_async()
-        except Exception as e:
-            print(f"⚠️ 后加载启动 STT 初始化失败（可忽略）: {e}")
+        # 在 GUI 就绪后，在主线程上启动状态栏应用
+        if self.status_bar_app is not None:
+            try:
+                # 使用一个单独的线程来运行状态栏应用的事件循环
+                # 这样可以避免与 Tkinter 的事件循环冲突
+                import threading
 
-        try:
-            self.start_listening_hotkey()
-        except Exception as e:
-            print(f"⚠️ 后加载启动热键监听失败（可忽略）: {e}")
+                def run_status_bar():
+                    try:
+                        self.status_bar_app.run()
+                    except Exception as e:
+                        print(f"⚠️ 状态栏应用运行异常: {e}")
+
+                status_bar_thread = threading.Thread(target=run_status_bar, daemon=True)
+                status_bar_thread.start()
+                print("✅ 状态栏应用已启动")
+
+            except Exception as e:
+                print(f"⚠️ 启动状态栏应用失败: {e}")
+
 
     def _start_post_gui_load_async(self) -> None:
         """/**
-         * 启动后加载线程：初始化重型对象。
+         * 启动后加载线程：统一初始化重型对象，并启动后台服务。
+         *
+         * 统一入口的好处：
+         * - 避免 on_gui_ready 与本方法重复做同一件事。
+         * - 便于统一做异常兜底与日志。
          *
          * @returns {void}
          */"""
-
         def _worker() -> None:
+            t0 = time.perf_counter()
+            print(f"----异步gui后初始化开始：{t0:0.2f}")
             try:
                 self._set_status("后加载初始化中…")
 
                 if self.config_manager is None:
-                    self.config_manager = ConfigManager()
+                    self.config_manager = get_config_manager()
 
                 try:
                     from .core.text_rewrite import get_rewriter
@@ -125,8 +141,9 @@ class FlashInputApp:
                     self.hotkey_manager = None
                     print(f"⚠️ 初始化 HotkeyManager 失败（将导致无法使用热键）: {e}")
 
+
                 self._set_status("就绪")
-                print("✅ 后加载初始化完成")
+                print(f"✅ 后加载初始化完成,耗时:{time.perf_counter()-t0:0.2f}")
             except Exception as e:
                 print(f"❌ 后加载初始化异常: {e}")
                 self._set_status(f"后加载初始化失败：{e}")
@@ -141,11 +158,12 @@ class FlashInputApp:
                     return
                 try:
                     self._set_status("正在初始化语音模型…")
-
+                    t0 = time.perf_counter()
+                    print(f"stt-----开始时间：{t0}")
                     from .core.stt_processor import STTProcessor
 
                     self.stt_processor = STTProcessor()
-
+                    print(f"stt-----结束时间：{time.perf_counter()}")
                     """/**
                      * 统计：应用启动 -> STTProcessor 初始化完成耗时。
                      *
@@ -160,6 +178,8 @@ class FlashInputApp:
                             elapsed_s = time.time() - start_ts
                     except Exception as e:
                         print(f"⚠️ 启动耗时统计失败（可忽略）: {e}")
+
+                    print(f"✅ STT 初始化完成，耗时 {time.perf_counter() - t0:.2f}s")
 
                     if elapsed_s is not None:
                         print(f"✅ STT 初始化完成，耗时 {elapsed_s:.2f}s（从应用启动算起）")
@@ -222,7 +242,7 @@ class FlashInputApp:
 
     def _register_hotkeys_from_config(self) -> None:
         if self.config_manager is None:
-            self.config_manager = ConfigManager()
+            self.config_manager = get_config_manager()
 
         if self.hotkey_manager is None:
             from .components.hotkey_manager import HotkeyManager
@@ -526,10 +546,6 @@ class FlashInputApp:
          * @returns {boolean} 是否启用
          */
         """
-
-        if self.config_manager is None:
-            self.config_manager = ConfigManager()
-
         try:
             return bool(self.config_manager.get("mute_speaker", False))
         except Exception:
@@ -722,9 +738,7 @@ class FlashInputApp:
 
         try:
             self._set_status("转写中…")
-            time_start = time.time()
             self._ensure_stt_ready()
-            print(f"STT 初始化耗时 {time.time() - time_start:.2f}s（从处理开始算起）")
             trans_time = time.time()
             text = self.stt_processor.transcribe(audio_data)
             print("文本转写结果:", text)
@@ -742,7 +756,7 @@ class FlashInputApp:
             else:
                 try:
                     if self.config_manager is None:
-                        self.config_manager = ConfigManager()
+                        self.config_manager = get_config_manager()
 
                     if bool(self.config_manager.get("FORMAT_TEXT")):
                         self._set_status("改写中…")
@@ -768,67 +782,88 @@ class FlashInputApp:
             with self._processing_lock:
                 self._is_processing = False
 
+    def create_status_bar_icon(self) -> None:
+        """
+        创建状态栏图标
+
+        @returns {void}
+        """
+        try:
+            # 创建状态栏应用
+            class StatusBarApp(rumps.App):
+                def __init__(self, name, main_app):
+                    super().__init__(name, icon=None)  # 无图标，使用默认图标
+                    self.main_app = main_app
+                    # 添加退出菜单
+                    self.menu = [
+                        rumps.MenuItem("退出应用", callback=self.quit_app)
+                    ]
+
+                def quit_app(self, sender):
+                    """
+                    退出应用
+
+                    @param sender: 菜单项
+                    @returns {void}
+                    """
+                    print("🔄 正在退出应用...")
+                    # 调用主应用的退出方法
+                    self.main_app.exit_application()
+                    # 退出状态栏应用
+                    rumps.quit_application()
+
+            # 初始化状态栏应用
+            self.status_bar_app = StatusBarApp(self.app_name, self)
+            print("✅ 状态栏图标已创建")
+
+            # 注意：状态栏应用的运行需要特殊处理
+            # 由于我们已经有了 Tkinter 的事件循环，我们需要在主线程上启动
+
+        except Exception as e:
+            print(f"⚠️ 创建状态栏图标失败: {e}")
+            self.status_bar_app = None
+
     def run(self) -> None:
+        _run_t0 = time.perf_counter()
         print(f"🚀 {self.app_name} 启动中...")
 
+        t0 = time.perf_counter()
         try:
             from .gui_tk import VoiceInputGUI
         except Exception as e:
             print(f"❌ GUI 模块加载失败：{e}")
             raise
+        print(f"[perf] main: import VoiceInputGUI: {(time.perf_counter() - t0) * 1000:.1f}ms")
 
         # 1) 启动后初始化 VoiceInputGUI
+        t0 = time.perf_counter()
         self.gui = VoiceInputGUI(self, app_name=self.app_name)
+        print(f"[perf] main: VoiceInputGUI ctor: {(time.perf_counter() - t0) * 1000:.1f}ms")
 
         # 2) 加载 config 文件（复用 GUI 的 ConfigManager，避免重复读文件）
-        if getattr(self.gui, "config_manager", None) is not None:
-            self.config_manager = self.gui.config_manager
-        elif self.config_manager is None:
-            self.config_manager = ConfigManager()
+        t0 = time.perf_counter()
+        self.config_manager = get_config_manager()
+        print(f"[perf] main: bind config_manager: {(time.perf_counter() - t0) * 1000:.1f}ms")
+
+        # 3) 创建状态栏图标
+        t0 = time.perf_counter()
+        self.create_status_bar_icon()
+        print(f"[perf] main: create status bar: {(time.perf_counter() - t0) * 1000:.1f}ms")
 
         # 3) 异步线程加载 stt 对象
         # 4) 同时异步线程启动热键监听
+        t0 = time.perf_counter()
         if getattr(self.gui, "root", None) is not None:
-            self.gui.root.after(0, self.init_stt_async)
-            self.gui.root.after(0, self.start_listening_hotkey)
+            self.gui.root.after_idle(self.init_stt_async)
+            self.gui.root.after_idle(self.start_listening_hotkey)
         else:
             self.init_stt_async()
             self.start_listening_hotkey()
+        print(f"[perf] main: schedule stt/hotkey: {(time.perf_counter() - t0) * 1000:.1f}ms")
 
+        print(f"[perf] main: run() pre-mainloop total: {(time.perf_counter() - _run_t0) * 1000:.1f}ms")
         self.gui.run()
 
-    # def open_home_page(self) -> None:
-    #     """
-    #     打开主页（供托盘菜单调用）。
-    #     行为：恢复窗口 + 切换到“home”页面。
-    #     @returns None
-    #     """
-    #     print("📌 收到打开主页请求（来自托盘）")
-    #
-    #     if self.gui is None or getattr(self.gui, "root", None) is None:
-    #         print("⚠️ GUI 尚未初始化，无法打开主页")
-    #         return
-    #
-    #     def _do() -> None:
-    #         try:
-    #             self.gui.restore_from_tray()
-    #         except Exception as e:
-    #             print(f"⚠️ 恢复窗口失败：{e}")
-    #
-    #         try:
-    #             # gui_tk.py 里 nav_buttons 已包含 ("主页", "home")
-    #             self.gui.show_page("home")
-    #         except Exception as e:
-    #             print(f"⚠️ 切换到主页失败：{e}")
-    #
-    #     try:
-    #         post_ui = getattr(self.gui, "post_ui", None)
-    #         if callable(post_ui):
-    #             post_ui(_do)
-    #         else:
-    #             self.gui.root.after(0, _do)
-    #     except Exception:
-    #         _do()
 
     def write_appname_to_cursor(self, voice_input: str) -> None:
         """
