@@ -106,7 +106,6 @@ class VoiceInputGUI:
 
     def _post_gui_init(self) -> None:
         """GUI绘制完成后执行的重型初始化任务
-
         包括：
         1. 通知应用执行其他重型初始化（如STT）
         """
@@ -120,10 +119,10 @@ class VoiceInputGUI:
                 print("✅ 通知应用执行后加载初始化完成，仅通知成功")
         except Exception as e:
             print(f"⚠️ 通知应用执行后加载初始化失败: {e}")
+
     # -------------------------
     # UI
     # -------------------------
-
     def _build_ui(self) -> None:
         """
         构建主 UI 界面。
@@ -233,7 +232,6 @@ class VoiceInputGUI:
         footer = ctk.CTkFrame(sidebar, fg_color="transparent")
         footer.pack(side="bottom", fill="x", padx=10, pady=10)
 
-
         ctk.CTkButton(footer, text="退出", command=self.exit_application).pack(fill="x", pady=(8, 0))
 
     def _create_content_area(self) -> None:
@@ -281,7 +279,6 @@ class VoiceInputGUI:
     # -------------------------
     # Pages
     # -------------------------
-
     def _create_placeholder_page(self, parent: ctk.CTkFrame, title: str) -> ctk.CTkFrame:
         page = ctk.CTkFrame(parent, fg_color="transparent")
         ctk.CTkLabel(page, text=title, font=ctk.CTkFont(size=18, weight="bold")).pack(
@@ -292,8 +289,8 @@ class VoiceInputGUI:
 
     def _create_home_page(self, parent: ctk.CTkFrame, title: str) -> ctk.CTkFrame:
         """
-                创建主页,展示应用的欢迎信息和核心功能。
-                """
+        创建主页,展示应用的欢迎信息和核心功能。
+        """
         page = ctk.CTkFrame(parent, fg_color="transparent")
         page.grid_rowconfigure(0, weight=1)
         page.grid_columnconfigure(0, weight=1)
@@ -364,7 +361,6 @@ class VoiceInputGUI:
 
         return page
 
-
     def _create_settings_page(self, parent: ctk.CTkFrame) -> ctk.CTkFrame:
         page = ctk.CTkFrame(parent, fg_color="transparent")
         page.grid_columnconfigure(0, weight=1)
@@ -412,14 +408,6 @@ class VoiceInputGUI:
             description="按一次开始说话,无需按住。再次按下将文本粘贴到任何文本框中。",
             row=1,
         )
-
-        # self._create_hotkey_setting(
-        #     hotkey_settings_container,
-        #     title="翻译模式",
-        #     config_key="translate_hotkey",
-        #     description="按一下开始语音翻译。再按一下将翻译文本粘贴到任何文本框中。",
-        #     row=2,
-        # )
 
         # --- 模型设置 ---
         model_header_frame = ctk.CTkFrame(page, fg_color="transparent")
@@ -537,11 +525,9 @@ class VoiceInputGUI:
             pass
 
         # （已移除）OpenAI STT API Key
-
         ctk.CTkLabel(page, text="远程 LLM（用于 AI 纠正等能力）", text_color="gray").grid(
             row=2, column=0, padx=18, pady=(8, 8), sticky="w"
         )
-
         # Remote LLM API Key
         api_key_row = ctk.CTkFrame(page, fg_color=self._card_bg_color)
         api_key_row.grid(row=3, column=0, padx=18, pady=(0, 12), sticky="ew")
@@ -595,7 +581,6 @@ class VoiceInputGUI:
         @param var: 需要跟踪的 tkinter StringVar 对象。
         @param key: 对应于配置管理器中的键名 (config key)。
         """
-
         def _save(*_args) -> None:
             """
             回调函数，用于将 StringVar 的当前值保存到配置中。
@@ -678,7 +663,6 @@ class VoiceInputGUI:
             "shift_r": "shift_r",
         }
 
-
         # --- Widgets ---
         # 将所有动态控件都放置在 right_frame 中
         record_button = ctk.CTkButton(
@@ -712,7 +696,6 @@ class VoiceInputGUI:
             height=28,
             command=lambda: switch_to_edit_mode(activate_listeners=True)
         )
-
 
         # --- Helper Functions ---
         def _clear_widgets() -> None:
@@ -880,7 +863,8 @@ class VoiceInputGUI:
 
         def _on_bubble_leave(event) -> None:
             change_button.place_forget()
-# --- Core Logic ---
+
+        # --- Core Logic ---
         def _save(new_hotkey: str) -> None:
             """
             保存热键，并强制重新加载所有热键配置以确保监听生效。
@@ -1092,106 +1076,6 @@ class VoiceInputGUI:
 
         self._set_active_nav_button(self.current_page)
 
-    # -------------------------
-    # Status / lifecycle
-    # -------------------------
-
-    # class VoiceInputGUI:
-    #     def __init__(self, app: Any, app_name: str):
-    #         self.app = app
-    #         self.app_name = app_name
-    #         self.root = ctk.CTk()
-    #         self.root.title(self.app_name)
-    #         self.root.geometry("800x600")
-    #
-    #         # UI 线程（Tk 主线程）任务队列：后台线程只能往队列塞任务，不能直接调用 Tk
-    #         self._ui_thread_ident = threading.get_ident()
-    #         self._ui_task_queue: queue.Queue = queue.Queue()
-    #         self._ui_pump_job = None
-    #         self._ui_pump_interval_ms = 50
-    #
-    #         try:
-    #             self.root.after(self._ui_pump_interval_ms, self._ui_pump)
-    #         except Exception as e:
-    #             print(f"⚠️ 启动 UI 任务队列轮询失败（可忽略）: {e}")
-    #
-    #     def post_ui(self, func, *args, **kwargs) -> None:
-    #         """
-    #         /**
-    #          * 将函数调度到 GUI 主线程执行（线程安全）。
-    #          *
-    #          * 背景：
-    #          * - Tk/CTk 不是线程安全的；后台线程直接调用 Tk 方法可能导致随机崩溃。
-    #          * - macOS + PyObjC/输入法框架场景更容易触发 GIL 相关 fatal error。
-    #          *
-    #          * 用法：
-    #          * - 后台线程：`self.post_ui(self.update_status, "...")`
-    #          * - 主线程：会直接执行（减少延迟）。
-    #          *
-    #          * @param {Function} func - 需要在 UI 线程执行的函数。
-    #          * @returns {void}
-    #          */
-    #         """
-    #         if func is None:
-    #             return
-    #
-    #         try:
-    #             if threading.get_ident() == getattr(self, "_ui_thread_ident", None):
-    #                 func(*args, **kwargs)
-    #                 return
-    #         except Exception:
-    #             pass
-    #
-    #         try:
-    #             self._ui_task_queue.put((func, args, kwargs))
-    #         except Exception as e:
-    #             print(f"⚠️ 投递 UI 任务失败（可忽略）: {e}")
-    #
-    #     def _ui_pump(self) -> None:
-    #         """
-    #         /**
-    #          * UI 主线程轮询任务队列（由 Tk after 驱动）。
-    #          *
-    #          * @returns {void}
-    #          */
-    #         """
-    #         processed = 0
-    #         while processed < 200:
-    #             try:
-    #                 func, args, kwargs = self._ui_task_queue.get_nowait()
-    #             except queue.Empty:
-    #                 break
-    #
-    #             try:
-    #                 func(*args, **kwargs)
-    #             except Exception as e:
-    #                 print(f"⚠️ 执行 UI 任务失败（可忽略）: {e}")
-    #                 try:
-    #                     traceback.print_exc()
-    #                 except Exception:
-    #                     pass
-    #
-    #             processed += 1
-    #
-    #         try:
-    #             self._ui_pump_job = self.root.after(self._ui_pump_interval_ms, self._ui_pump)
-    #         except Exception:
-    #             self._ui_pump_job = None
-    #
-    #     def update_status(self, text: str) -> None:
-    #         if not self.root:
-    #             return
-    #
-    #         def _update() -> None:
-    #             self.status_var.set(text)
-    #             if self._status_label is not None:
-    #                 try:
-    #                     self._status_label.configure(text=text)
-    #                 except Exception:
-    #                     pass
-    #
-    #         self.post_ui(_update)
-
     def update_status_info(self, text: str) -> None:
         """
         以“信息”状态更新状态栏。
@@ -1221,6 +1105,7 @@ class VoiceInputGUI:
         if self._status_label:
             self.status_var.set(f"⚠️ {text}")
             self._status_label.configure(text_color=("#C40000", "#FF5555"))  # Dark/Light red
+
     def run(self) -> None:
         self.root.mainloop()
 

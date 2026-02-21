@@ -7,7 +7,6 @@ import sys
 import time
 import threading
 import subprocess
-import rumps
 
 """/**
  * 兜底记录应用启动时间戳（秒）。
@@ -65,26 +64,6 @@ class FlashInputApp:
 
         print("🪟 GUI 已就绪，开始后加载初始化（异步）")
         self._start_post_gui_load_async()
-
-        # 在 GUI 就绪后，在主线程上启动状态栏应用
-        if self.status_bar_app is not None:
-            try:
-                # 使用一个单独的线程来运行状态栏应用的事件循环
-                # 这样可以避免与 Tkinter 的事件循环冲突
-                import threading
-
-                def run_status_bar():
-                    try:
-                        self.status_bar_app.run()
-                    except Exception as e:
-                        print(f"⚠️ 状态栏应用运行异常: {e}")
-
-                status_bar_thread = threading.Thread(target=run_status_bar, daemon=True)
-                status_bar_thread.start()
-                print("✅ 状态栏应用已启动")
-
-            except Exception as e:
-                print(f"⚠️ 启动状态栏应用失败: {e}")
 
 
     def _start_post_gui_load_async(self) -> None:
@@ -600,7 +579,6 @@ class FlashInputApp:
          * @returns {void}
          */
         """
-
         # 仅支持 macOS/Windows
         if sys.platform not in ("darwin", "win32"):
             return
@@ -782,47 +760,6 @@ class FlashInputApp:
             with self._processing_lock:
                 self._is_processing = False
 
-    def create_status_bar_icon(self) -> None:
-        """
-        创建状态栏图标
-
-        @returns {void}
-        """
-        try:
-            # 创建状态栏应用
-            class StatusBarApp(rumps.App):
-                def __init__(self, name, main_app):
-                    super().__init__(name, icon=None)  # 无图标，使用默认图标
-                    self.main_app = main_app
-                    # 添加退出菜单
-                    self.menu = [
-                        rumps.MenuItem("退出应用", callback=self.quit_app)
-                    ]
-
-                def quit_app(self, sender):
-                    """
-                    退出应用
-
-                    @param sender: 菜单项
-                    @returns {void}
-                    """
-                    print("🔄 正在退出应用...")
-                    # 调用主应用的退出方法
-                    self.main_app.exit_application()
-                    # 退出状态栏应用
-                    rumps.quit_application()
-
-            # 初始化状态栏应用
-            self.status_bar_app = StatusBarApp(self.app_name, self)
-            print("✅ 状态栏图标已创建")
-
-            # 注意：状态栏应用的运行需要特殊处理
-            # 由于我们已经有了 Tkinter 的事件循环，我们需要在主线程上启动
-
-        except Exception as e:
-            print(f"⚠️ 创建状态栏图标失败: {e}")
-            self.status_bar_app = None
-
     def run(self) -> None:
         _run_t0 = time.perf_counter()
         print(f"🚀 {self.app_name} 启动中...")
@@ -845,13 +782,7 @@ class FlashInputApp:
         self.config_manager = get_config_manager()
         print(f"[perf] main: bind config_manager: {(time.perf_counter() - t0) * 1000:.1f}ms")
 
-        # 3) 创建状态栏图标
-        t0 = time.perf_counter()
-        self.create_status_bar_icon()
-        print(f"[perf] main: create status bar: {(time.perf_counter() - t0) * 1000:.1f}ms")
-
-        # 3) 异步线程加载 stt 对象
-        # 4) 同时异步线程启动热键监听
+        # 3) 异步加载 STT 模型 和 热键监听
         t0 = time.perf_counter()
         if getattr(self.gui, "root", None) is not None:
             self.gui.root.after_idle(self.init_stt_async)
