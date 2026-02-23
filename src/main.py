@@ -765,6 +765,7 @@ class FlashInputApp:
         print(f"🚀 {self.app_name} 启动中...")
 
         t0 = time.perf_counter()
+        print(f"app-----开始时间：{t0}")
         try:
             from .gui_tk import VoiceInputGUI
         except Exception as e:

@@ -3,6 +3,16 @@ from typing import Any, Dict, Optional
 import sys, time
 
 import customtkinter as ctk
+import platform
+
+import queue
+import threading
+
+if platform.system() == "Darwin":
+    from AppKit import NSStatusBar, NSMenu, NSMenuItem, NSObject
+    import objc
+
+from .utils.config_manager import get_config_manager
 
 try:
     from PIL import Image, ImageDraw, ImageFont
@@ -11,54 +21,149 @@ except Exception:  # pragma: no cover
     ImageDraw = None
     ImageFont = None
 
-from .utils.config_manager import get_config_manager
+
+# ============ 全局解耦队列 ============
+# 所有状态栏动作都写入此队列，由 Tkinter 主循环轮询处理
+_status_queue = queue.Queue()
+_queue_lock = threading.Lock()
+_queue_callbacks = {}  # 存储回调函数，避免在 ObjC 中直接调用
+
+
+def enqueue_action(action_type, window_id, data=None):
+    """线程安全的入队函数，供 ObjC 回调调用"""
+    try:
+        _status_queue.put_nowait({
+            'action': action_type,
+            'window_id': window_id,
+            'data': data
+        })
+    except:
+        pass
+
+# ============ 状态栏控制器 ============
+class MacStatusBar(NSObject):
+    """
+    macOS 原生状态栏控制器
+    所有回调方法只做一件事：将动作类型写入全局队列
+    """
+
+    _instances = {}
+    _id_counter = 0
+
+    def init(self):
+        """纯 ObjC 风格初始化，不接受任何参数"""
+        self = objc.super(MacStatusBar, self).init()
+        if self is None:
+            return None
+
+        self.window_id = None
+        self.status_item = None
+        self.menu = None
+        self.status_menu_item = None
+
+        return self
+
+    def setupWithWindowId_(self, window_id):
+        """设置窗口 ID 并初始化状态栏"""
+        self.window_id = window_id
+
+        try:
+            # 创建状态栏项
+            self.status_item = NSStatusBar.systemStatusBar().statusItemWithLength_(-1)
+            self.status_item.setTitle_("🔵")
+            self.status_item.setHighlightMode_(True)
+
+            # 创建菜单
+            self.menu = NSMenu.alloc().init()
+
+            # 菜单项 - 只绑定到简单的入队方法
+            show_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+                "打开应用", "onShow:", ""
+            )
+            show_item.setTarget_(self)
+            self.menu.addItem_(show_item)
+
+            hide_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+                "隐藏应用", "onHide:", ""
+            )
+            hide_item.setTarget_(self)
+            self.menu.addItem_(hide_item)
+
+            self.menu.addItem_(NSMenuItem.separatorItem())
+
+            quit_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+                "⏻ 退出", "onQuit:", ""
+            )
+            quit_item.setTarget_(self)
+            self.menu.addItem_(quit_item)
+
+            self.status_item.setMenu_(self.menu)
+
+            # 注册实例
+            MacStatusBar._instances[window_id] = self
+
+            print(f"✅ 状态栏已创建 (ID: {window_id})")
+            return self
+
+        except Exception as e:
+            print(f"❌ 状态栏创建失败：{e}")
+            return self
+
+    # ===== ObjC 回调方法 - 绝对不做任何复杂操作，只入队 =====
+
+    def onShow_(self, sender):
+        """显示窗口 - 仅入队"""
+        enqueue_action('show', self.window_id)
+
+    def onHide_(self, sender):
+        """隐藏窗口 - 仅入队"""
+        enqueue_action('hide', self.window_id)
+
+    def onQuit_(self, sender):
+        """退出程序 - 仅入队"""
+        enqueue_action('quit', self.window_id)
+
+    # ===== 供主线程调用的方法 =====
+
+    def updateStatus_(self, text):
+        """更新状态文本（在主线程调用）"""
+        if self.status_menu_item:
+            self.status_menu_item.setTitle_(f"● 状态：{text}")
+
+    def remove(self):
+        """移除状态栏"""
+        if self.status_item:
+            NSStatusBar.systemStatusBar().removeStatusItem_(self.status_item)
+        if self.window_id in MacStatusBar._instances:
+            del MacStatusBar._instances[self.window_id]
 
 
 class VoiceInputGUI:
     def __init__(self, app: Any, app_name: str):
+
         _perf_t0 = time.perf_counter()
         self.app = app
         self.app_name = app_name
-        t0 = time.perf_counter()
         self.config_manager = get_config_manager()
-        print(f"[perf] gui:init config_manager: {(time.perf_counter() - t0) * 1000:.1f}ms")
-
-        t0 = time.perf_counter()
         try:
             ctk.set_appearance_mode("system")
         except Exception:
             pass
-        print(f"[perf] gui:init set_appearance_mode: {(time.perf_counter() - t0) * 1000:.1f}ms")
 
-        t0 = time.perf_counter()
-        self.root = ctk.CTk()
-        print(f"[perf] gui:init ctk.CTK : {(time.perf_counter() - t0) * 1000:.1f}ms")
 
-        self.root.title(self.app_name)
-        self.root.geometry("800x600")
+        # self.root = ctk.CTk()
+        self.root = self._init_window2center()
 
-        # --- 将窗口居中 ---
-        self.root.update_idletasks()  # 确保获取的尺寸是准确的
-        screen_width = self.root.winfo_screenwidth()
-        screen_height = self.root.winfo_screenheight()
-        window_width = self.root.winfo_width()
-        window_height = self.root.winfo_height()
-        x = (screen_width // 2) - (window_width // 2)
-        y = (screen_height // 2) - (window_height // 2)
-        self.root.geometry(f"{window_width}x{window_height}+{x}+{y}")
-        # --- 居中代码结束 ---
-
-        try:
-            self.root.minsize(720, 520)
-        except Exception:
-            pass
+        # 生成唯一 ID
+        self._window_id = id(self.root)
+        self.statusbar = None
+        self._closing = False
 
         self.status_var = tk.StringVar(value="就绪")
         self._status_label: Optional[ctk.CTkLabel] = None
 
         # 录音浮层（纯 Cocoa）：macOS 下使用 NSPanel 非激活面板，不抢占输入光标
         self._cocoa_recording_overlay = None
-
         # 录音浮层：音量轮询 job（GUI 主线程）
         self._recording_overlay_volume_job = None
         self._recording_overlay_volume_last_seq = -1
@@ -80,29 +185,49 @@ class VoiceInputGUI:
         self.pages: Dict[str, ctk.CTkFrame] = {}
         self.current_page: Optional[str] = "home"
 
-        t0 = time.perf_counter()
         self._build_ui()
-        print(f"[perf] gui:init build_ui: {(time.perf_counter() - t0) * 1000:.1f}ms")
 
-        t0 = time.perf_counter()
         self.show_page("home")
-        print(f"[perf] gui:init show_page(home): {(time.perf_counter() - t0) * 1000:.1f}ms")
 
-        t0 = time.perf_counter()
         try:
             self._init_cocoa_recording_overlay()
         except Exception as e:
             print(f"⚠️ 初始化 Cocoa 录音浮层失败（将禁用录音浮层）: {e}")
-        print(f"[perf] gui:init cocoa_overlay_init: {(time.perf_counter() - t0) * 1000:.1f}ms")
 
-        t0 = time.perf_counter()
         try:
             self.root.after(0, self._initial_paint)
         except Exception:
             pass
-        print(f"[perf] gui:init schedule_initial_paint: {(time.perf_counter() - t0) * 1000:.1f}ms")
 
-        print(f"[perf] gui:init total(before_mainloop): {(time.perf_counter() - _perf_t0) * 1000:.1f}ms")
+        ###### 状态栏相关 功能 ######
+        self._setup_statusbar()
+        # 启动队列轮询 - 这是处理状态栏事件的唯一入口
+        self._poll_queue()
+
+    def _init_window2center(self):
+        root = ctk.CTk()
+        root.withdraw()  # 先隐藏窗口
+        root.title(self.app_name)
+        window_width = 800
+        window_height = 600
+
+        root.update_idletasks()  # 确保获取的尺寸是准确的
+        screen_width = root.winfo_screenwidth()
+        screen_height = root.winfo_screenheight()
+        x = (screen_width // 2) - (window_width // 2)
+        y = (screen_height // 2) - (window_height // 2)
+        root.geometry(f"{window_width}x{window_height}+{x}+{y}")
+        # --- 居中代码结束 ---
+
+        try:
+            root.minsize(720, 520)
+        except Exception:
+            pass
+
+        root.deiconify()  # 最后显示窗口
+
+        return root
+
 
     def _post_gui_init(self) -> None:
         """GUI绘制完成后执行的重型初始化任务
@@ -221,7 +346,7 @@ class VoiceInputGUI:
                 fg_color=self._nav_default_color,
                 text_color=self._nav_text_color,
                 hover_color=self._nav_hover_color,
-                image=icon,
+                # image=icon,
                 compound="left",
                 command=lambda p=page_name: self.show_page(p),
             )
@@ -1182,6 +1307,8 @@ class VoiceInputGUI:
                 pass
 
     def exit_application(self, sender: Any = None, app_data: Any = None) -> None:
+        # 设置关闭状态位
+        self._closing = True
         if hasattr(self.app, "exit_application"):
             self.app.exit_application()
             return
@@ -1191,6 +1318,8 @@ class VoiceInputGUI:
 
         def _quit() -> None:
             try:
+                if self.statusbar:
+                    self.statusbar.remove()
                 self.root.quit()
             finally:
                 try:
@@ -1237,6 +1366,7 @@ class VoiceInputGUI:
             except Exception:
                 pass
 
+    ##### 录音浮层 功能模块---start #####
 
     def show_recording_overlay(self, text: str = "录音中…") -> None:
         """
@@ -1416,3 +1546,62 @@ class VoiceInputGUI:
         except Exception as e:
             self._cocoa_recording_overlay = None
             print(f"⚠️ Cocoa 录音浮层初始化失败（将禁用录音浮层）: {e}")
+
+    ##### 录音浮层 功能模块---end #####
+
+    ##### 状态栏相关功能模块---start #####
+    def _poll_queue(self):
+        """
+        轮询全局队列 - 这是唯一处理状态栏事件的地方
+        在 Tkinter 主线程中执行，绝对安全
+        """
+        if self._closing:
+            return
+
+        try:
+            while True:
+                item = _status_queue.get_nowait()
+                action = item.get('action')
+                window_id = item.get('window_id')
+
+                # 验证是否是自己的消息
+                if window_id != self._window_id:
+                    continue
+
+                print(f"📥 处理动作: {action}")
+
+                if action == 'show':
+                    self._do_show()
+                elif action == 'hide':
+                    self._do_hide()
+                elif action == 'quit':
+                    self.exit_application()
+                    return  # 退出后不再继续轮询
+
+        except queue.Empty:
+            pass
+        except Exception as e:
+            print(f"❌ 处理队列错误: {e}")
+
+        # 继续轮询
+        self.root.after(50, self._poll_queue)  # 50ms 轮询一次
+
+    def _setup_statusbar(self):
+        """初始化状态栏"""
+        if platform.system() == "Darwin":
+            # 创建并设置
+            self.statusbar = MacStatusBar.alloc().init()
+            self.statusbar.setupWithWindowId_(self._window_id)
+
+    def _do_show(self):
+        """实际显示窗口"""
+        self.root.deiconify()
+        self.root.focus_force()
+        self.root.attributes('-topmost', True)
+        self.root.after(100, lambda: self.root.attributes('-topmost', False))
+
+    def _do_hide(self):
+        """实际隐藏窗口"""
+        self.root.withdraw()
+
+    ##### 状态栏相关功能模块---end #####
