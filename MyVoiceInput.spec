@@ -42,23 +42,19 @@ def _assert_file_exists(model_name: str, file_path: Path) -> None:
             f"[spec] Please ensure the model files are complete under `data/models/`."
         )
 
-def _assert_has_weights(model_name: str, model_dir: Path) -> None:
-    if not any(model_dir.glob("*.pt")):
-        raise SystemExit(
-            f"[spec] Offline model weights (*.pt) missing: {model_name}: {model_dir}"
-        )
+# ASR: SenseVoiceSmall-onnx
+asr_dir = project_root / "data" / "models" / "SenseVoiceSmall-onnx"
+_assert_dir_exists("SenseVoiceSmall-onnx", asr_dir)
+_assert_file_exists("SenseVoiceSmall-onnx", asr_dir / "configuration.json")
+_assert_file_exists("SenseVoiceSmall-onnx", asr_dir / "model_quant.onnx")
+_assert_file_exists("SenseVoiceSmall-onnx", asr_dir / "tokens.json")
 
-# ASR: SenseVoiceSmall
-asr_dir = project_root / "data" / "models" / "SenseVoiceSmall"
-_assert_dir_exists("SenseVoiceSmall", asr_dir)
-_assert_file_exists("SenseVoiceSmall", asr_dir / "configuration.json")
-_assert_file_exists("SenseVoiceSmall", asr_dir / "model.pt")
-
-# VAD: speech_fsmn_vad_zh-cn-16k-common-pytorch
-vad_dir = project_root / "data" / "models" / "speech_fsmn_vad_zh-cn-16k-common-pytorch"
-_assert_dir_exists("speech_fsmn_vad_zh-cn-16k-common-pytorch", vad_dir)
-_assert_file_exists("speech_fsmn_vad_zh-cn-16k-common-pytorch", vad_dir / "configuration.json")
-_assert_has_weights("speech_fsmn_vad_zh-cn-16k-common-pytorch", vad_dir)
+# Func: punc_ct-transformer_zh-cn-common-vocab272727-onnx
+vad_dir = project_root / "data" / "models" / "punc_ct-transformer_zh-cn-common-vocab272727-onnx"
+_assert_dir_exists("punc_ct-transformer_zh-cn-common-vocab272727-onnx", vad_dir)
+_assert_file_exists("punc_ct-transformer_zh-cn-common-vocab272727-onnx", vad_dir / "configuration.json")
+_assert_file_exists("punc_ct-transformer_zh-cn-common-vocab272727-onnx", vad_dir / "model_quant.onnx")
+_assert_file_exists("punc_ct-transformer_zh-cn-common-vocab272727-onnx", vad_dir / "tokens.json")
 
 icon_icns = project_root / "assets" / "icon.icns"
 if not icon_icns.exists():
