@@ -21,6 +21,7 @@ except Exception:  # pragma: no cover
     ImageDraw = None
     ImageFont = None
 
+from src.components.hotkey import UniversalKeyListener, ShortcutKey, KeyEvent
 
 # ============ 全局解耦队列 ============
 # 所有状态栏动作都写入此队列，由 Tkinter 主循环轮询处理
@@ -70,7 +71,7 @@ class MacStatusBar(NSObject):
         try:
             # 创建状态栏项
             self.status_item = NSStatusBar.systemStatusBar().statusItemWithLength_(-1)
-            self.status_item.setTitle_("🔵")
+            self.status_item.setTitle_("◎")
             self.status_item.setHighlightMode_(True)
 
             # 创建菜单
@@ -754,19 +755,9 @@ class VoiceInputGUI:
         right_frame.grid_rowconfigure(0, weight=1)
 
         # --- State ---
-        # --- State ---
-        # pressed_keys：本次录制窗口内“出现过”的所有键（用于最终保存）
-        pressed_keys: set[str] = set()
-        # down_keys：当前仍处于按下状态的键（用于过滤长按自动重复触发）
-        down_keys: set[str] = set()
-        # first_key：进入录制窗口后用户按下的第一个键（其释放时触发保存）
-        first_key: Optional[str] = None
-        MODIFIER_KEYS = {
-            "control", "shift", "alt", "option", "command", "cmd",
-            "control_l", "control_r", "shift_l", "shift_r",
-            "alt_l", "alt_r", "super_l", "super_r", "darwin",
-            "cmd_l", "cmd_r" # pynput names
-        }
+        # 录制状态
+        recorder: Optional[UniversalKeyListener] = None
+        current_recording_keys: set[str] = set()
 
         # 按键名称映射表：tkinter -> pynput（尽量映射为通用 token，避免只匹配左/右修饰键）
         KEY_MAP = {
@@ -822,166 +813,32 @@ class VoiceInputGUI:
             command=lambda: switch_to_edit_mode(activate_listeners=True)
         )
 
+
         # --- Helper Functions ---
         def _clear_widgets() -> None:
             """清除 right_frame 中的所有子控件"""
             for widget in right_frame.winfo_children():
                 widget.grid_remove()
 
+        def _update_ui_text(keys: set[str]) -> None:
+            """更新输入框显示的快捷键文本"""
+            if not entry.winfo_exists():
+                return
 
-        def _get_key_name(raw_key: str) -> str:
-            return KEY_MAP.get(raw_key, raw_key)
+            display_text = ""
+            if keys:
+                try:
+                    # 尝试使用 ShortcutKey 格式化
+                    sk = ShortcutKey(*keys)
+                    display_text = str(sk).replace("<", "").replace(">", "")
+                except ValueError:
+                    # 如果无效（如单个非修饰键），显示原始组合用于反馈
+                    display_text = "+".join(sorted(keys))
+                except Exception:
+                    display_text = "+".join(sorted(keys))
 
-        def _format_hotkey_for_save(keys: Optional[set[str]]) -> str:
-            """
-            格式化并排序录制到的按键，准备写入配置。
-            - 过滤空值和 "return"
-            - 修饰键在前，字母数字键在后
-            """
-            normalized = [k for k in (keys or set()) if k and k != "return"]
-            if not normalized:
-                return ""
-
-            ordered = sorted(set(normalized), key=lambda k: (k not in MODIFIER_KEYS, k))
-            return "+".join(ordered)
-
-        def _validate_hotkey(keys: set[str]) -> bool:
-            """
-            验证快捷键组合是否有效。
-            """
-            FORBIDDEN_KEYS = {"tab", "esc", "enter", "capslock", "delete", "backspace"}
-
-            if not keys:
-                return True # 空快捷键是有效的（表示清除）
-
-            # 规则 4: 任何情况下都不支持的键
-            if any(k in FORBIDDEN_KEYS for k in keys):
-                self.update_status_error("无效按键: Tab/Esc/Enter等不可用")
-                return False
-
-            has_modifier = any(k in MODIFIER_KEYS for k in keys)
-
-            # 规则 1: 单个键必须是修饰键
-            if len(keys) == 1 and not has_modifier:
-                self.update_status_error("无效快捷键: 单个按键必须是修饰键")
-                return False
-
-            # 规则 2: 组合键必须包含修饰键
-            if len(keys) > 1 and not has_modifier:
-                self.update_status_error("无效快捷键: 组合键必须包含修饰键")
-                return False
-
-            return True
-
-        def _update_entry_text() -> None:
-            sorted_keys = sorted(list(pressed_keys), key=lambda k: (k not in MODIFIER_KEYS, k))
             entry.delete(0, "end")
-            entry.insert(0, "+".join(sorted_keys))
-
-        def _reset_capture_state() -> None:
-            nonlocal first_key
-            pressed_keys.clear()
-            down_keys.clear()
-            first_key = None
-
-        # --- Event Handlers ---
-        def _on_key_press(event):
-            """处理按键按下事件：从第一个键开始录制，到第一个键释放时保存。"""
-            nonlocal first_key
-
-            event_keysym = getattr(event, "keysym", "")
-            raw_key = (event_keysym or "").lower()
-
-            # Return 键不可作为快捷键组成部分；行为保持“用于确认/保存”的语义
-            if raw_key == "return":
-                hotkey_str = _format_hotkey_for_save(pressed_keys)
-                if hotkey_str:
-                    entry.unbind("<KeyPress>")
-                    entry.unbind("<KeyRelease>")
-                    entry.unbind("<FocusOut>")
-                    _reset_capture_state()
-                    _save(hotkey_str)
-                return "break"
-
-            key_name = _get_key_name(raw_key)
-            if not key_name:
-                return "break"
-
-            # 过滤长按导致的重复 KeyPress
-            if key_name in down_keys:
-                return "break"
-            down_keys.add(key_name)
-
-            # 第一个键：打开录制窗口
-            if first_key is None:
-                first_key = key_name
-
-            # 在第一个键释放前，所有按下过的键都计入组合
-            pressed_keys.add(key_name)
-            _update_entry_text()
-            return "break"
-
-        def _on_key_release(event) -> None:
-            """处理按键释放事件：当第一个键释放时，直接保存所有录制到的键。"""
-            nonlocal first_key
-
-            event_keysym = getattr(event, "keysym", "")
-            raw_key = (event_keysym or "").lower()
-            if raw_key == "return":
-                return
-
-            key_name = _get_key_name(raw_key)
-            if not key_name:
-                return
-
-            down_keys.discard(key_name)
-
-            # 只有当“第一个键”释放时才触发保存
-            if first_key is None or key_name != first_key:
-                return
-
-            # 在保存前验证快捷键
-            if not _validate_hotkey(pressed_keys):
-                # --- 显示错误状态 ---
-                error_color = ("#D32F2F", "#FF5252")  # 深/浅色模式下的红色
-                original_border_color = entry.cget("border_color")
-
-                entry.configure(border_color=error_color)
-
-                def _revert_error_state():
-                    if entry.winfo_exists():
-                        entry.configure(border_color=original_border_color)
-
-                entry.after(3000, _revert_error_state)
-
-                # --- 重置捕获状态并恢复UI ---
-                _reset_capture_state()
-                initial_hotkey = self.config_manager.get(config_key, "") or ""
-                _update_ui(initial_hotkey)
-                # 短暂显示错误后清除
-                entry.after(3000, lambda: self.update_status_info("就绪"))
-                return
-
-            hotkey_str = _format_hotkey_for_save(pressed_keys)
-
-            entry.unbind("<KeyPress>")
-            entry.unbind("<KeyRelease>")
-            entry.unbind("<FocusOut>")
-
-            _reset_capture_state()
-            _save(hotkey_str)
-
-        def _on_focus_out(event) -> None:
-            """失去焦点时取消本次录制，恢复到当前已保存的热键显示。"""
-            entry.unbind("<KeyPress>")
-            entry.unbind("<KeyRelease>")
-            entry.unbind("<FocusOut>")
-
-            _reset_capture_state()
-
-            initial_hotkey = self.config_manager.get(config_key, "") or ""
-            _update_ui(initial_hotkey)
-
+            entry.insert(0, display_text)
 
         def _on_bubble_enter(event) -> None:
             change_button.place(relx=0.5, rely=0.5, anchor="center")
@@ -999,6 +856,10 @@ class VoiceInputGUI:
 
             # 如果热键没有变化，则无需执行任何操作
             if new_hotkey == current_hotkey:
+                _update_ui(new_hotkey)
+                return
+            # 如果热键还没设置也无需操作
+            if not new_hotkey:
                 _update_ui(new_hotkey)
                 return
 
@@ -1127,14 +988,16 @@ class VoiceInputGUI:
 
         def switch_to_edit_mode(activate_listeners: bool) -> None:
             _clear_widgets()
-            entry.grid(row=0, column=0, sticky="ew", ipady=4)
+            entry.grid(row=0, column=0, sticky="ew")
+            entry.delete(0, "end")
+            entry.insert(0, "请按下快捷键...")
             entry.focus_set()
+
+            # 绑定失去焦点事件（取消录制）
+            entry.bind("<FocusOut>", _on_focus_out)
+
             if activate_listeners:
-                pressed_keys.clear()
-                _update_entry_text()
-                entry.bind("<KeyPress>", _on_key_press)
-                entry.bind("<KeyRelease>", _on_key_release)
-                entry.bind("<FocusOut>", _on_focus_out)
+                _start_recording()
 
 
         def switch_to_initial_mode() -> None:
@@ -1144,6 +1007,76 @@ class VoiceInputGUI:
             record_button.bind("<Enter>", lambda e: record_button.configure(fg_color=self._nav_hover_color))
             record_button.bind("<Leave>", lambda e: record_button.configure(fg_color=self._card_bg_color))
 
+        def _stop_recording() -> None:
+            """停止录制并清理资源"""
+            nonlocal recorder
+            if recorder:
+                try:
+                    recorder.stop()
+                except Exception:
+                    pass
+                recorder = None
+
+            # 解绑事件
+            if entry.winfo_exists():
+                entry.unbind("<FocusOut>")
+
+        def _on_recording_event(event: KeyEvent) -> None:
+            """处理录制过程中的键盘事件"""
+            nonlocal current_recording_keys
+
+            # 在主线程更新UI（UniversalKeyListener 在独立线程回调）
+            def _ui_update_task():
+                if event.event_type == 'press':
+                    current_recording_keys.update(event.keys_pressed)
+                    _update_ui_text(current_recording_keys)
+
+                elif event.event_type == 'release':
+                    # 当所有键释放时，尝试保存
+                    # 逻辑：如果当前没有按下的键，且之前记录过按键，则认为输入完成
+                    if not event.keys_pressed and current_recording_keys:
+                        try:
+                            # 使用 ShortcutKey 进行校验和格式化
+                            sk = ShortcutKey(*current_recording_keys)
+                            hotkey_str = str(sk).replace("<", "").replace(">", "")
+
+                            _stop_recording()
+                            _save(hotkey_str)
+                        except ValueError as e:
+                            # 校验失败（如包含非法键），显示错误并重置
+                            self.update_status_error(f"无效快捷键: {e}")
+                            current_recording_keys.clear()
+                            _update_ui_text(set())
+                        except Exception as e:
+                            self.update_status_error(f"录制出错: {e}")
+                            current_recording_keys.clear()
+                            _update_ui_text(set())
+                    elif event.keys_pressed:
+                        # 部分键释放（如组合键中松开了一个），更新显示
+                        _update_ui_text(event.keys_pressed)
+
+            # 调度到主线程执行
+            entry.after(0, _ui_update_task)
+
+        def _start_recording() -> None:
+            """启动键盘监听"""
+            nonlocal recorder, current_recording_keys
+            _stop_recording()
+
+            current_recording_keys.clear()
+            try:
+                recorder = UniversalKeyListener()
+                recorder.on_press(_on_recording_event)
+                recorder.on_release(_on_recording_event)
+                recorder.start()
+            except Exception as e:
+                self.update_status_error(f"无法启动键盘监听: {e}")
+
+        def _on_focus_out(event) -> None:
+            """失去焦点时取消录制，恢复原状"""
+            _stop_recording()
+            initial_hotkey = self.config_manager.get(config_key, "") or ""
+            _update_ui(initial_hotkey)
 
         def _update_ui(hotkey_str: Optional[str]) -> None:
             """根据热键字符串更新UI显示"""

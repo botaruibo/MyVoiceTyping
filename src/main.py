@@ -31,7 +31,8 @@ class FlashInputApp:
         self.stt_processor = None
         self.rewriter = None
         self.window_info = None
-        self.hotkey_manager = None
+
+        self.hotkey = None
 
         self._stt_ready = threading.Event()
         self._stt_init_lock = threading.Lock()
@@ -111,15 +112,11 @@ class FlashInputApp:
                     self.audio_recorder = None
                     print(f"⚠️ 初始化 AudioRecorder 失败（将导致无法录音）: {e}")
 
-                try:
-                    if self.hotkey_manager is None:
-                        from .components.hotkey_manager import HotkeyManager
-
-                        self.hotkey_manager = HotkeyManager()
-                except Exception as e:
-                    self.hotkey_manager = None
-                    print(f"⚠️ 初始化 HotkeyManager 失败（将导致无法使用热键）: {e}")
-
+                # 新hotkey注册
+                if self.hotkey is None:
+                    from .components.hotkey import UniversalKeyListener, ShortcutDetector
+                    listener = UniversalKeyListener()
+                    self.hotkey = ShortcutDetector(listener)
 
                 self._set_status("就绪")
                 print(f"✅ 后加载初始化完成,耗时:{time.perf_counter()-t0:0.2f}")
@@ -220,43 +217,64 @@ class FlashInputApp:
             return None
 
     def _register_hotkeys_from_config(self) -> None:
+        # 1. 初始化（如果尚未存在）
         if self.config_manager is None:
             self.config_manager = get_config_manager()
 
-        if self.hotkey_manager is None:
-            from .components.hotkey_manager import HotkeyManager
-            self.hotkey_manager = HotkeyManager()
+        if self.hotkey is None:
+            from .components.hotkey import UniversalKeyListener, ShortcutDetector
+            listener = UniversalKeyListener()
+            self.hotkey = ShortcutDetector(listener)
 
-        reset = getattr(self.hotkey_manager, "reset_hotkeys", None)
-        if callable(reset):
-            reset()
-        else:
-            self.hotkey_manager.registered_hotkeys = []
-            self.hotkey_manager.active_modifiers = set()
+        try:
+            # 2. 清除旧热键
+            reset = getattr(self.hotkey, "reset_hotkeys", None)
+            if callable(reset):
+                reset()
+            else:
+                self.hotkey.clear_hotkeys()
 
-        press_hotkey = self.config_manager.get("press_hotkey")
-        toggle_hotkey = self.config_manager.get("toggle_hotkey")
+            # 3. 注册新热键
+            press_hotkey = self.config_manager.get("press_hotkey")
+            toggle_hotkey = self.config_manager.get("toggle_hotkey")
 
-        if press_hotkey:
-            self.hotkey_manager.register_press_hotkey(
-                hotkey=press_hotkey,
-                start_callback=self.start_recording,
-                stop_callback=self.stop_recording,
-            )
+            if press_hotkey:
+                self.hotkey.register(press_hotkey,
+                                     on_press=self.start_recording,
+                                     on_release=self.stop_recording
+                                     )
 
-        if toggle_hotkey:
-            self.hotkey_manager.register_toggle_hotkey(
-                hotkey=toggle_hotkey,
-                toggle_callback=self.toggle_recording,
-            )
+            if toggle_hotkey:
+                self.hotkey.register(toggle_hotkey,
+                                     on_press=self.toggle_recording,
+                                     on_release=None
+                                     )
+
+        except Exception as e:
+            print(f"\n❌ 热键注册错误: {e}")
 
     def reload_hotkeys(self) -> None:
+        print("正在重新加载热键配置...")
         self._register_hotkeys_from_config()
 
     def start_listening_hotkey(self) -> None:
         def hotkey_thread() -> None:
+            # 初始注册
             self._register_hotkeys_from_config()
-            self.hotkey_manager.start_listening()
+
+            # 启动阻塞监听循环
+            if self.hotkey and self.hotkey.listener:
+                try:
+                    self.hotkey.listener.start(blocking=True)
+                except PermissionError as e:
+                    print(f"\n❌ 权限错误: {e}")
+                except Exception as e:
+                    print(f"\n❌ 错误: {e}")
+                finally:
+                    # 只有在线程退出时才清理
+                    if self.hotkey and self.hotkey.listener:
+                        self.hotkey.listener.stop()
+                    self.hotkey = None
 
         threading.Thread(target=hotkey_thread, daemon=True).start()
 
@@ -922,8 +940,10 @@ class FlashInputApp:
         def _quit() -> None:
             try:
                 self.gui.root.quit()
+                self.hotkey.listener.stop()
             finally:
                 try:
+                    self.hotkey.listener.stop()
                     self.gui.root.destroy()
                 except Exception:
                     pass
