@@ -413,10 +413,26 @@ def _get_objc_overlay_classes():
             _MVI_PANEL_CLS = objc.lookUpClass("MVIRecordingNonActivatingPanel")
         except Exception:
             class MVIRecordingNonActivatingPanel(NSPanel):
+                """/**
+                 * 自定义 NSPanel 子类，禁止成为 Key/Main Window。
+                 *
+                 * @extends NSPanel
+                 */"""
+
                 def canBecomeKeyWindow(self):
+                    """/**
+                     * 禁止成为 Key Window。
+                     *
+                     * @returns {boolean} 始终返回 False
+                     */"""
                     return False
 
                 def canBecomeMainWindow(self):
+                    """/**
+                     * 禁止成为 Main Window。
+                     *
+                     * @returns {boolean} 始终返回 False
+                     */"""
                     return False
 
             _MVI_PANEL_CLS = MVIRecordingNonActivatingPanel
@@ -426,7 +442,23 @@ def _get_objc_overlay_classes():
             _MVI_VIEW_CLS = objc.lookUpClass("MVIRecordingOverlayContentView")
         except Exception:
             class MVIRecordingOverlayContentView(NSView):
+                """/**
+                 * 自定义 NSView 子类，用于绘制录音浮层内容。
+                 *
+                 * 包含：
+                 * - 圆角胶囊背景
+                 * - 音量波形动画
+                 *
+                 * @extends NSView
+                 */"""
+
                 def initWithFrame_(self, frame):
+                    """/**
+                     * 初始化视图。
+                     *
+                     * @param {NSRect} frame - 视图框架
+                     * @returns {MVIRecordingOverlayContentView} 实例
+                     */"""
                     self = objc.super(MVIRecordingOverlayContentView, self).initWithFrame_(frame)
                     if self is None:
                         return None
@@ -442,16 +474,28 @@ def _get_objc_overlay_classes():
 
                     try:
                         self.setWantsLayer_(True)
-                        self.layer().setBackgroundColor_(NSColor.clearColor().CGColor())
+                        # 使用 None 代替 NSColor.clearColor().CGColor() 以避免 ObjCPointerWarning
+                        # CALayer 的默认背景色即为 nil (透明)
+                        self.layer().setBackgroundColor_(None)
                     except Exception:
                         pass
 
                     return self
 
                 def isOpaque(self):
+                    """/**
+                     * 声明视图不透明属性。
+                     *
+                     * @returns {boolean} False 表示视图是透明的
+                     */"""
                     return False
 
                 def setVolumeLevel_(self, lv):
+                    """/**
+                     * 设置音量级别并触发重绘。
+                     *
+                     * @param {number} lv - 音量级别 (0-100)
+                     */"""
                     try:
                         self._volume_level = int(lv)
                     except Exception:
@@ -463,6 +507,15 @@ def _get_objc_overlay_classes():
                         pass
 
                 def drawRect_(self, rect):
+                    """/**
+                     * 绘制视图内容。
+                     *
+                     * 包括：
+                     * 1. 绘制圆角矩形背景和描边
+                     * 2. 根据音量绘制波形条
+                     *
+                     * @param {NSRect} rect - 脏矩形区域
+                     */"""
                     w = rect.size.width
                     h = rect.size.height
                     radius = h / 2.0

@@ -4,7 +4,7 @@
 from datetime import datetime
 from pathlib import Path
 
-from ..utils.config_manager import get_config_manager
+from ..components.config_manager import get_config_manager
 from ..components.audio_recorder import AudioRecorder
 
 

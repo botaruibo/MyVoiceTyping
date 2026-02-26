@@ -138,6 +138,7 @@ class LocalSTTProcessor:
         quantize = True
 
         for bundle_root in bundle_root_candidates:
+            # 注意：保持与项目结构一致，使用 data/models
             model_dir = bundle_root / "data" / "models" / "punc_ct-transformer_zh-cn-common-vocab272727-onnx"
             if not model_dir.exists():
                 continue
@@ -167,28 +168,34 @@ class LocalSTTProcessor:
             "⚠️ 未检测到本地标点模型，将尝试从 ModelScope 下载: iic/punc_ct-transformer_zh-cn-common-vocab272727-onnx"
         )
 
-        from modelscope import snapshot_download
+        try:
+            from modelscope import snapshot_download
+        except ImportError:
+            raise ImportError("请安装 modelscope: pip install modelscope")
 
-        punc_model_dir = snapshot_download("iic/punc_ct-transformer_zh-cn-common-vocab272727-onnx")
-        punc_model_dir_path = Path(punc_model_dir)
+        # 确定下载目标目录：应用根目录/data/models
+        # 这里的 parents[2] 指向项目根目录 (src/core -> src -> project_root)
+        project_root = Path(__file__).resolve().parents[2]
+        models_root = project_root / "data" / "models"
+        target_dir = models_root / "punc_ct-transformer_zh-cn-common-vocab272727-onnx"
 
-        if (punc_model_dir_path / "model.onnx").exists():
-            quantize = False
-        elif (punc_model_dir_path / "model_quant.onnx").exists():
-            quantize = True
-        else:
-            raise FileNotFoundError(
-                "标点模型目录中未找到 `model.onnx` 或 `model_quant.onnx`："
-                f"\n- model_dir: {punc_model_dir_path}"
+        print(f"⬇️ 开始下载标点模型到: {target_dir}")
+        try:
+            # 使用 local_dir 参数指定下载路径
+            model_dir = snapshot_download(
+                "iic/punc_ct-transformer_zh-cn-common-vocab272727-onnx",
+                local_dir=str(target_dir)
             )
+            print("✅ 标点模型下载成功，正在加载...")
 
-        return CT_Transformer(str(punc_model_dir_path), quantize=quantize, device_id=-1)
+            # 检查下载后的文件以确定是否开启量化
+            p = Path(model_dir)
+            is_quant = (p / "model_quant.onnx").exists()
 
-        # 加载标点模型（支持中英）
-        punc_model = CT_Transformer(punc_model_dir,
-                                    quantize=True,
-                                    device_id=-1)
-        return punc_model
+            return CT_Transformer(str(model_dir), quantize=is_quant, device_id=-1)
+
+        except Exception as e:
+            raise Exception(f"标点模型下载或加载失败: {e}")
 
 
     def transcribe(self, file_path: str, audio_frames=None):
@@ -222,7 +229,7 @@ if __name__ == "__main__":
      * - 这里将 `test_data/output0.wav` 读取为 `bytes` 后再调用转录，避免类型错误。
      */
     """
-    from ..utils.config_manager import get_config_manager
+    from ..components.config_manager import get_config_manager
 
     config = get_config_manager()
     processor = LocalSTTProcessor(config)

@@ -25,42 +25,26 @@ except TypeError:
 
 modelscope_datas = collect_data_files('modelscope')
 
-# ---- Fully-offline model assets checks (fail fast) ----
-# 说明：`datas` 已经把整个 `data/` 打进发行包；这里只是保证你没有漏放离线模型文件。
+# ---- Fully-offline model assets checks (Removed for flexible packaging) ----
+# 说明：原先的 check 逻辑已移除，允许仅打包 config 文件夹。
+# 运行时若缺少模型，由应用自行处理或用户手动下载。
 
 def _assert_dir_exists(model_name: str, model_dir: Path) -> None:
-    if not model_dir.exists():
-        raise SystemExit(
-            f"[spec] Offline model directory missing: {model_name}: {model_dir}\n"
-            f"[spec] Please download/copy the model into `data/models/` before packaging."
-        )
+    pass
 
 def _assert_file_exists(model_name: str, file_path: Path) -> None:
-    if not file_path.exists():
-        raise SystemExit(
-            f"[spec] Offline model file missing: {model_name}: {file_path}\n"
-            f"[spec] Please ensure the model files are complete under `data/models/`."
-        )
+    pass
 
 # ASR: SenseVoiceSmall-onnx
-asr_dir = project_root / "data" / "models" / "SenseVoiceSmall-onnx"
-_assert_dir_exists("SenseVoiceSmall-onnx", asr_dir)
-_assert_file_exists("SenseVoiceSmall-onnx", asr_dir / "configuration.json")
-_assert_file_exists("SenseVoiceSmall-onnx", asr_dir / "model_quant.onnx")
-_assert_file_exists("SenseVoiceSmall-onnx", asr_dir / "tokens.json")
-
-# Func: punc_ct-transformer_zh-cn-common-vocab272727-onnx
-vad_dir = project_root / "data" / "models" / "punc_ct-transformer_zh-cn-common-vocab272727-onnx"
-_assert_dir_exists("punc_ct-transformer_zh-cn-common-vocab272727-onnx", vad_dir)
-_assert_file_exists("punc_ct-transformer_zh-cn-common-vocab272727-onnx", vad_dir / "configuration.json")
-_assert_file_exists("punc_ct-transformer_zh-cn-common-vocab272727-onnx", vad_dir / "model_quant.onnx")
-_assert_file_exists("punc_ct-transformer_zh-cn-common-vocab272727-onnx", vad_dir / "tokens.json")
+# asr_dir = project_root / "data" / "models" / "SenseVoiceSmall-onnx"
+# _assert_dir_exists("SenseVoiceSmall-onnx", asr_dir)
 
 icon_icns = project_root / "assets" / "icon.icns"
 if not icon_icns.exists():
     icon_icns = project_root / "icon.icns"
 if not icon_icns.exists():
-    raise SystemExit(f"[spec] icon.icns not found. Expected: {project_root/'assets'/'icon.icns'}")
+    # 这里保持警告或报错，图标通常是必须的
+    print(f"[spec] Warning: icon.icns not found at {project_root/'assets'/'icon.icns'}")
 
 a = Analysis(
     [str(project_root / 'run.py')],
@@ -69,7 +53,8 @@ a = Analysis(
     datas=[
         (str(project_root / 'src'), 'src'),
         (str(project_root / 'requirements.txt'), '.'),
-        (str(project_root / 'data'), 'data'),
+        # 修改：仅包含 config 文件夹，其他 data 子文件夹不打包
+        (str(project_root / 'data/config'), 'data/config'),
         (str(funasr_version_file), 'funasr'),
         *funasr_datas,
         *modelscope_datas,
@@ -77,7 +62,6 @@ a = Analysis(
     hiddenimports=[
         'dearpygui',
         'customtkinter',
-        'pynput',
         'funasr',
         'modelscope',
         'torch',
@@ -85,6 +69,19 @@ a = Analysis(
         'transformers',
         'openai',
         'pyobjc_framework_ApplicationServices',
+        # 新增：macOS 系统框架依赖
+        'AppKit',
+        'Foundation',
+        'Quartz',
+        'CoreFoundation',
+        # 新增：其他核心依赖
+        'pyautogui',
+        'pygetwindow',
+        'pyperclip',
+        'sounddevice',
+        'onnxruntime',
+        'langchain_openai',
+        'langchain_core',
         'PIL',
         'numpy',
         'requests',
@@ -133,7 +130,7 @@ exe = EXE(
     target_arch='arm64',  # 专门针对 M4 芯片优化
     codesign_identity=None,
     entitlements_file=None,
-    icon=str(icon_icns),
+    icon=str(icon_icns) if icon_icns.exists() else None,
 )
 
 coll = COLLECT(
@@ -150,10 +147,13 @@ coll = COLLECT(
 app = BUNDLE(
     coll,
     name='MyVoiceInput.app',
-    icon=str(icon_icns),
+    icon=str(icon_icns) if icon_icns.exists() else None,
     bundle_identifier=None,
     info_plist={
         "NSMicrophoneUsageDescription": "用于语音输入，需要访问麦克风。",
         "NSSpeechRecognitionUsageDescription": "用于语音识别转文字。",
+        "NSAppleEventsUsageDescription": "用于自动化控制和快捷键监听。",
     },
 )
+
+#如果要增加一个安装步骤呢，在安装时检查data/models 文件夹下是否有两个模型文件夹和对应的文件。如果没有就触发

@@ -9,10 +9,7 @@
 import threading
 from typing import Optional
 
-from sympy import false
-
-from ..utils.config_manager import get_config_manager
-from ..prompts import get_format_text_prompt_template
+from ..components.config_manager import get_config_manager
 
 _instance = None
 _instance_lock = threading.Lock()
@@ -155,7 +152,7 @@ class Rewrite:
         from langchain_core.messages import HumanMessage, SystemMessage
 
         messages = [
-            SystemMessage(content=get_format_text_prompt_template()),
+            SystemMessage(content=self.config.main_prompt),
             HumanMessage(content=raw_text),
         ]
         response = self.remote_llm_client.invoke(messages)

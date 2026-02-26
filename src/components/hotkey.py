@@ -30,7 +30,6 @@ kCGEventFlagsChanged = 12
 kCGEventTapDisabledByTimeout = 0xFFFFFFFE
 
 # 所有已知的 Fn 键掩码
-# KNOWN_FN_MASKS = [0x00800000, 0x00080000]
 KNOWN_FN_MASKS = [0x00800000]
 
 # 修饰键掩码 - 区分左右

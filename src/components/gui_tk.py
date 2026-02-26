@@ -12,7 +12,7 @@ if platform.system() == "Darwin":
     from AppKit import NSStatusBar, NSMenu, NSMenuItem, NSObject
     import objc
 
-from .utils.config_manager import get_config_manager
+from .config_manager import get_config_manager
 
 try:
     from PIL import Image, ImageDraw, ImageFont
@@ -21,7 +21,7 @@ except Exception:  # pragma: no cover
     ImageDraw = None
     ImageFont = None
 
-from src.components.hotkey import UniversalKeyListener, ShortcutKey, KeyEvent
+from .hotkey import UniversalKeyListener, ShortcutKey, KeyEvent
 
 # ============ 全局解耦队列 ============
 # 所有状态栏动作都写入此队列，由 Tkinter 主循环轮询处理
@@ -79,13 +79,13 @@ class MacStatusBar(NSObject):
 
             # 菜单项 - 只绑定到简单的入队方法
             show_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
-                "打开应用", "onShow:", ""
+                "打开闪电输入法", "onShow:", ""
             )
             show_item.setTarget_(self)
             self.menu.addItem_(show_item)
 
             hide_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
-                "隐藏应用", "onHide:", ""
+                "隐藏闪电输入法", "onHide:", ""
             )
             hide_item.setTarget_(self)
             self.menu.addItem_(hide_item)
@@ -1402,7 +1402,7 @@ class VoiceInputGUI:
         seq = None
 
         try:
-            from .components import audio_recorder as audio_recorder_module
+            from . import audio_recorder as audio_recorder_module
 
             try:
                 with audio_recorder_module.GLOBAL_VOLUME_LOCK:
@@ -1464,7 +1464,7 @@ class VoiceInputGUI:
             return
 
         try:
-            from .components.macos_recording_overlay import CocoaRecordingOverlay
+            from .macos_recording_overlay import CocoaRecordingOverlay
 
             # 录音浮层尺寸：这里决定“黑色圆角胶囊”整体大小（NSPanel + 内容视图同尺寸）
             # 你希望缩小到当前的 1/3：220x60 -> 73x20

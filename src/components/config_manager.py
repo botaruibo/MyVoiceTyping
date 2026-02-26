@@ -96,12 +96,14 @@ class ConfigManager:
 
                 self.config_dir = config_dir
                 self.config_file_path = self.config_dir / "app_config.json"
+                self.prompt_file_path = self.config_dir / "main_prompt.md"
             else:
                 # 从项目根目录开始计算路径
                 project_root = Path(__file__).resolve().parents[2]
                 self.config_dir = project_root / "data" / "config"
                 self.config_dir.mkdir(parents=True, exist_ok=True)
                 self.config_file_path = self.config_dir / "app_config.json"
+                self.prompt_file_path = self.config_dir / "main_prompt.md"
         else:
             self.config_file_path = Path(config_file_path)
             self.config_dir = self.config_file_path.parent
@@ -109,17 +111,17 @@ class ConfigManager:
         if self._writable_root is not None:
             audio_dir_default = "audio"
             transcripts_dir_default = "transcripts"
-            temp_audio_default = str(Path("audio") / "temp_recording.wav")
         else:
             audio_dir_default = "data/audio"
             transcripts_dir_default = "data/transcripts"
-            temp_audio_default = "data/audio/temp_recording.wav"
 
         self.default_config = {
         }
+        self.main_prompt = ""
 
         self.config = self.default_config.copy()
         self.config = self.load_config()
+        self.main_prompt = self.load_prompt()
 
     def _try_seed_from_bundled_config(self) -> bool:
         if self._bundled_data_dir is None:
@@ -143,6 +145,14 @@ class ConfigManager:
         except Exception as e:
             print(f"复制默认配置文件失败: {e}")
             return False
+
+    def load_prompt(self) -> Optional[str]:
+        try:
+            with open(self.prompt_file_path, 'r', encoding='utf-8') as f:
+                return f.read()
+        except Exception as e:
+            print(f"加载提示文件时出错: {e}")
+            return None
 
     def load_config(self):
         """从文件加载配置，如果文件不存在或损坏则使用默认配置"""
@@ -268,11 +278,3 @@ class ConfigManager:
 
         models_dir.mkdir(parents=True, exist_ok=True)
         return models_dir
-
-    def get_temp_audio_path(self):
-        temp_path = self._resolve_writable_path(
-            self.config.get("temp_audio_path"),
-            "data/audio/temp_recording.wav",
-        )
-        temp_path.parent.mkdir(parents=True, exist_ok=True)
-        return temp_path

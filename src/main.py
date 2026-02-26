@@ -17,8 +17,7 @@ import subprocess
  */"""
 os.environ.setdefault("MYVOICEINPUT_APP_START_TS", str(time.time()))
 
-from .utils.config_manager import get_config_manager
-
+from .components.config_manager import get_config_manager
 
 class FlashInputApp:
     def __init__(self):
@@ -785,7 +784,7 @@ class FlashInputApp:
         t0 = time.perf_counter()
         print(f"app-----开始时间：{t0}")
         try:
-            from .gui_tk import VoiceInputGUI
+            from .components.gui_tk import VoiceInputGUI
         except Exception as e:
             print(f"❌ GUI 模块加载失败：{e}")
             raise

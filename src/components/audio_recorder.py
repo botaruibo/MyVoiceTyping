@@ -5,8 +5,7 @@ import sounddevice as sd
 import numpy as np
 import threading
 import time as time_module
-from pathlib import Path
-from ..utils.config_manager import get_config_manager
+from ..components.config_manager import get_config_manager
 from datetime import datetime
 import soundfile as sf
 

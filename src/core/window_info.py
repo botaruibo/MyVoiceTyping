@@ -3,7 +3,6 @@
 用于监听鼠标光标位置并获取当前窗口的应用程序标题和名称
 """
 import platform
-import time
 from typing import Dict, Optional, Tuple
 
 class WindowInfo:
