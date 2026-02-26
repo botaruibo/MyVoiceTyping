@@ -1,10 +1,29 @@
 """
 本地STT处理器 - 基于FunASR模型
 """
+import os
+import shutil
 import sys
 from pathlib import Path
 from funasr.utils.postprocess_utils import rich_transcription_postprocess
 
+
+def get_models_root() -> Path:
+    """
+    获取模型根目录
+    - 开发时：工程项目根目录下 data/models
+    - 安装应用后：应用根目录对象下的 data/models (通常位于 .app/Contents/Resources/data/models)
+    """
+    if hasattr(sys, "_MEIPASS"):
+        # PyInstaller 打包后的运行环境
+        exe_path = Path(sys.executable).resolve()
+        # 假设结构为 .../MyApp.app/Contents/MacOS/MyApp
+        # exe_path.parent -> MacOS
+        # exe_path.parent.parent -> Contents
+        return exe_path.parent.parent / "Resources" / "data" / "models"
+
+    # 开发环境：当前文件在 src/core/stt_local_processor.py -> ... -> ProjectRoot
+    return Path(__file__).resolve().parents[2] / "data" / "models"
 
 class LocalSTTProcessor:
     """
@@ -16,186 +35,145 @@ class LocalSTTProcessor:
         self.model = self._init_stt_model()
         self.punc = self._init_punc_model()
 
-    def _init_stt_model(self):
+    def _download_and_load_model(self, model_id: str, local_name: str, model_cls, **kwargs):
         """
-        /**
-         * 初始化 FunASR ONNX 模型。
-         *
-         * 优化点：
-         * - 先检查本地模型是否已存在（`data/models/SenseVoiceSmall-onnx`）。
-         * - 若本地存在 `model.onnx` + `model.onnx.data`，则直接加载，不再调用 `snapshot_download`。
-         * - 若本地不存在，才回退到 `snapshot_download('iic/SenseVoiceSmall-onnx')`。
-         *
-         * @returns 模型对象
-         */
+        通用的模型下载与加载函数
         """
-        try:
-            from funasr_onnx import SenseVoiceSmall
+        # 1. 确定模型目录
+        models_root = get_models_root()
+        target_dir = models_root / local_name
 
-            """/**
-             * 查找本地 ONNX 模型目录。
-             *
-             * 说明：
-             * - 运行在源码环境时：优先使用项目根目录下 `data/models/SenseVoiceSmall-onnx`。
-             * - 打包环境时：可能存在 `_MEIPASS`、Resources 等候选目录。
-             */"""
+        # 检查是否已存在（简单的检查规则：目录存在且包含关键配置文件）
+        is_exist = False
+        if target_dir.exists():
+            if (target_dir / "config.yaml").exists() or (target_dir / "configuration.json").exists():
+                # 进一步检查核心模型文件是否存在
+                if (target_dir / "model.onnx").exists() or (target_dir / "model_quant.onnx").exists():
+                    is_exist = True
+
+        # 兼容性查找逻辑
+        if not is_exist:
             bundle_root_candidates = []
             if hasattr(sys, "_MEIPASS"):
                 bundle_root_candidates.append(Path(sys._MEIPASS))
-
             exe_path = Path(sys.executable).resolve()
-            exe_dir = exe_path.parent
-            contents_dir = exe_path.parent.parent
-            bundle_root_candidates.extend(
-                [
-                    exe_dir,
-                    contents_dir,
-                    contents_dir / "Frameworks",
-                    contents_dir / "Resources",
-                ]
-            )
-
-            # 项目根目录（src/core -> src -> project_root）
+            bundle_root_candidates.extend([
+                exe_path.parent,
+                exe_path.parent.parent,
+                exe_path.parent.parent / "Resources"
+            ])
             bundle_root_candidates.append(Path(__file__).resolve().parents[2])
 
-            required_files = ["model_quant.onnx", "config.yaml"]
-            local_model_path = None
-            for bundle_root in bundle_root_candidates:
-                model_path = bundle_root / "data" / "models" / "SenseVoiceSmall-onnx"
-                if not model_path.exists():
-                    continue
-                if all((model_path / f).exists() for f in required_files):
-                    local_model_path = str(model_path)
+            for root in bundle_root_candidates:
+                candidate = root / "data" / "models" / local_name
+                if candidate.exists() and (
+                        (candidate / "config.yaml").exists() or (candidate / "configuration.json").exists()):
+                    target_dir = candidate
+                    is_exist = True
                     break
 
-            if local_model_path is not None:
-                print(f"✅ 检测到本地 ONNX 模型，直接加载: {local_model_path}")
-                model = SenseVoiceSmall(local_model_path, batch_size=1, quantize=True)
-                print("✅ 本地 ONNX 模型加载成功")
-                return model
+        # 2. 如果不存在，则下载
+        if not is_exist:
+            print(f"⬇️ 未检测到本地模型，开始下载: {model_id} -> {target_dir}")
+            try:
+                from modelscope import snapshot_download
+            except ImportError:
+                raise ImportError("请安装 modelscope: pip install modelscope")
 
-            print(
-                "⚠️ 未检测到本地 ONNX 模型文件（model.onnx/model.onnx.data），将尝试从 ModelScope 下载: iic/SenseVoiceSmall-onnx"
-            )
+            try:
+                # 确保父目录存在
+                target_dir.parent.mkdir(parents=True, exist_ok=True)
 
-            from modelscope import snapshot_download
+                snapshot_download(
+                    model_id,
+                    local_dir=str(target_dir)
+                )
+                print(f"✅ 模型 {local_name} 下载成功，正在整理文件结构...")
 
-            model_dir = snapshot_download("iic/SenseVoiceSmall-onnx")
-            model = SenseVoiceSmall(model_dir,
-                                    batch_size=1,
-                                    quantize=False,
-                                    postprocess=True)
-            print("✅ ONNX 模型下载并加载成功")
-            return model
+                # 刚下载完，执行清理逻辑（下文统一处理）
 
-        except ImportError as e:
-            raise ImportError(f"请安装所需依赖: pip install funasr onnxruntime: {e}")
-        except FileNotFoundError as e:
-            raise FileNotFoundError(f"本地模型文件缺失: {e}")
+            except Exception as e:
+                raise Exception(f"模型下载失败: {e}")
+
+        # 3. 目录结构修复与加载
+        # 无论是否刚下载，都尝试修复目录结构（解决 modelscope 下载到子目录或上次未完全修复的问题）
+        # 确保关键文件 (.onnx, .model, .json, .yaml) 都在 target_dir 根目录下
+        try:
+            for root, dirs, files in os.walk(str(target_dir)):
+                current_root = Path(root)
+                if current_root == target_dir:
+                    continue
+
+                for file in files:
+                    # 移动关键模型文件，增加 .model 后缀
+                    if file.endswith(('.onnx', '.json', '.yaml', '.txt', '.bin', '.model')):
+                        src_path = current_root / file
+                        dst_path = target_dir / file
+
+                        # 只有目标不存在时才移动，避免覆盖
+                        if not dst_path.exists():
+                            print(f"📂 [目录修复] 移动 {file} -> {target_dir}")
+                            shutil.move(str(src_path), str(dst_path))
+
+            # 尝试清理空的子目录
+            for root, dirs, files in os.walk(str(target_dir), topdown=False):
+                for d in dirs:
+                    d_path = Path(root) / d
+                    try:
+                        if not any(d_path.iterdir()):
+                            d_path.rmdir()
+                    except:
+                        pass
         except Exception as e:
-            raise Exception(f"初始化本地ONNX模型失败: {e}")
+            print(f"⚠️ 目录结构检查警告: {e}")
+
+        print(f"✅ 加载模型: {target_dir}")
+
+        # 自动检测量化配置
+        if 'quantize' not in kwargs:
+            is_quant = (target_dir / "model_quant.onnx").exists()
+            kwargs['quantize'] = is_quant
+
+        try:
+            return model_cls(str(target_dir), **kwargs)
+        except Exception as e:
+            raise Exception(f"模型加载失败: {e}")
+
+    def _init_stt_model(self):
+        """
+        初始化 FunASR ONNX STT 模型
+        """
+        try:
+            from funasr_onnx import SenseVoiceSmall
+        except ImportError:
+            raise ImportError("请安装 funasr_onnx")
+
+        return self._download_and_load_model(
+            # model_id="iic/SenseVoiceSmall-onnx",
+            model_id="botaruibo/SenseVoiceSmall-onnx",
+            local_name="SenseVoiceSmall-onnx",
+            model_cls=SenseVoiceSmall,
+            batch_size=1,
+            # quantize 会自动检测
+        )
 
     def _init_punc_model(self):
         """
-        /**
-         * 初始化标点模型。
-         *
-         * 优化点：
-         * - 先检查本地模型是否已存在（`data/models/punc_ct-transformer_zh-cn-common-vocab272727-onnx`）。
-         * - 若本地存在 ONNX 模型文件（`model.onnx` 或 `model_quant.onnx`）以及 `config.yaml`、`tokens.json`，
-         *   则直接加载，不再调用 `snapshot_download`。
-         * - 若本地不存在，才回退到 `snapshot_download('iic/punc_ct-transformer_zh-cn-common-vocab272727-onnx')`。
-         *
-         * @returns 模型对象
-         */
+        初始化标点模型
         """
         try:
             from funasr_onnx import CT_Transformer
-        except Exception as e:
-            raise ImportError(f"无法导入 funasr_onnx.CT_Transformer: {e}")
-
-        """/**
-         * 查找本地标点模型目录：兼容源码运行/打包运行。
-         */"""
-        bundle_root_candidates = []
-        if hasattr(sys, "_MEIPASS"):
-            bundle_root_candidates.append(Path(sys._MEIPASS))
-
-        exe_path = Path(sys.executable).resolve()
-        exe_dir = exe_path.parent
-        contents_dir = exe_path.parent.parent
-        bundle_root_candidates.extend(
-            [
-                exe_dir,
-                contents_dir,
-                contents_dir / "Frameworks",
-                contents_dir / "Resources",
-            ]
-        )
-        bundle_root_candidates.append(Path(__file__).resolve().parents[2])
-
-        local_dir = None
-        quantize = True
-
-        for bundle_root in bundle_root_candidates:
-            # 注意：保持与项目结构一致，使用 data/models
-            model_dir = bundle_root / "data" / "models" / "punc_ct-transformer_zh-cn-common-vocab272727-onnx"
-            if not model_dir.exists():
-                continue
-
-            config_ok = (model_dir / "config.yaml").exists()
-            tokens_ok = (model_dir / "tokens.json").exists()
-            model_onnx = model_dir / "model.onnx"
-            model_quant_onnx = model_dir / "model_quant.onnx"
-
-            if not (config_ok and tokens_ok):
-                continue
-
-            if model_onnx.exists():
-                local_dir = model_dir
-                quantize = False
-                break
-            if model_quant_onnx.exists():
-                local_dir = model_dir
-                quantize = True
-                break
-
-        if local_dir is not None:
-            print(f"✅ 检测到本地标点模型，直接加载: {local_dir}")
-            return CT_Transformer(str(local_dir), quantize=quantize, device_id=-1)
-
-        print(
-            "⚠️ 未检测到本地标点模型，将尝试从 ModelScope 下载: iic/punc_ct-transformer_zh-cn-common-vocab272727-onnx"
-        )
-
-        try:
-            from modelscope import snapshot_download
         except ImportError:
-            raise ImportError("请安装 modelscope: pip install modelscope")
+            raise ImportError("请安装 funasr_onnx")
 
-        # 确定下载目标目录：应用根目录/data/models
-        # 这里的 parents[2] 指向项目根目录 (src/core -> src -> project_root)
-        project_root = Path(__file__).resolve().parents[2]
-        models_root = project_root / "data" / "models"
-        target_dir = models_root / "punc_ct-transformer_zh-cn-common-vocab272727-onnx"
+        return self._download_and_load_model(
+            model_id="botaruibo/punc_ct-onnx",
+            local_name="punc_ct-onnx",
+            model_cls=CT_Transformer,
+            device_id=-1,
+            # quantize 会自动检测
+        )
 
-        print(f"⬇️ 开始下载标点模型到: {target_dir}")
-        try:
-            # 使用 local_dir 参数指定下载路径
-            model_dir = snapshot_download(
-                "iic/punc_ct-transformer_zh-cn-common-vocab272727-onnx",
-                local_dir=str(target_dir)
-            )
-            print("✅ 标点模型下载成功，正在加载...")
-
-            # 检查下载后的文件以确定是否开启量化
-            p = Path(model_dir)
-            is_quant = (p / "model_quant.onnx").exists()
-
-            return CT_Transformer(str(model_dir), quantize=is_quant, device_id=-1)
-
-        except Exception as e:
-            raise Exception(f"标点模型下载或加载失败: {e}")
 
 
     def transcribe(self, file_path: str, audio_frames=None):
