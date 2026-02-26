@@ -7,6 +7,12 @@ import sys
 from pathlib import Path
 from funasr.utils.postprocess_utils import rich_transcription_postprocess
 
+try:
+    from ..components.gui_tk import enqueue_action
+except ImportError:
+    # 兼容性处理：如果没有 event_bus，定义一个空函数防止报错
+    def enqueue_action(*args, **kwargs):
+        pass
 
 def get_models_root() -> Path:
     """
@@ -34,6 +40,82 @@ class LocalSTTProcessor:
         self.config = config
         self.model = self._init_stt_model()
         self.punc = self._init_punc_model()
+
+    def _download_with_progress(self, model_id, target_dir, local_name):
+        """
+        使用 tqdm hook 实现带 GUI 进度的下载
+        通过直接修改 tqdm.tqdm.update 方法，确保补丁对所有已导入 tqdm 的模块生效
+        """
+        import tqdm
+        import time
+
+        # 记录原始方法以便恢复
+        _orig_update = tqdm.tqdm.update
+        _last_report_time = [0]  # 使用列表以便在闭包中修改
+
+        def patched_update(self, n=1):
+            # 执行原始更新
+            res = _orig_update(self, n)
+
+            try:
+                now = time.time()
+                # 限制上报频率 (每 100ms 一次)
+                if now - _last_report_time[0] < 0.1:
+                    # 如果不是最后一次更新，则跳过
+                    if not (self.total and self.n >= self.total):
+                        return
+
+                _last_report_time[0] = now
+
+                if self.total:
+                    percentage = (self.n / self.total) * 100
+                    desc = self.desc or "下载中..."
+                    print(f"==进度上报: {percentage:.2f}% - {desc}")
+                    enqueue_action('progress_update', None, {'progress': percentage, 'desc': desc})
+                else:
+                    # 未知总大小，仅更新描述
+                    enqueue_action('progress_update', None, {'progress': -1, 'desc': self.desc or "正在下载..."})
+            except Exception as e:
+                print(f"⚠️ 进度上报失败: {e}")
+
+            return res
+
+        try:
+            print(f"⬇️ [GUI] 开始下载: {model_id}")
+            # 发送开始信号
+            enqueue_action('progress_start', None, {'title': '模型下载', 'label': f'正在下载 {local_name}...'})
+
+            # 应用补丁：直接修改类方法，这比替换类更彻底
+            tqdm.tqdm.update = patched_update
+            # 同时确保 auto 模块也指向同一个类（通常已经是这样了）
+            if hasattr(tqdm, 'auto'):
+                tqdm.auto.tqdm.update = patched_update
+
+            # 确保父目录存在
+            target_dir.parent.mkdir(parents=True, exist_ok=True)
+
+            # 延迟加载 modelscope 确保补丁已就绪
+            from modelscope import snapshot_download
+
+            # 开始下载
+            snapshot_download(
+                model_id,
+                local_dir=str(target_dir)
+            )
+            print(f"✅ 模型 {local_name} 下载成功")
+
+        except Exception as e:
+            # 网络错误等会在这里被捕获
+            print(f"❌ 模型下载异常: {e}")
+            raise Exception(f"模型下载失败: {e}")
+        finally:
+            # 务必还原方法
+            tqdm.tqdm.update = _orig_update
+            if hasattr(tqdm, 'auto'):
+                tqdm.auto.tqdm.update = _orig_update
+
+            # 关闭进度条窗口
+            enqueue_action('progress_end', None, None)
 
     def _download_and_load_model(self, model_id: str, local_name: str, model_cls, **kwargs):
         """
@@ -75,19 +157,13 @@ class LocalSTTProcessor:
         # 2. 如果不存在，则下载
         if not is_exist:
             print(f"⬇️ 未检测到本地模型，开始下载: {model_id} -> {target_dir}")
-            try:
-                from modelscope import snapshot_download
-            except ImportError:
-                raise ImportError("请安装 modelscope: pip install modelscope")
 
             try:
                 # 确保父目录存在
                 target_dir.parent.mkdir(parents=True, exist_ok=True)
 
-                snapshot_download(
-                    model_id,
-                    local_dir=str(target_dir)
-                )
+                self._download_with_progress(model_id, target_dir, local_name)
+
                 print(f"✅ 模型 {local_name} 下载成功，正在整理文件结构...")
 
                 # 刚下载完，执行清理逻辑（下文统一处理）

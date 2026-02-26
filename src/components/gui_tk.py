@@ -24,13 +24,15 @@ except Exception:  # pragma: no cover
 from .hotkey import UniversalKeyListener, ShortcutKey, KeyEvent
 
 # ============ 全局解耦队列 ============
-# 所有状态栏动作都写入此队列，由 Tkinter 主循环轮询处理
+# 所有 状态栏动作 都写入此队列，由 Tkinter 主循环轮询处理
 _status_queue = queue.Queue()
-_queue_lock = threading.Lock()
-_queue_callbacks = {}  # 存储回调函数，避免在 ObjC 中直接调用
+# 文件下载进度 写入此队列。用于非 UI 线程向 UI 线程发送指令
+_progress_queue = queue.Queue()
+# _queue_lock = threading.Lock()
+# _queue_callbacks = {}  # 存储回调函数，避免在 ObjC 中直接调用
 
 
-def enqueue_action(action_type, window_id, data=None):
+def enqueue_action(action_type, window_id=None, data=None):
     """线程安全的入队函数，供 ObjC 回调调用"""
     try:
         _status_queue.put_nowait({
@@ -40,6 +42,18 @@ def enqueue_action(action_type, window_id, data=None):
         })
     except:
         pass
+
+def enqueue_action_progress(action_type, window_id=None, data=None):
+    """
+    发送 UI 动作指令的辅助函数
+    :param action_type: 动作类型 (e.g., 'show', 'hide', 'progress_start')
+    :param window_id: 相关窗口 ID (可选)
+    :param data: 携带的数据 (可选)
+    """
+    try:
+        _progress_queue.put((action_type, window_id, data))
+    except Exception as e:
+        print(f"❌ Enqueue action failed: {e}")
 
 # ============ 状态栏控制器 ============
 class MacStatusBar(NSObject):
@@ -1482,6 +1496,66 @@ class VoiceInputGUI:
 
     ##### 录音浮层 功能模块---end #####
 
+    ##### 下载进度条 功能模块---start #####
+
+    def _show_progress_window(self, data):
+        """显示进度条窗口"""
+        try:
+            # 延迟导入以避免循环依赖
+            from ..core.progress_bar import ProgressBarWindow
+
+            # 如果窗口已存在，则置顶
+            if hasattr(self, 'progress_window') and self.progress_window:
+                try:
+                    self.progress_window.lift()
+                    return
+                except Exception:
+                    self.progress_window = None
+
+            title = data.get('title', '初始使用，模型需先下载...')
+            label_text = data.get('label', '正在下载...')
+
+            # 创建进度窗口，parent 设为 self.root
+            self.progress_window = ProgressBarWindow(title=title, label_text=label_text, parent=self.root)
+            # 禁止用户手动关闭窗口（防止下载中断）
+            self.progress_window.protocol("WM_DELETE_WINDOW", lambda: None)
+
+        except Exception as e:
+            print(f"❌ 显示进度条失败: {e}")
+
+    def _update_progress_window(self, data):
+        """更新进度条数值和文本"""
+        if not hasattr(self, 'progress_window') or not self.progress_window:
+            return
+
+        try:
+            progress = data.get('progress', 0)
+            desc = data.get('desc', '')
+
+            # 更新进度条 (0.0 - 1.0)
+            if hasattr(self.progress_window, 'progress_bar'):
+                self.progress_window.progress_bar.set(progress / 100.0)
+
+            # 更新状态文字
+            if hasattr(self.progress_window, 'status_label') and desc:
+                self.progress_window.status_label.configure(text=desc)
+
+            # 强制刷新界面
+            self.progress_window.update_idletasks()
+        except Exception as e:
+            print(f"❌ 更新进度条失败: {e}")
+
+    def _close_progress_window(self):
+        """关闭并销毁进度条窗口"""
+        if hasattr(self, 'progress_window') and self.progress_window:
+            try:
+                self.progress_window.destroy()
+            except Exception:
+                pass
+            self.progress_window = None
+
+    ##### 下载进度条 功能模块---end #####
+
     ##### 状态栏相关功能模块---start #####
     def _poll_queue(self):
         """
@@ -1493,15 +1567,17 @@ class VoiceInputGUI:
 
         try:
             while True:
+                ## 处理状态栏消息 start
                 item = _status_queue.get_nowait()
                 action = item.get('action')
                 window_id = item.get('window_id')
+                data = item.get('data')
 
                 # 验证是否是自己的消息
-                if window_id != self._window_id:
-                    continue
+                # if window_id != self._window_id:
+                #     continue
 
-                print(f"📥 处理动作: {action}")
+                print(f"📥 处理动作: {action}，数据: {data}")
 
                 if action == 'show':
                     self._do_show()
@@ -1510,6 +1586,14 @@ class VoiceInputGUI:
                 elif action == 'quit':
                     self.exit_application()
                     return  # 退出后不再继续轮询
+                ## 处理进度条消息 start
+                elif action == 'progress_start':
+                    self._show_progress_window(data)
+                elif action == 'progress_update':
+                    self._update_progress_window(data)
+                elif action == 'progress_end':
+                    self._close_progress_window()
+                ## 处理进度条消息 end
 
         except queue.Empty:
             pass
