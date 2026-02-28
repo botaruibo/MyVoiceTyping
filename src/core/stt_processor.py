@@ -74,13 +74,7 @@ class STTProcessor:
             raise
 
         try:
-            """/**
-             * 注意：部分 provider（例如 funasr_onnx 的模型 __call__）不接受 Path 类型。
-             * 这里统一传入 str 路径，避免类型错误。
-             */"""
             raw_text = self.provider.transcribe(str(wav_path), audio_frames)
-
-            print(f"原始转录文本: {raw_text}")
             return raw_text
         except Exception as e:
             print(f"❌ 转录失败: {e}")

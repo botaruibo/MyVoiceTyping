@@ -21,7 +21,7 @@ from .components.config_manager import get_config_manager
 
 class FlashInputApp:
     def __init__(self):
-        self.app_name = "闪电输入法"
+        self.app_name = "闪电输入"
         # 状态栏应用实例
         self.status_bar_app = None
         self.config_manager = None
@@ -711,20 +711,14 @@ class FlashInputApp:
             self._is_processing = True
 
         try:
-            self._set_status("转写中…")
+            self._set_status("语音转录中…")
             self._ensure_stt_ready()
             trans_time = time.time()
             text = self.stt_processor.transcribe(audio_data)
-            print("文本转写结果:", text)
+            print("语音转录结果:", text)
             print(f"转录耗时 {time.time() - trans_time:.2f}s（从处理开始算起）")
 
-            """/**
-             * 转写后可选的文本改写（LLM）。
-             *
-             * 说明：
-             * - 这里不能假设 `self.rewriter` 一定已完成初始化；GUI 就绪后的后加载是异步的。
-             * - 若改写失败/rewriter 不可用，必须降级为原始转写文本，不能影响“写入”主流程。
-             */"""
+
             if not text:
                 print("ℹ️ 转写结果为空，跳过改写")
             else:
@@ -733,15 +727,14 @@ class FlashInputApp:
                         self.config_manager = get_config_manager()
 
                     if bool(self.config_manager.get("FORMAT_TEXT")):
-                        self._set_status("改写中…")
                         rewriter = self._get_rewriter_safe()
                         if rewriter is None:
                             print("⚠️ rewriter 不可用，跳过改写")
                         else:
                             rewrite_time = time.time()
                             text = rewriter.rewrite(text)
-                            print(f"llm 远程改写耗时 {time.time() - rewrite_time:.2f}s")
-                            print(f"✅ 格式化后的文本: {text}")
+                            print(f"文本改写耗时 {time.time() - rewrite_time:.2f}s")
+                            print(f"✅ 格式化改写后的文本: {text}")
                     else:
                         print("ℹ️ FORMAT_TEXT 未开启，跳过改写")
                 except Exception as e:

@@ -40,11 +40,10 @@ class LocalSTTProcessor:
         self.config = config
         self._stt_model_id = "botaruibo/SenseVoiceSmall-onnx"
         self._punc_model_id = "botaruibo/punc_ct-onnx"
-        self._download_model(model_id=self._stt_model_id,)
-        self._download_model(model_id=self._punc_model_id,)
+        self._download_model(model_id=self._stt_model_id)
+        self._download_model(model_id=self._punc_model_id)
         self.model = self._init_stt_model()
         self.punc = self._init_punc_model()
-        # self.punc = None
 
     def _download_with_progress(self, model_id, target_dir, local_name):
         """
@@ -75,6 +74,7 @@ class LocalSTTProcessor:
                 if self.total:
                     percentage = (self.n / self.total) * 100
                     desc = self.desc or "下载中..."
+                    print(f"==进度上报: {percentage:.2f}% - {desc}")
                     enqueue_action('progress_update', None, {'progress': percentage, 'desc': desc})
                 else:
                     # 未知总大小，仅更新描述

@@ -172,6 +172,7 @@ class Rewrite:
          */
         """
         if not self.config.get("FORMAT_TEXT"):
+            print("⚠️ 系统未开启文本格式化功能，直接返回原文")
             return raw_text
 
         if not self.rewrite_llm_client_status or self.remote_llm_client is None:
