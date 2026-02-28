@@ -121,7 +121,7 @@ class FlashInputApp:
                 print(f"✅ 后加载初始化完成,耗时:{time.perf_counter()-t0:0.2f}")
             except Exception as e:
                 print(f"❌ 后加载初始化异常: {e}")
-                self._set_status(f"后加载初始化失败：{e}")
+                self._set_status(f"后加载初始化失败：{e}", is_error=True)
 
         threading.Thread(target=_worker, daemon=True).start()
 
@@ -162,7 +162,7 @@ class FlashInputApp:
                     self._set_status("语音模型就绪")
                 except Exception as e:
                     self._stt_init_error = e
-                    self._set_status(f"语音模型初始化失败：{e}")
+                    self._set_status(f"语音模型初始化失败：{e}", is_error=True)
                 finally:
                     self._stt_ready.set()
 
@@ -177,11 +177,14 @@ class FlashInputApp:
         if self._stt_init_error is not None:
             raise self._stt_init_error
 
-    def _set_status(self, text: str) -> None:
+    def _set_status(self, text: str, is_error: bool = False) -> None:
         print(text)
         if self.gui is not None and hasattr(self.gui, "update_status"):
             try:
-                self.gui.update_status(text)
+                if is_error:
+                    self.gui.update_status_error(text)
+                else:
+                    self.gui.update_status_info(text)
             except Exception:
                 pass
 
@@ -625,30 +628,6 @@ class FlashInputApp:
         except Exception as e:
             print(f"⚠️ 恢复系统外放失败（可忽略）: {e}")
 
-    def _set_status(self, text: str) -> None:
-        print(text)
-
-        gui = self.gui
-        if gui is None:
-            return
-
-        update_status = getattr(gui, "update_status", None)
-        if not callable(update_status):
-            return
-
-        post_ui = getattr(gui, "post_ui", None)
-        if callable(post_ui):
-            try:
-                post_ui(update_status, text)
-                return
-            except Exception:
-                pass
-
-        try:
-            update_status(text)
-        except Exception:
-            pass
-
     def start_recording(self) -> None:
         try:
             self._ensure_audio_recorder()
@@ -675,7 +654,7 @@ class FlashInputApp:
                 self._maybe_restore_speaker_after_recording()
             except Exception:
                 pass
-            self._set_status(f"开始录音失败：{e}")
+            self._set_status(f"开始录音失败：{e}", is_error=True)
 
     def stop_recording(self) -> None:
         audio_data = b""
@@ -687,7 +666,7 @@ class FlashInputApp:
             self._set_status("停止录音…")
             audio_data = self.audio_recorder.stop_recording()
         except Exception as e:
-            self._set_status(f"停止录音失败：{e}")
+            self._set_status(f"停止录音失败：{e}", is_error=True)
             return
         finally:
             try:
@@ -717,7 +696,7 @@ class FlashInputApp:
                 daemon=True,
             ).start()
         except Exception as e:
-            self._set_status(f"停止录音失败：{e}")
+            self._set_status(f"停止录音失败：{e}", is_error=True)
 
     def toggle_recording(self) -> None:
         if getattr(self.audio_recorder, "is_recording", False):
@@ -771,7 +750,7 @@ class FlashInputApp:
             self._set_status("写入中…")
             self.write_appname_to_cursor(text)
         except Exception as e:
-            self._set_status(f"转写/写入失败：{e}")
+            self._set_status(f"转写/写入失败：{e}", is_error=True)
         finally:
             self._set_status("就绪")
             with self._processing_lock:
@@ -955,7 +934,3 @@ class FlashInputApp:
                 self.gui.root.after(0, _quit)
         except Exception:
             _quit()
-
-if __name__ == "__main__":
-    app = FlashInputApp()
-    app.run()

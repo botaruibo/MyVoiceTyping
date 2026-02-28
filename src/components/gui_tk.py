@@ -1,3 +1,4 @@
+import os
 import tkinter as tk
 from typing import Any, Dict, Optional
 import sys, time
@@ -6,7 +7,6 @@ import customtkinter as ctk
 import platform
 
 import queue
-import threading
 
 if platform.system() == "Darwin":
     from AppKit import NSStatusBar, NSMenu, NSMenuItem, NSObject
@@ -1268,14 +1268,13 @@ class VoiceInputGUI:
                 if self.statusbar:
                     self.statusbar.remove()
                 self.root.quit()
+                self.root.destroy()
             finally:
-                try:
-                    self.root.destroy()
-                except Exception:
-                    pass
+                # 【强制退出】这是解决弹出 3 次最有效的方案
+                os._exit(0)
 
         try:
-            self.root.after(0, _quit)
+            self.root.after(10, _quit)
         except Exception:
             _quit()
 
@@ -1499,60 +1498,60 @@ class VoiceInputGUI:
     ##### 下载进度条 功能模块---start #####
 
     def _show_progress_window(self, data):
-        """显示进度条窗口"""
-        try:
-            # 延迟导入以避免循环依赖
-            from ..core.progress_bar import ProgressBarWindow
+        """显示全屏进度条覆盖层"""
 
-            # 如果窗口已存在，则置顶
-            if hasattr(self, 'progress_window') and self.progress_window:
-                try:
-                    self.progress_window.lift()
+        def _do_show():
+            try:
+                # 延迟导入新的 Frame 组件
+                from ..core.progress_bar import ProgressBarFrame
+
+                # 如果已存在，直接返回
+                if hasattr(self, 'progress_overlay') and self.progress_overlay:
+                    self.progress_overlay.lift()
                     return
-                except Exception:
-                    self.progress_window = None
 
-            title = data.get('title', '初始使用，模型需先下载...')
-            label_text = data.get('label', '正在下载...')
+                title = data.get('title', '正在准备模型...')
+                label = data.get('label', '首次运行需要下载模型，请稍候...')
 
-            # 创建进度窗口，parent 设为 self.root
-            self.progress_window = ProgressBarWindow(title=title, label_text=label_text, parent=self.root)
-            # 禁止用户手动关闭窗口（防止下载中断）
-            self.progress_window.protocol("WM_DELETE_WINDOW", lambda: None)
+                # 创建全屏覆盖层，直接挂载到 self.root 上
+                # 这样它会遮挡所有其他内容（Sidebar + Content）
+                self.progress_overlay = ProgressBarFrame(self.root, title=title, label_text=label)
+                self.progress_overlay.place(relx=0, rely=0, relwidth=1, relheight=1)
 
-        except Exception as e:
-            print(f"❌ 显示进度条失败: {e}")
+                # 强制刷新一次，确保用户立刻看到
+                self.root.update()
+                print(f"✅ 进度覆盖层已显示: {title}")
+
+            except Exception as e:
+                print(f"❌ 显示进度条失败: {e}")
+
+        # 确保在主线程空闲时执行
+        self.root.after_idle(_do_show)
 
     def _update_progress_window(self, data):
-        """更新进度条数值和文本"""
-        if not hasattr(self, 'progress_window') or not self.progress_window:
+        """更新进度条数值"""
+        if not hasattr(self, 'progress_overlay') or not self.progress_overlay:
             return
 
         try:
             progress = data.get('progress', 0)
             desc = data.get('desc', '')
-
-            # 更新进度条 (0.0 - 1.0)
-            if hasattr(self.progress_window, 'progress_bar'):
-                self.progress_window.progress_bar.set(progress / 100.0)
-
-            # 更新状态文字
-            if hasattr(self.progress_window, 'status_label') and desc:
-                self.progress_window.status_label.configure(text=desc)
-
-            # 强制刷新界面
-            self.progress_window.update_idletasks()
+            # 调用组件内部方法
+            self.progress_overlay.update_progress(progress / 100.0, desc)
+            # 强制刷新界面（重要！否则下载密集时界面会卡死）
+            self.root.update_idletasks()
         except Exception as e:
             print(f"❌ 更新进度条失败: {e}")
 
     def _close_progress_window(self):
-        """关闭并销毁进度条窗口"""
-        if hasattr(self, 'progress_window') and self.progress_window:
+        """销毁进度条覆盖层"""
+        if hasattr(self, 'progress_overlay') and self.progress_overlay:
             try:
-                self.progress_window.destroy()
+                self.progress_overlay.destroy()
             except Exception:
                 pass
-            self.progress_window = None
+            self.progress_overlay = None
+            print("✅ 进度覆盖层已关闭")
 
     ##### 下载进度条 功能模块---end #####
 

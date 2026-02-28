@@ -1,108 +1,95 @@
 # -*- mode: python ; coding: utf-8 -*-
 
 import os
+import sys
 from pathlib import Path
-
-import funasr
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 block_cipher = None
 
+# 获取项目根目录
 try:
     project_root = Path(SPECPATH).resolve()
 except NameError:
     project_root = Path.cwd().resolve()
 
-funasr_version_file = Path(funasr.__file__).resolve().parent / 'version.txt'
+# 自动收集子模块（只收集真正需要的推理库）
+#funasr_onnx_hidden = collect_submodules('funasr_onnx')
+#modelscope_hidden = collect_submodules('modelscope')
 
-funasr_hiddenimports = collect_submodules('funasr')
-modelscope_hiddenimports = collect_submodules('modelscope')
+# 收集必要的数据文件
+# 注意：我们尽量减少 collect_data_files 的使用，因为它会带入很多垃圾文件
+datas = [
+    (str(project_root / 'src'), 'src'),
+    (str(project_root / 'requirements.txt'), '.'),
+    (str(project_root / 'data/config'), 'data/config'),
+]
 
-try:
-    funasr_datas = collect_data_files('funasr', include_py_files=True)
-except TypeError:
-    funasr_datas = collect_data_files('funasr')
+# 尝试获取 funasr 的版本文件（如果 postprocess 还在用 funasr 库）
+#try:
+#    import funasr
+#    funasr_version_file = Path(funasr.__file__).resolve().parent / 'version.txt'
+#    if funasr_version_file.exists():
+#        datas.append((str(funasr_version_file), 'funasr'))
+#except ImportError:
+#    pass
 
-modelscope_datas = collect_data_files('modelscope')
-
-# ---- Fully-offline model assets checks (Removed for flexible packaging) ----
-# 说明：原先的 check 逻辑已移除，允许仅打包 config 文件夹。
-# 运行时若缺少模型，由应用自行处理或用户手动下载。
-
-def _assert_dir_exists(model_name: str, model_dir: Path) -> None:
-    pass
-
-def _assert_file_exists(model_name: str, file_path: Path) -> None:
-    pass
-
-# ASR: SenseVoiceSmall-onnx
-# asr_dir = project_root / "data" / "models" / "SenseVoiceSmall-onnx"
-# _assert_dir_exists("SenseVoiceSmall-onnx", asr_dir)
-
+# 图标路径处理
 icon_icns = project_root / "assets" / "icon.icns"
 if not icon_icns.exists():
     icon_icns = project_root / "icon.icns"
-if not icon_icns.exists():
-    # 这里保持警告或报错，图标通常是必须的
-    print(f"[spec] Warning: icon.icns not found at {project_root/'assets'/'icon.icns'}")
 
 a = Analysis(
     [str(project_root / 'run.py')],
     pathex=[str(project_root)],
     binaries=[],
-    datas=[
-        (str(project_root / 'src'), 'src'),
-        (str(project_root / 'requirements.txt'), '.'),
-        # 修改：仅包含 config 文件夹，其他 data 子文件夹不打包
-        (str(project_root / 'data/config'), 'data/config'),
-        (str(funasr_version_file), 'funasr'),
-        *funasr_datas,
-        *modelscope_datas,
-    ],
+    datas=datas,
     hiddenimports=[
-        'dearpygui',
         'customtkinter',
-        'funasr',
+        'onnxruntime',
+        'funasr_onnx',
         'modelscope',
-        'torch',
-        'torchaudio',
-        'transformers',
-        'openai',
-        'pyobjc_framework_ApplicationServices',
-        # 新增：macOS 系统框架依赖
         'AppKit',
         'Foundation',
         'Quartz',
         'CoreFoundation',
-        # 新增：其他核心依赖
         'pyautogui',
         'pygetwindow',
         'pyperclip',
         'sounddevice',
-        'onnxruntime',
-        'langchain_openai',
-        'langchain_core',
         'PIL',
         'numpy',
         'requests',
-        'websockets',
-        'charset_normalizer',
-        'funasr.utils',
-        'funasr.models',
-        'encodings',
-        'encodings.idna',
-        'encodings.utf_8',
-        'encodings.latin_1',
         'yaml',
-        *funasr_hiddenimports,
-        *modelscope_hiddenimports,
+#        *funasr_onnx_hidden,
+#        *modelscope_hidden,
     ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[str(project_root / 'runtime_hook.py')],
+    # 【关键优化：排除重型依赖】
     excludes=[
-        # 注意：GUI 已切换为 Tkinter + CustomTkinter，不能再排除 tkinter
-        'yaml._yaml',  # 排除 x86_64 的 C 扩展，使用纯 Python 实现
+        'torch',           # 排除 Torch (约 400MB)
+        'torchaudio',      # 排除 TorchAudio (约 100MB)
+        'torchvision',     # 排除 TorchVision
+        'triton',
+        'matplotlib',      # 排除绘图库
+        'pandas',
+        'IPython',
+        'notebook',
+        'jedi',
+        'PIL.ImageQt',
+        'tkinter.test',
+        'PyQt5',
+        'PySide2',
+        'PySide6',
+#        'scipy',           # 排除 SciPy
+        'sklearn',         # 排除 Scikit-learn
+#        'numba',           # 排除 Numba
+#        'sympy',
+        'networkx',
+#        'llvmlite',
+        'cv2',
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
@@ -120,16 +107,12 @@ exe = EXE(
     name='MyVoiceInput',
     debug=False,
     bootloader_ignore_signals=False,
-    strip=False,
-    upx=False,  # 关闭 UPX 压缩以避免潜在问题
-    upx_exclude=[],
-    runtime_tmpdir=None,
-    console=False,
+    strip=True,        # 开启 Strip 移除调试符号
+    upx=False,         # macOS 上 UPX 经常失效，建议关闭
+    console=False,     # 无终端窗口
     disable_windowed_traceback=False,
     argv_emulation=True,
     target_arch='arm64',  # 专门针对 M4 芯片优化
-    codesign_identity=None,
-    entitlements_file=None,
     icon=str(icon_icns) if icon_icns.exists() else None,
 )
 
@@ -138,9 +121,8 @@ coll = COLLECT(
     a.binaries,
     a.zipfiles,
     a.datas,
-    strip=False,
+    strip=True,
     upx=False,
-    upx_exclude=[],
     name='MyVoiceInput',
 )
 
@@ -148,12 +130,12 @@ app = BUNDLE(
     coll,
     name='MyVoiceInput.app',
     icon=str(icon_icns) if icon_icns.exists() else None,
-    bundle_identifier=None,
+#    bundle_identifier='com.flashinput.app', # TODO：未来修改
     info_plist={
+        "CFBundleShortVersionString": "1.0.0",
         "NSMicrophoneUsageDescription": "用于语音输入，需要访问麦克风。",
         "NSSpeechRecognitionUsageDescription": "用于语音识别转文字。",
         "NSAppleEventsUsageDescription": "用于自动化控制和快捷键监听。",
+        "LSUIElement": "0", # 设为 1 则不在 Dock 显示（如果只需要状态栏）
     },
 )
-
-#如果要增加一个安装步骤呢，在安装时检查data/models 文件夹下是否有两个模型文件夹和对应的文件。如果没有就触发

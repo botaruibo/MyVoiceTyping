@@ -186,6 +186,4 @@ class Rewrite:
             except Exception as e:
                 print(f"⚠️ 文本改写失败（将降级返回原文）: {e}")
                 return raw_text
-
-        print(f"⚠️ 不支持未知的重写模式: {provider}（将降级返回原文）")
         return raw_text

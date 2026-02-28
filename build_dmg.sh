@@ -8,7 +8,7 @@ SRC_APP_NAME="MyVoiceInput"
 DIST_DIR="dist"
 APP_BUNDLE="${DIST_DIR}/${SRC_APP_NAME}.app"
 
-APP_NAME="闪电输入法"
+APP_NAME="MyVoiceInput"
 
 # DMG 暂存目录（仅用于打包，打包后会自动清理）
 # 关键修改：使用独立的暂存目录，确保只打包 .app

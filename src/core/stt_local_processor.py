@@ -5,7 +5,7 @@ import os
 import shutil
 import sys
 from pathlib import Path
-from funasr.utils.postprocess_utils import rich_transcription_postprocess
+import re
 
 try:
     from ..components.gui_tk import enqueue_action
@@ -38,8 +38,13 @@ class LocalSTTProcessor:
     """
     def __init__(self, config):
         self.config = config
+        self._stt_model_id = "botaruibo/SenseVoiceSmall-onnx"
+        self._punc_model_id = "botaruibo/punc_ct-onnx"
+        self._download_model(model_id=self._stt_model_id,)
+        self._download_model(model_id=self._punc_model_id,)
         self.model = self._init_stt_model()
         self.punc = self._init_punc_model()
+        # self.punc = None
 
     def _download_with_progress(self, model_id, target_dir, local_name):
         """
@@ -70,7 +75,6 @@ class LocalSTTProcessor:
                 if self.total:
                     percentage = (self.n / self.total) * 100
                     desc = self.desc or "下载中..."
-                    print(f"==进度上报: {percentage:.2f}% - {desc}")
                     enqueue_action('progress_update', None, {'progress': percentage, 'desc': desc})
                 else:
                     # 未知总大小，仅更新描述
@@ -83,7 +87,7 @@ class LocalSTTProcessor:
         try:
             print(f"⬇️ [GUI] 开始下载: {model_id}")
             # 发送开始信号
-            enqueue_action('progress_start', None, {'title': '模型下载', 'label': f'正在下载 {local_name}...'})
+            enqueue_action('progress_start', None, {'title': '模型初始化下载', 'label': f'正在下载 {local_name}...'})
 
             # 应用补丁：直接修改类方法，这比替换类更彻底
             tqdm.tqdm.update = patched_update
@@ -100,14 +104,14 @@ class LocalSTTProcessor:
             # 开始下载
             snapshot_download(
                 model_id,
-                local_dir=str(target_dir)
+                local_dir=str(target_dir),
+                revision='v1.0'
             )
             print(f"✅ 模型 {local_name} 下载成功")
 
         except Exception as e:
             # 网络错误等会在这里被捕获
-            print(f"❌ 模型下载异常: {e}")
-            raise Exception(f"模型下载失败: {e}")
+            raise Exception(f"❌ 模型下载失败: {e}")
         finally:
             # 务必还原方法
             tqdm.tqdm.update = _orig_update
@@ -117,11 +121,12 @@ class LocalSTTProcessor:
             # 关闭进度条窗口
             enqueue_action('progress_end', None, None)
 
-    def _download_and_load_model(self, model_id: str, local_name: str, model_cls, **kwargs):
+    def _download_model(self, model_id: str):
         """
         通用的模型下载与加载函数
         """
         # 1. 确定模型目录
+        local_name = model_id.split("/")[-1]
         models_root = get_models_root()
         target_dir = models_root / local_name
 
@@ -203,7 +208,48 @@ class LocalSTTProcessor:
         except Exception as e:
             print(f"⚠️ 目录结构检查警告: {e}")
 
-        print(f"✅ 加载模型: {target_dir}")
+
+    def _load_model(self, model_id: str, model_cls, **kwargs):
+        """
+        通用的模型下载与加载函数
+        """
+        # 1. 确定模型目录
+        local_name = model_id.split("/")[-1]
+        models_root = get_models_root()
+        target_dir = models_root / local_name
+
+        # 检查是否已存在（简单的检查规则：目录存在且包含关键配置文件）
+        is_exist = False
+        if target_dir.exists():
+            if (target_dir / "config.yaml").exists() or (target_dir / "configuration.json").exists():
+                # 进一步检查核心模型文件是否存在
+                if (target_dir / "model.onnx").exists() or (target_dir / "model_quant.onnx").exists():
+                    is_exist = True
+
+        # 兼容性查找逻辑
+        if not is_exist:
+            bundle_root_candidates = []
+            if hasattr(sys, "_MEIPASS"):
+                bundle_root_candidates.append(Path(sys._MEIPASS))
+            exe_path = Path(sys.executable).resolve()
+            bundle_root_candidates.extend([
+                exe_path.parent,
+                exe_path.parent.parent,
+                exe_path.parent.parent / "Resources"
+            ])
+            bundle_root_candidates.append(Path(__file__).resolve().parents[2])
+
+            for root in bundle_root_candidates:
+                candidate = root / "data" / "models" / local_name
+                if candidate.exists() and (
+                        (candidate / "config.yaml").exists() or (candidate / "configuration.json").exists()):
+                    target_dir = candidate
+                    is_exist = True
+                    break
+
+        # 2. 如果不存在，则下载
+        if not is_exist:
+            self._download_model(model_id, local_name)
 
         # 自动检测量化配置
         if 'quantize' not in kwargs:
@@ -221,13 +267,11 @@ class LocalSTTProcessor:
         """
         try:
             from funasr_onnx import SenseVoiceSmall
-        except ImportError:
-            raise ImportError("请安装 funasr_onnx")
+        except ImportError as e:
+            raise ImportError(f"请安装 funasr_onnx: {e}")
 
-        return self._download_and_load_model(
-            # model_id="iic/SenseVoiceSmall-onnx",
-            model_id="botaruibo/SenseVoiceSmall-onnx",
-            local_name="SenseVoiceSmall-onnx",
+        return self._load_model(
+            model_id=self._stt_model_id,
             model_cls=SenseVoiceSmall,
             batch_size=1,
             # quantize 会自动检测
@@ -242,15 +286,26 @@ class LocalSTTProcessor:
         except ImportError:
             raise ImportError("请安装 funasr_onnx")
 
-        return self._download_and_load_model(
-            model_id="botaruibo/punc_ct-onnx",
-            local_name="punc_ct-onnx",
+        return self._load_model(
+            model_id=self._punc_model_id,
             model_cls=CT_Transformer,
             device_id=-1,
             # quantize 会自动检测
         )
 
-
+    def rich_transcription_postprocess(self,text: str) -> str:
+        """
+        * 对 SenseVoiceSmall 的识别结果进行后处理
+        * 主要是移除 <|zh|>, <|en|>, <|nospeech|>, <|HAPPY|> 等标签
+        * @param text 原始识别文本
+        * @returns 清理后的文本
+        """
+        if not text:
+            return ""
+        # 移除 <|...|> 格式的标签 (SenseVoice 的特殊标记)
+        text = re.sub(r'<\|.*?\|>', '', text)
+        # 移除两端空格
+        return text.strip()
 
     def transcribe(self, file_path: str, audio_frames=None):
         """
@@ -261,10 +316,13 @@ class LocalSTTProcessor:
         try:
             rst = self.model(file_path)
             print(f"本地模型转录文本: {rst}")
-            raw_text = rich_transcription_postprocess(rst[0])
+            raw_text = self.rich_transcription_postprocess(rst[0])
             print(f"本地模型转录文本: {raw_text}")
             if raw_text is None or len(raw_text.strip()) == 0:
                 return ""
+            if self.punc is None:
+                print("⚠️标点模型未初始化，跳过标点恢复")
+                return raw_text
             # 对转录文本进行标点恢复
             punctuated_text = self.punc(raw_text)
             print(f"本地模型标点恢复文本: {punctuated_text[0]}")
