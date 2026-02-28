@@ -136,6 +136,10 @@ app = BUNDLE(
         "NSMicrophoneUsageDescription": "用于语音输入，需要访问麦克风。",
         "NSSpeechRecognitionUsageDescription": "用于语音识别转文字。",
         "NSAppleEventsUsageDescription": "用于自动化控制和快捷键监听。",
-        "LSUIElement": "0", # 设为 1 则不在 Dock 显示（如果只需要状态栏）
+        # 主应用不显示 Dock 图标。
+        'LSUIElement': True,
+        'LSBackgroundOnly': False,
+        # 确保子进程不会创建额外的 Dock 图标
+        'NSSupportsSuddenTermination': False,
     },
 )

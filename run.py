@@ -3,6 +3,15 @@
 项目入口文件
 """
 
+import sys, os
+
+import multiprocessing
+
+os.environ['MP_FORCE_NO_RESOURCE_TRACKER'] = '1'  # 方法 B：强制禁用 tracker键，解决 Dock 双图标
+os.environ["MODELSCOPE_DOWNLOAD_MAX_WORKERS"] = "1" # 控制模型下载并发数
+# 必须在最开头，甚至在其他 import 之前
+multiprocessing.freeze_support()
+
 import os
 import time
 from pathlib import Path
