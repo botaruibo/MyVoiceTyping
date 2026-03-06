@@ -93,13 +93,13 @@ class MacStatusBar(NSObject):
 
             # 菜单项 - 只绑定到简单的入队方法
             show_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
-                "打开闪电输入法", "onShow:", ""
+                f"打开闪电输入", "onShow:", ""
             )
             show_item.setTarget_(self)
             self.menu.addItem_(show_item)
 
             hide_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
-                "隐藏闪电输入法", "onHide:", ""
+                f"隐藏闪电输入", "onHide:", ""
             )
             hide_item.setTarget_(self)
             self.menu.addItem_(hide_item)
@@ -182,6 +182,10 @@ class VoiceInputGUI:
         # 录音浮层：音量轮询 job（GUI 主线程）
         self._recording_overlay_volume_job = None
         self._recording_overlay_volume_last_seq = -1
+        # 录音浮层：转写进度轮询 job（GUI 主线程）
+        self._recording_overlay_progress_job = None
+        self._recording_overlay_progress_value = 0.0
+        self._recording_overlay_progress_last_ts = 0.0
 
         self._nav_buttons: Dict[str, ctk.CTkButton] = {}
         self._nav_icons: Dict[str, ctk.CTkImage] = {}
@@ -583,7 +587,7 @@ class VoiceInputGUI:
         api_key_entry.grid(row=0, column=1, sticky="ew")
 
         def _save_api_key(event=None):
-            self.config_manager.set("api_key", api_key_var.get())
+            self.config_manager.set_writer("api_key", api_key_var.get())
 
         api_key_entry.bind("<FocusOut>", _save_api_key)
 
@@ -620,7 +624,7 @@ class VoiceInputGUI:
 
         def _save_var_on_event(entry: ctk.CTkEntry, var: tk.StringVar, key: str) -> None:
             def _save(_evt=None) -> None:
-                self.config_manager.set(key, (var.get() or "").strip())
+                self.config_manager.set_writer(key, (var.get() or "").strip())
                 self.update_status_success("已保存配置（部分配置需重启生效）")
 
             entry.bind("<Return>", _save)
@@ -638,7 +642,7 @@ class VoiceInputGUI:
         stt_provider_default = self.config_manager.get("stt_provider", "funasr") or "funasr"
 
         def _on_stt_provider_change(v: str) -> None:
-            self.config_manager.set("stt_provider", v)
+            self.config_manager.set_writer("stt_provider", v)
             self.update_status_success("已保存配置（切换 STT 提供者需重启生效）")
 
         stt_provider_menu = ctk.CTkOptionMenu(
@@ -727,7 +731,7 @@ class VoiceInputGUI:
             """
             try:
                 value = var.get()
-                self.config_manager.set(key, value)
+                self.config_manager.set_writer(key, value)
                 print(f"配置 '{key}' 已自动更新为 '{value}'")
             except Exception as e:
                 error_msg = f"自动保存配置 '{key}' 失败: {e}"
@@ -1372,6 +1376,22 @@ class VoiceInputGUI:
         except Exception as e:
             print(f"⚠️ 停止录音浮层音量轮询失败（可忽略）: {e}")
 
+        # 停止转写进度轮询
+        try:
+            job = getattr(self, "_recording_overlay_progress_job", None)
+            if job:
+                try:
+                    self.root.after_cancel(job)
+                except Exception:
+                    pass
+            self._recording_overlay_progress_job = None
+            self._recording_overlay_progress_value = 0.0
+            self._recording_overlay_progress_last_ts = 0.0
+            # 更新 Cocoa 转写进度，确保浮层可见时进度条可见
+            self._cocoa_recording_overlay.set_progress(float(self._recording_overlay_progress_value))
+        except Exception as e:
+            print(f"⚠️ 停止转写进度轮询失败（可忽略）: {e}")
+
         try:
             self._init_cocoa_recording_overlay()
         except Exception:
@@ -1384,6 +1404,100 @@ class VoiceInputGUI:
             self._cocoa_recording_overlay.hide()
         except Exception as e:
             print(f"⚠️ 隐藏 Cocoa 录音浮层失败（可忽略）: {e}")
+
+    def update_transcribe_progress(self, byte_len: int = 0):
+        """
+        /**
+         * 录音浮窗：以固定速度轮询方式持续刷新（纯 Cocoa）。
+         *
+         * 方案说明：
+         * - 以固定速度调用 _cocoa_recording_overlay 的 `set_progress` 重绘进度条浮窗。
+         * - 进度在 0~1 之间循环（无限动画），直到浮层不可见时自动停止轮询。
+         *
+         * @param {number} byte_len - 兼容参数：外部传入时可忽略。
+         * @returns {void}
+         */
+        """
+
+        # 若 Cocoa overlay 不可用或不可见：停止轮询
+        try:
+            if self._cocoa_recording_overlay is None or not self._cocoa_recording_overlay.is_visible():
+                self._recording_overlay_progress_job = None
+                self._recording_overlay_progress_value = 0.0
+                self._recording_overlay_progress_last_ts = 0.0
+                return
+        except Exception:
+            self._recording_overlay_progress_job = None
+            self._recording_overlay_progress_value = 0.0
+            self._recording_overlay_progress_last_ts = 0.0
+            return
+
+        # 转写开始后不再需要音量轮询（避免两个 after 同时跑）
+        try:
+            job = getattr(self, "_recording_overlay_volume_job", None)
+            if job:
+                try:
+                    self.root.after_cancel(job)
+                except Exception:
+                    pass
+            self._recording_overlay_volume_job = None
+            self._recording_overlay_volume_last_seq = -1
+        except Exception:
+            pass
+
+        if self._recording_overlay_progress_last_ts <= 0.0:
+            self._recording_overlay_progress_last_ts = time.perf_counter()
+
+        # 先刷新一次
+        try:
+            self._cocoa_recording_overlay.set_progress(float(self._recording_overlay_progress_value))
+        except Exception as e:
+            print(f"⚠️ 更新 Cocoa 转写进度失败（可忽略）: {e}")
+
+        # 确保同一时间只有一个 after job
+        if self._recording_overlay_progress_job:
+            return
+
+        cycle_s = 3  # 进度条从 0->1 走完一圈所需秒数（固定速度）
+
+        def _tick() -> None:
+            self._recording_overlay_progress_job = None
+
+            try:
+                if self._cocoa_recording_overlay is None or not self._cocoa_recording_overlay.is_visible():
+                    self._recording_overlay_progress_value = 0.0
+                    self._recording_overlay_progress_last_ts = 0.0
+                    return
+            except Exception:
+                self._recording_overlay_progress_value = 0.0
+                self._recording_overlay_progress_last_ts = 0.0
+                return
+
+            now = time.perf_counter()
+            last_ts = float(self._recording_overlay_progress_last_ts or now)
+            dt = max(0.0, now - last_ts)
+            self._recording_overlay_progress_last_ts = now
+
+            p = float(self._recording_overlay_progress_value or 0.0)
+            p = (p + dt / cycle_s) % 1.0
+            self._recording_overlay_progress_value = p
+
+            try:
+                self._cocoa_recording_overlay.set_progress(p)
+            except Exception as e:
+                print(f"⚠️ 更新 Cocoa 转写进度失败（可忽略）: {e}")
+
+            try:
+                self._recording_overlay_progress_job = self.root.after(100, _tick)
+            except Exception as e:
+                print(f"⚠️ 调度转写进度轮询失败（可忽略）: {e}")
+                self._recording_overlay_progress_job = None
+
+        try:
+            self._recording_overlay_progress_job = self.root.after(100, _tick)
+        except Exception as e:
+            print(f"⚠️ 调度转写进度轮询失败（可忽略）: {e}")
+            self._recording_overlay_progress_job = None
 
     def update_recording_volume(self, volume_level: int = 0):
         """

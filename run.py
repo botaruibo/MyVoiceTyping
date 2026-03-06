@@ -25,6 +25,9 @@ import traceback
  * - 使用环境变量是为了让 `src/main.py` 在不同启动方式下也能读取。
  */"""
 os.environ.setdefault("MYVOICEINPUT_APP_START_TS", str(time.time()))
+from src.util.app_logger import AppLogger
+
+AppLogger.setup_startup()
 
 from src.main import FlashInputApp
 
@@ -42,7 +45,8 @@ def _write_startup_crash_log(exc: BaseException) -> None:
 if __name__ == "__main__":
     try:
         app = FlashInputApp()
+        AppLogger.switch_to_runtime()
         app.run()
     except Exception as e:
-        _write_startup_crash_log(e)
+        AppLogger.write_startup_crash(e)
         raise

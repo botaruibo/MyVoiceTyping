@@ -22,6 +22,12 @@ def get_config_manager():
 def _is_frozen() -> bool:
     return bool(getattr(sys, "frozen", False)) or hasattr(sys, "_MEIPASS")
 
+def get_common_root_dir() -> Path:
+    if hasattr(sys, "_MEIPASS") or bool(getattr(sys, "frozen", False)):
+        exe_path = Path(sys.executable).resolve()
+        return exe_path.parent.parent / "Resources"
+    return Path(__file__).resolve().parents[2]
+
 def _macos_app_support_root(app_name: str) -> Path:
     return Path.home() / "Library" / "Application Support" / app_name
 

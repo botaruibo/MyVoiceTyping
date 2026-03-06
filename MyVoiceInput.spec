@@ -114,6 +114,8 @@ exe = EXE(
     argv_emulation=True,
     target_arch='arm64',  # 专门针对 M4 芯片优化
     icon=str(icon_icns) if icon_icns.exists() else None,
+    codesign_identity='-',
+#    entitlements_file='my.entitlements',  # 关键：添加 entitlements 文件
 )
 
 coll = COLLECT(
@@ -130,12 +132,13 @@ app = BUNDLE(
     coll,
     name='MyVoiceInput.app',
     icon=str(icon_icns) if icon_icns.exists() else None,
-#    bundle_identifier='com.flashinput.app', # TODO：未来修改
+    bundle_identifier='MyVoiceInput.app', # TODO：未来修改
     info_plist={
         "CFBundleShortVersionString": "1.0.0",
-        "NSMicrophoneUsageDescription": "用于语音输入，需要访问麦克风。",
-        "NSSpeechRecognitionUsageDescription": "用于语音识别转文字。",
-        "NSAppleEventsUsageDescription": "用于自动化控制和快捷键监听。",
+        'NSAppleEventsUsageDescription': '此应用需要控制键盘输入以完成跨应用输入文字',
+        "NSMicrophoneUsageDescription": "语音输入，需要访问麦克风。",
+#        "NSSpeechRecognitionUsageDescription": "用于语音识别转文字。",
+        'NSHighResolutionCapable': 'True',
         # 主应用不显示 Dock 图标。
         'LSUIElement': True,
         'LSBackgroundOnly': False,

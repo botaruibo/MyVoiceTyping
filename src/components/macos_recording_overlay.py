@@ -177,6 +177,39 @@ class CocoaRecordingOverlay:
         # 注意：这里不再每帧 _pump_events()，避免系统层 IMK RunLoop 日志刷屏
         self._pump_events()
 
+    def set_progress(self, progress: float) -> None:
+        """
+        /**
+         * 设置转写进度（0.0~1.0），触发重绘。
+         *
+         * @param {number} progress - 0~1。
+         * @returns {void}
+         */
+        """
+        if self._view is None:
+            return
+
+        try:
+            p = float(progress)
+        except Exception:
+            p = 0.0
+
+        p = max(0.0, min(1.0, p))
+
+        try:
+            self._view.setProgress_(p)
+        except Exception as e:
+            print(f"⚠️ Cocoa 浮层设置进度失败（可忽略）: {e}")
+            return
+
+        try:
+            if self._panel is not None:
+                self._panel.displayIfNeeded()
+        except Exception:
+            pass
+
+        self._pump_events()
+
     def _pump_events(self) -> None:
         """
         /**
@@ -399,6 +432,7 @@ def _get_objc_overlay_classes():
         from AppKit import (
             NSBezierPath,
             NSColor,
+            NSGraphicsContext,
             NSPanel,
             NSRoundLineCapStyle,
             NSRoundLineJoinStyle,
@@ -464,6 +498,7 @@ def _get_objc_overlay_classes():
                         return None
 
                     self._volume_level = 0
+                    self._progress = 0.0
 
                     # 浮层内容布局参数（与窗口尺寸强相关）
                     self._num_bars = 9
@@ -505,6 +540,23 @@ def _get_objc_overlay_classes():
                         self.setNeedsDisplay_(True)
                     except Exception:
                         pass
+                def setProgress_(self, progress):
+                    """/**
+                     * 设置转写进度并触发重绘。
+                     *
+                     * @param {number} progress - 转写进度 (0.0-1.0)
+                     */"""
+                    try:
+                        self._progress = float(progress)
+                    except Exception:
+                        self._progress = 0.0
+
+                    try:
+                        self.setNeedsDisplay_(True)
+                    except Exception:
+                        pass
+
+
 
                 def drawRect_(self, rect):
                     """/**
@@ -525,6 +577,34 @@ def _get_objc_overlay_classes():
                         bg_path = NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(rect, radius, radius)
                         NSColor.blackColor().set()
                         bg_path.fill()
+
+                        # 半透明进度覆盖层（从左向右增长）
+                        try:
+                            progress = float(getattr(self, "_progress", 0.0) or 0.0)
+                            progress = max(0.0, min(1.0, progress))
+                            if progress > 0.0:
+                                try:
+                                    NSGraphicsContext.saveGraphicsState()
+                                except Exception:
+                                    pass
+
+                                try:
+                                    bg_path.addClip()
+                                except Exception:
+                                    pass
+
+                                pw = w * progress
+                                if pw > 0.5:
+                                    overlay_rect = NSMakeRect(rect.origin.x, rect.origin.y, pw, h)
+                                    NSColor.whiteColor().colorWithAlphaComponent_(0.22).set()
+                                    NSBezierPath.fillRect_(overlay_rect)
+
+                                try:
+                                    NSGraphicsContext.restoreGraphicsState()
+                                except Exception:
+                                    pass
+                        except Exception:
+                            pass
 
                         # 白色描边：stroke 会以 path 为中心向内/向外各扩一半线宽。
                         # 如果直接对 rect stroke，会因为外侧被裁剪，导致圆角处“看起来粗细不均匀”。

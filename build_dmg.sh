@@ -10,6 +10,10 @@ APP_BUNDLE="${DIST_DIR}/${SRC_APP_NAME}.app"
 
 APP_NAME="MyVoiceInput"
 
+#cp -R ./data/models $APP_BUNDLE/Contents/Resources/data
+#签名
+codesign --force --deep --sign - "$APP_BUNDLE"
+
 # DMG 暂存目录（仅用于打包，打包后会自动清理）
 # 关键修改：使用独立的暂存目录，确保只打包 .app
 DMG_STAGING_DIR="dmg_staging"

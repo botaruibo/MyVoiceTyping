@@ -637,11 +637,7 @@ class FlashInputApp:
 
             try:
                 if self.gui is not None and hasattr(self.gui, "show_recording_overlay"):
-                    post_ui = getattr(self.gui, "post_ui", None)
-                    if callable(post_ui):
-                        post_ui(self.gui.show_recording_overlay, "录音中…")
-                    else:
-                        self.gui.show_recording_overlay("录音中…")
+                    self.gui.show_recording_overlay("录音中…")
             except Exception as e:
                 print(f"⚠️ 显示录音提示框失败（可忽略）: {e}")
 
@@ -669,16 +665,6 @@ class FlashInputApp:
             self._set_status(f"停止录音失败：{e}", is_error=True)
             return
         finally:
-            try:
-                if self.gui is not None and hasattr(self.gui, "hide_recording_overlay"):
-                    post_ui = getattr(self.gui, "post_ui", None)
-                    if callable(post_ui):
-                        post_ui(self.gui.hide_recording_overlay)
-                    else:
-                        self.gui.hide_recording_overlay()
-            except Exception as e:
-                print(f"⚠️ 隐藏录音提示框失败（可忽略）: {e}")
-
             # 无论停止录音是否成功，都尽力恢复外放（避免一直静音
             try:
                 self._maybe_restore_speaker_after_recording()
@@ -711,6 +697,15 @@ class FlashInputApp:
             self._is_processing = True
 
         try:
+            # 开始转录前，调整录音提示框效果
+            try:
+                if self.gui is not None and hasattr(self.gui, "update_transcribe_progress"):
+                    byte_len = len(audio_data) if audio_data else 0
+                    if byte_len > 10:
+                        self.gui.update_transcribe_progress(byte_len)
+            except Exception as e:
+                print(f"⚠️ 隐藏录音提示框失败（可忽略）: {e}")
+
             self._set_status("语音转录中…")
             self._ensure_stt_ready()
             trans_time = time.time()
@@ -741,6 +736,13 @@ class FlashInputApp:
                     print(f"⚠️ 文本改写失败（将使用原转写结果）: {e}")
 
             self._set_status("写入中…")
+            # 隐藏掉录音提示框
+            try:
+                if self.gui is not None and hasattr(self.gui, "hide_recording_overlay"):
+                    self.gui.hide_recording_overlay()
+            except Exception as e:
+                print(f"⚠️ 隐藏录音提示框失败（可忽略）: {e}")
+
             self.write_appname_to_cursor(text)
         except Exception as e:
             self._set_status(f"转写/写入失败：{e}", is_error=True)
@@ -786,7 +788,7 @@ class FlashInputApp:
         self.gui.run()
 
 
-    def write_appname_to_cursor(self, voice_input: str) -> None:
+    def write_appname_to_cursor1(self, voice_input: str) -> None:
         """
         /**
          * 将转写/改写后的文本写入到当前光标所在位置。
@@ -809,6 +811,7 @@ class FlashInputApp:
 
         # macOS：剪贴板 + Cmd+V
         if sys.platform == "darwin":
+            clipboard_ok = False
             pasted = False
 
             # 方案 A：pyperclip
@@ -882,25 +885,81 @@ class FlashInputApp:
         except Exception as e:
             print(f"❌ 写入失败：所有输入方案均失败: {e}")
 
+    def write_appname_to_cursor(self, voice_input: str) -> None:
+        import pyperclip
+
+        try:
+            # 1. 写入剪贴板
+            pyperclip.copy(voice_input)
+            print(f"✅ 已写入剪贴板: {voice_input[:20]}...")
+
+            # 2. 使用 CGEvent 粘贴（最可靠）
+            if self.paste_with_cgevent():
+                return True
+
+            # 3. 回退方案
+            print("⚠️ CGEvent 失败，尝试其他方案...")
+            return False
+
+        except Exception as e:
+            print(f"❌ 写入失败: {e}")
+            return False
+
+    def paste_with_cgevent(self):
+        import ctypes
+        import ctypes.util
+        import sys
+        """极简可靠的 CGEvent Cmd+V 实现"""
+        if sys.platform != "darwin":
+            return False
+
+        try:
+            # 加载框架
+            cg = ctypes.CDLL(ctypes.util.find_library('CoreGraphics'))
+
+            # 配置函数参数类型（关键！避免类型错误）
+            cg.CGEventSourceCreate.restype = ctypes.c_void_p
+            cg.CGEventSourceCreate.argtypes = [ctypes.c_int32]
+
+            cg.CGEventCreateKeyboardEvent.restype = ctypes.c_void_p
+            cg.CGEventCreateKeyboardEvent.argtypes = [ctypes.c_void_p, ctypes.c_uint16, ctypes.c_bool]
+
+            cg.CGEventSetFlags.argtypes = [ctypes.c_void_p, ctypes.c_uint64]
+            cg.CGEventPost.argtypes = [ctypes.c_uint32, ctypes.c_void_p]
+
+            # 创建事件源 (1 = kCGEventSourceStateHIDSystemState)
+            source = cg.CGEventSourceCreate(1)
+
+            # 创建 V 键按下/释放事件 (9 = V键)
+            # True = 按下, False = 释放
+            v_down = cg.CGEventCreateKeyboardEvent(source, 9, True)
+            v_up = cg.CGEventCreateKeyboardEvent(source, 9, False)
+
+            # 添加 Cmd 键标志 (0x00100000)
+            cg.CGEventSetFlags(v_down, 0x00100000)
+            cg.CGEventSetFlags(v_up, 0x00100000)
+
+            # 发送事件 (0 = kCGHIDEventTap)
+            cg.CGEventPost(0, v_down)
+            cg.CGEventPost(0, v_up)
+
+            return True
+
+        except Exception as e:
+            print(f"CGEvent error: {e}")
+            return False
+
     def minimize_to_tray(self) -> None:
         if self.gui is not None and hasattr(self.gui, "minimize_to_tray"):
             try:
-                post_ui = getattr(self.gui, "post_ui", None)
-                if callable(post_ui):
-                    post_ui(self.gui.minimize_to_tray)
-                else:
-                    self.gui.minimize_to_tray()
+                self.gui.minimize_to_tray()
             except Exception:
                 pass
 
     def restore_from_tray(self) -> None:
         if self.gui is not None and hasattr(self.gui, "restore_from_tray"):
             try:
-                post_ui = getattr(self.gui, "post_ui", None)
-                if callable(post_ui):
-                    post_ui(self.gui.restore_from_tray)
-                else:
-                    self.gui.restore_from_tray()
+                self.gui.restore_from_tray()
             except Exception:
                 pass
 
@@ -920,10 +979,40 @@ class FlashInputApp:
                     pass
 
         try:
-            post_ui = getattr(self.gui, "post_ui", None)
-            if callable(post_ui):
-                post_ui(_quit)
-            else:
-                self.gui.root.after(0, _quit)
+            self.gui.root.after(0, _quit)
         except Exception:
             _quit()
+
+    # def _check_accessibility_permission(self) -> bool:
+    #     """检测并请求辅助功能权限"""
+    #     try:
+    #         import Quartz
+    #         opts = {Quartz.kAXTrustedCheckOptionPrompt: True}
+    #         return bool(Quartz.AXIsProcessTrustedWithOptions(opts))
+    #     except Exception:
+    #         return False
+    #
+    # def _check_microphone_permission(self) -> bool:
+    #     """检测并请求麦克风权限"""
+    #     try:
+    #         from AVFoundation import AVAudioSession
+    #         session = AVAudioSession.sharedInstance()
+    #         session.setCategory_error_("AVAudioSessionCategoryPlayAndRecord", 1)
+    #         session.setActive_error_(True)
+    #         return True
+    #     except Exception:
+    #         return False
+    #
+    # def _request_permissions(self):
+    #     """请求所有必要权限并引导用户"""
+    #     if not self._check_accessibility_permission():
+    #         # 显示引导界面，包含截图和步骤说明
+    #         self._show_permission_guide(
+    #             title="需要辅助功能权限",
+    #             description="闪电输入需要此权限来监听全局快捷键和在任何应用中输入文本。",
+    #             setting_url="x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+    #         )
+    #
+    #     if not self._check_microphone_permission():
+    #         # 系统会自动弹窗请求麦克风权限
+    #         pass
