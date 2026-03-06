@@ -153,6 +153,12 @@ class AppLogger:
             return fallback
 
     @classmethod
+    def get_log_dir(cls) -> Path:
+        if cls._logs_dir:
+            return cls._logs_dir
+        return cls._resolve_logs_dir()
+
+    @classmethod
     def setup_startup(cls, level: int = logging.INFO) -> None:
         if cls._inited:
             return

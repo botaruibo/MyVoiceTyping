@@ -1,7 +1,9 @@
 import os
 import tkinter as tk
+# from tkinter import messagebox
 from typing import Any, Dict, Optional
 import sys, time
+from pathlib import Path
 
 import customtkinter as ctk
 import platform
@@ -13,6 +15,88 @@ if platform.system() == "Darwin":
     import objc
 
 from .config_manager import get_config_manager
+from ..util.app_logger import AppLogger
+
+class GUIStyles:
+    # Colors
+    COLOR_CARD_BG = ("#FFFFFF", "#2B2B2B")
+    COLOR_BG = ("#FBFBFB", "#1E1E1E")
+    COLOR_BORDER = ("#E5E5E5", "#333333")
+    COLOR_TEXT_PRIMARY = ("#000000", "#FFFFFF")
+    COLOR_TEXT_SECONDARY = ("#888888", "#AAAAAA")
+    COLOR_BUTTON_FG = ("#FFFFFF", "#3A3A3A")
+    COLOR_BUTTON_HOVER = ("#F0F0F0", "#404040")
+
+    @staticmethod
+    def get_card_frame_args():
+        return {
+            "fg_color": GUIStyles.COLOR_CARD_BG,
+            "corner_radius": 10,
+            "border_width": 1,
+            "border_color": GUIStyles.COLOR_BORDER
+        }
+
+    @staticmethod
+    def get_title_font():
+        return ctk.CTkFont(family="Arial", size=16, weight="bold")
+
+    @staticmethod
+    def get_label_font():
+        return ctk.CTkFont(family="Arial", size=14)
+
+    @staticmethod
+    def get_note_font():
+        return ctk.CTkFont(family="Arial", size=12)
+
+    @staticmethod
+    def get_button_args():
+        return {
+            "fg_color": GUIStyles.COLOR_BUTTON_FG,
+            "text_color": GUIStyles.COLOR_TEXT_PRIMARY,
+            "border_width": 1,
+            "border_color": GUIStyles.COLOR_BORDER,
+            "hover_color": GUIStyles.COLOR_BUTTON_HOVER,
+            "corner_radius": 6,
+            "height": 32,
+            "font": GUIStyles.get_label_font()
+        }
+
+    @staticmethod
+    def get_switch_args():
+        return {
+            "progress_color": ("#000000", "#FFFFFF"),
+        }
+
+    @staticmethod
+    def get_entry_args():
+        return {
+            "corner_radius": 6,
+            "border_width": 1,
+            "border_color": GUIStyles.COLOR_BORDER,
+            "fg_color": GUIStyles.COLOR_BG,
+            "text_color": GUIStyles.COLOR_TEXT_PRIMARY,
+            "height": 36,
+            "font": GUIStyles.get_label_font()
+        }
+
+    # Navigation Styles
+    COLOR_NAV_BG_DEFAULT = "transparent"
+    COLOR_NAV_BG_HOVER = ("#F0F0F0", "#2A2A2A")
+    COLOR_NAV_BG_ACTIVE = ("#E8E8E8", "#333333") 
+    COLOR_NAV_TEXT_DEFAULT = ("#5A5A5A", "#A0A0A0") 
+    COLOR_NAV_TEXT_ACTIVE = ("#000000", "#FFFFFF")
+    COLOR_NAV_INDICATOR_ACTIVE = ("#000000", "#FFFFFF")
+
+    @staticmethod
+    def get_nav_font():
+        # Slightly larger and bolder than default
+        return ctk.CTkFont(family="Arial", size=15, weight="bold")
+
+    # Hotkey Bubble Styles
+    COLOR_BUBBLE_FRAME_BG = COLOR_BG # Same as input background
+    COLOR_BUBBLE_BG = ("#E8E8E8", "#454545") # Very light gray for light mode, lighter dark for dark mode
+    COLOR_BUBBLE_BORDER = ("#D0D0D0", "#5A5A5A")
+    COLOR_BUBBLE_TEXT = ("#000000", "#FFFFFF")
 
 try:
     from PIL import Image, ImageDraw, ImageFont
@@ -155,7 +239,7 @@ class MacStatusBar(NSObject):
 
 class VoiceInputGUI:
     def __init__(self, app: Any, app_name: str):
-
+        print("DEBUG: VoiceInputGUI.__init__ start")
         _perf_t0 = time.perf_counter()
         self.app = app
         self.app_name = app_name
@@ -187,13 +271,9 @@ class VoiceInputGUI:
         self._recording_overlay_progress_value = 0.0
         self._recording_overlay_progress_last_ts = 0.0
 
-        self._nav_buttons: Dict[str, ctk.CTkButton] = {}
+        self._nav_buttons: Dict[str, Dict[str, Any]] = {}
         self._nav_icons: Dict[str, ctk.CTkImage] = {}
-        self._nav_font = ctk.CTkFont(size=16)
-        self._nav_default_color = "transparent"
-        self._nav_hover_color = ("#E2E2E2", "#2A2A2A")
-        self._nav_active_color = ("#D2D2D2", "#333333")
-        self._nav_text_color = ("#303030", "#E6E6E6")
+        # self._nav_font is now provided by GUIStyles.get_nav_font()
         self._sidebar_bg_color = ("#F4F4F4", "#141414")
         self._card_bg_color = ("#F0F0F0", "#242424")
         try:
@@ -204,7 +284,9 @@ class VoiceInputGUI:
         self.pages: Dict[str, ctk.CTkFrame] = {}
         self.current_page: Optional[str] = "home"
 
+        print("DEBUG: Before _build_ui")
         self._build_ui()
+        print("DEBUG: After _build_ui")
 
         self.show_page("home")
 
@@ -227,8 +309,8 @@ class VoiceInputGUI:
         root = ctk.CTk()
         root.withdraw()  # 先隐藏窗口
         root.title(self.app_name)
-        window_width = 800
-        window_height = 600
+        window_width = 1024
+        window_height = 800
 
         root.update_idletasks()  # 确保获取的尺寸是准确的
         screen_width = root.winfo_screenwidth()
@@ -345,38 +427,66 @@ class VoiceInputGUI:
         nav_buttons = [
             ("主页", "home"),
             ("设置", "settings"),
-            ("关于", "about"),
+            ("联系作者", "about"),
+            ("退出", "exit"),
         ]
-        icon_letters = {"home": "H", "settings": "S", "about": "I"}
+        icon_letters = {"home": "H", "settings": "S", "about": "C", "exit": "E"}
 
         self._nav_buttons = {}
         for text, page_name in nav_buttons:
+            # Container Frame for each nav item
+            container = ctk.CTkFrame(sidebar, fg_color="transparent")
+            container.pack(fill="x", padx=10, pady=2)
+            
+            # Use Grid layout within the container
+            container.grid_columnconfigure(0, weight=0) # Indicator column
+            container.grid_columnconfigure(1, weight=1) # Button column
+
+            # Indicator (Left bar)
+            indicator = ctk.CTkFrame(
+                container, 
+                width=4, 
+                height=16, 
+                corner_radius=2, 
+                fg_color="transparent" # Initial state
+            )
+            indicator.grid(row=0, column=0, sticky="ns", pady=8, padx=(0, 4))
+
+            # Button
             icon = self._nav_icons.get(page_name)
             if icon is None:
                 icon = self._create_nav_icon(icon_letters.get(page_name, "•"))
                 if icon:
                     self._nav_icons[page_name] = icon
+            
+            # Special command for exit
+            if page_name == "exit":
+                cmd = self.exit_application
+            else:
+                cmd = lambda p=page_name: self.show_page(p)
 
             btn = ctk.CTkButton(
-                sidebar,
+                container,
                 text=text,
                 anchor="w",
-                font=self._nav_font,
-                fg_color=self._nav_default_color,
-                text_color=self._nav_text_color,
-                hover_color=self._nav_hover_color,
+                font=GUIStyles.get_nav_font(),
+                fg_color=GUIStyles.COLOR_NAV_BG_DEFAULT,
+                text_color=GUIStyles.COLOR_NAV_TEXT_DEFAULT,
+                hover_color=GUIStyles.COLOR_NAV_BG_HOVER,
                 # image=icon,
                 compound="left",
-                command=lambda p=page_name: self.show_page(p),
+                height=40,
+                corner_radius=8,
+                command=cmd,
             )
-            btn.pack(fill="x", padx=10, pady=5)
-            self._nav_buttons[page_name] = btn
-
-        # --- 底部退出按钮 ---
-        footer = ctk.CTkFrame(sidebar, fg_color="transparent")
-        footer.pack(side="bottom", fill="x", padx=10, pady=10)
-
-        ctk.CTkButton(footer, text="退出", command=self.exit_application).pack(fill="x", pady=(8, 0))
+            btn.grid(row=0, column=1, sticky="ew")
+            
+            # Store references
+            self._nav_buttons[page_name] = {
+                "container": container,
+                "indicator": indicator,
+                "button": btn
+            }
 
     def _create_content_area(self) -> None:
         content_area = ctk.CTkFrame(self.root, corner_radius=0, fg_color=("#FBFBFB", "#1E1E1E"))
@@ -386,7 +496,7 @@ class VoiceInputGUI:
 
         self.pages["home"] = self._create_home_page(content_area, "主页")
         # self.pages["dictionary"] = self._create_placeholder_page(content_area, "词典")
-        self.pages["about"] = self._create_placeholder_page(content_area, "关于")
+        self.pages["about"] = self._create_about_page(content_area)
         self.pages["settings"] = self._create_settings_page(content_area)
         # self.pages["provider"] = self._build_provider_settings_page(content_area)
 
@@ -429,6 +539,88 @@ class VoiceInputGUI:
             anchor="w", padx=20, pady=(20, 10)
         )
         ctk.CTkLabel(page, text="开发中…", text_color="gray").pack(anchor="w", padx=20)
+        return page
+
+    def _create_about_page(self, parent: ctk.CTkFrame) -> ctk.CTkFrame:
+        """
+        创建关于/联系我们页面。
+        包含二维码图片和说明文字。
+        """
+        page = ctk.CTkFrame(parent, fg_color="transparent")
+        page.grid_columnconfigure(0, weight=1)
+        
+        # 居中容器
+        container = ctk.CTkFrame(page, fg_color="transparent")
+        container.grid(row=0, column=0, pady=40, sticky="n")
+        
+        # 标题
+        ctk.CTkLabel(
+            container, 
+            text="联系我们", 
+            font=ctk.CTkFont(size=24, weight="bold")
+        ).pack(pady=(0, 20))
+        
+        # 白色卡片背景 (模拟截图中的卡片效果)
+        card = ctk.CTkFrame(
+            container, 
+            fg_color=("white", "#333333"), 
+            corner_radius=12,
+            border_width=1,
+            border_color=("gray90", "gray40")
+        )
+        card.pack(pady=10, ipadx=30, ipady=30)
+        
+        # 二维码图片加载
+        try:
+            # src/components/gui_tk.py -> src/assets/qr_code.png
+            assets_dir = Path(__file__).parent.parent / "assets"
+            if not assets_dir.exists():
+                try:
+                    assets_dir.mkdir(parents=True, exist_ok=True)
+                except Exception:
+                    pass
+                
+            qr_path = assets_dir / "qr_code.png"
+            
+            if qr_path.exists() and Image:
+                pil_img = Image.open(qr_path)
+                # 调整大小，例如 200x200
+                qr_image = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(200, 200))
+                ctk.CTkLabel(card, text="", image=qr_image).pack()
+            else:
+                # 占位符
+                placeholder = ctk.CTkFrame(card, width=200, height=200, fg_color=("gray90", "gray20"))
+                placeholder.pack()
+                placeholder.pack_propagate(False)
+                ctk.CTkLabel(
+                    placeholder, 
+                    text="请放入二维码图片:\nsrc/assets/qr_code.png", 
+                    text_color="gray",
+                    justify="center"
+                ).place(relx=0.5, rely=0.5, anchor="center")
+                
+        except Exception as e:
+            ctk.CTkLabel(card, text=f"图片加载错误: {e}", text_color="red").pack()
+
+        # 底部提示
+        ctk.CTkLabel(
+            card, 
+            text="扫描二维码，直接反馈问题", 
+            font=ctk.CTkFont(size=12), 
+            text_color="gray"
+        ).pack(pady=(15, 0))
+
+        # 额外说明文字 (50字以内)
+        desc_text = "欢迎加入用户交流群！扫描上方二维码，直接反馈问题或提出建议，让我们一起打造更好的语音输入体验。"
+        ctk.CTkLabel(
+            container, 
+            text=desc_text, 
+            font=ctk.CTkFont(size=14), 
+            wraplength=360, 
+            justify="center",
+            text_color=("gray30", "gray70")
+        ).pack(pady=(30, 0))
+
         return page
 
     def _create_home_page(self, parent: ctk.CTkFrame, title: str) -> ctk.CTkFrame:
@@ -505,40 +697,76 @@ class VoiceInputGUI:
 
         return page
 
+    def _create_section_card(self, parent, title, row):
+        """
+        创建带有标题和分割线的卡片容器。
+        """
+        card = ctk.CTkFrame(parent, **GUIStyles.get_card_frame_args())
+        card.grid(row=row, column=0, sticky="ew", padx=20, pady=10)
+        card.grid_columnconfigure(0, weight=1)
+
+        # Title
+        title_label = ctk.CTkLabel(card, text=title, font=GUIStyles.get_title_font(), text_color=GUIStyles.COLOR_TEXT_PRIMARY)
+        title_label.grid(row=0, column=0, sticky="w", padx=20, pady=(15, 5))
+
+        # Divider
+        divider = ctk.CTkFrame(card, height=1, fg_color=GUIStyles.COLOR_BORDER)
+        divider.grid(row=1, column=0, sticky="ew", padx=20, pady=(5, 15))
+
+        # Content Container
+        content = ctk.CTkFrame(card, fg_color="transparent")
+        content.grid(row=2, column=0, sticky="ew", padx=20, pady=(0, 20))
+        content.grid_columnconfigure(1, weight=1)
+
+        return content
+
+    def _create_log_row(self, parent, row):
+        """
+        创建日志目录行。
+        """
+        # Left side: Title
+        left_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        left_frame.grid(row=row, column=0, sticky="w", padx=(0, 20))
+
+        ctk.CTkLabel(left_frame, text="日志目录", font=GUIStyles.get_label_font(), text_color=GUIStyles.COLOR_TEXT_PRIMARY).pack(anchor="w")
+
+        # Right side: Button
+        ctk.CTkButton(
+            parent,
+            text="打开日志目录",
+            command=self._open_log_directory,
+            **GUIStyles.get_button_args()
+        ).grid(row=row, column=1, sticky="e")
+
+    def _open_log_directory(self):
+        """打开日志目录"""
+        try:
+            log_dir = AppLogger.get_log_dir()
+            if not log_dir.exists():
+                log_dir.mkdir(parents=True, exist_ok=True)
+                
+            if platform.system() == "Darwin":
+                os.system(f"open '{log_dir}'")
+            elif platform.system() == "Windows":
+                os.startfile(log_dir)
+            else:
+                os.system(f"xdg-open '{log_dir}'")
+        except Exception as e:
+            print(f"Failed to open log directory: {e}")
+
     def _create_settings_page(self, parent: ctk.CTkFrame) -> ctk.CTkFrame:
-        page = ctk.CTkFrame(parent, fg_color="transparent")
+        page = ctk.CTkScrollableFrame(parent, fg_color="transparent")
         page.grid_columnconfigure(0, weight=1)
 
-        # --- 标题 ---
-        header_frame = ctk.CTkFrame(page, fg_color="transparent")
-        header_frame.grid(row=0, column=0, padx=20, pady=(20, 10), sticky="ew")
-        header_frame.grid_columnconfigure(0, weight=1)
-
-        ctk.CTkLabel(header_frame, text="设置", font=ctk.CTkFont(size=24, weight="bold")).grid(
-            row=0, column=0, sticky="w"
+        # --- 页面标题 ---
+        ctk.CTkLabel(page, text="设置", font=ctk.CTkFont(size=24, weight="bold")).grid(
+            row=0, column=0, sticky="w", padx=20, pady=(20, 10)
         )
 
-        # --- 键盘快捷键 ---
-        hotkey_header_frame = ctk.CTkFrame(page, fg_color="transparent")
-        hotkey_header_frame.grid(row=1, column=0, padx=20, pady=(10, 5), sticky="ew")
-        hotkey_header_frame.grid_columnconfigure(0, weight=1)
-
-        ctk.CTkLabel(hotkey_header_frame, text="键盘快捷键", font=ctk.CTkFont(size=18, weight="bold")).grid(
-            row=0, column=0, sticky="w"
-        )
-
-        # --- 分割线 ---
-        ctk.CTkFrame(page, height=1, fg_color=("#E0E0E0", "#303030")).grid(
-            row=2, column=0, padx=20, pady=(5, 15), sticky="ew"
-        )
-
-        # --- 热键设置容器 ---
-        hotkey_settings_container = ctk.CTkFrame(page, fg_color="transparent")
-        hotkey_settings_container.grid(row=3, column=0, padx=20, pady=0, sticky="ew")
-        hotkey_settings_container.grid_columnconfigure(1, weight=1)  # 输入框列占满剩余空间
-        # --- 热键设置项 ---
+        # --- 键盘快捷键部分 ---
+        hotkey_content = self._create_section_card(page, "键盘快捷键", 1)
         self._create_hotkey_setting(
-            hotkey_settings_container,
+            hotkey_content,
             title="语音输入",
             config_key="press_hotkey",
             description="按住说话。双击进入免提模式。",
@@ -546,34 +774,18 @@ class VoiceInputGUI:
         )
 
         self._create_hotkey_setting(
-            hotkey_settings_container,
+            hotkey_content,
             title="免提模式",
             config_key="toggle_hotkey",
             description="按一次开始说话,无需按住。再次按下将文本粘贴到任何文本框中。",
             row=1,
         )
 
-        # --- 模型设置 ---
-        model_header_frame = ctk.CTkFrame(page, fg_color="transparent")
-        model_header_frame.grid(row=4, column=0, padx=20, pady=(20, 5), sticky="ew")
-        model_header_frame.grid_columnconfigure(0, weight=1)
-
-        ctk.CTkLabel(model_header_frame, text="模型设置", font=ctk.CTkFont(size=18, weight="bold")).grid(
-            row=0, column=0, sticky="w"
-        )
-
-        # --- 分割线 ---
-        ctk.CTkFrame(page, height=1, fg_color=("#E0E0E0", "#303030")).grid(
-            row=5, column=0, padx=20, pady=(5, 15), sticky="ew"
-        )
-
-        # --- 模型设置容器 ---
-        model_settings_container = ctk.CTkFrame(page, fg_color="transparent")
-        model_settings_container.grid(row=6, column=0, padx=20, pady=0, sticky="ew")
-        model_settings_container.grid_columnconfigure(1, weight=1)
-
-        # --- API Key 设置 ---
-        api_key_frame = ctk.CTkFrame(model_settings_container, fg_color="transparent")
+        # --- 模型设置部分 ---
+        model_content = self._create_section_card(page, "模型设置", 2)
+        
+        # API Key 设置
+        api_key_frame = ctk.CTkFrame(model_content, fg_color="transparent")
         api_key_frame.grid(row=0, column=0, columnspan=2, sticky="ew", pady=5)
         api_key_frame.grid_columnconfigure(1, weight=1)
 
@@ -583,16 +795,33 @@ class VoiceInputGUI:
 
         api_key_var = tk.StringVar(value=self.config_manager.get("api_key", ""))
         self._auto_save_on_change(api_key_var, "api_key")
-        api_key_entry = ctk.CTkEntry(api_key_frame, textvariable=api_key_var)
+        api_key_entry = ctk.CTkEntry(
+            api_key_frame, 
+            textvariable=api_key_var,
+            **GUIStyles.get_entry_args()
+        )
         api_key_entry.grid(row=0, column=1, sticky="ew")
 
         def _save_api_key(event=None):
-            self.config_manager.set_writer("api_key", api_key_var.get())
+            self.config_manager.set("api_key", api_key_var.get())
 
         api_key_entry.bind("<FocusOut>", _save_api_key)
 
-        test_button = ctk.CTkButton(api_key_frame, text="测试", width=60, command=self._test_api_key)
+        test_button = ctk.CTkButton(
+            api_key_frame, 
+            text="测试", 
+            width=60, 
+            command=self._test_api_key,
+            **GUIStyles.get_button_args()
+        )
         test_button.grid(row=0, column=2, padx=(10, 0))
+
+        # --- 日志部分 ---
+        log_content = self._create_section_card(page, "日志", 3)
+        self._create_log_row(log_content, 0)
+
+        # Prevent scrolling jitter at the bottom
+        ctk.CTkFrame(page, height=20, fg_color="transparent").grid(row=4, column=0)
 
         return page
 
@@ -624,7 +853,7 @@ class VoiceInputGUI:
 
         def _save_var_on_event(entry: ctk.CTkEntry, var: tk.StringVar, key: str) -> None:
             def _save(_evt=None) -> None:
-                self.config_manager.set_writer(key, (var.get() or "").strip())
+                self.config_manager.set(key, (var.get() or "").strip())
                 self.update_status_success("已保存配置（部分配置需重启生效）")
 
             entry.bind("<Return>", _save)
@@ -642,7 +871,7 @@ class VoiceInputGUI:
         stt_provider_default = self.config_manager.get("stt_provider", "funasr") or "funasr"
 
         def _on_stt_provider_change(v: str) -> None:
-            self.config_manager.set_writer("stt_provider", v)
+            self.config_manager.set("stt_provider", v)
             self.update_status_success("已保存配置（切换 STT 提供者需重启生效）")
 
         stt_provider_menu = ctk.CTkOptionMenu(
@@ -731,7 +960,7 @@ class VoiceInputGUI:
             """
             try:
                 value = var.get()
-                self.config_manager.set_writer(key, value)
+                self.config_manager.set(key, value)
                 print(f"配置 '{key}' 已自动更新为 '{value}'")
             except Exception as e:
                 error_msg = f"自动保存配置 '{key}' 失败: {e}"
@@ -802,17 +1031,17 @@ class VoiceInputGUI:
         record_button = ctk.CTkButton(
             right_frame,
             text="录制快捷键",
-            fg_color=self._card_bg_color,
-            border_color=("#C0C0C0", "#404040"),
-            border_width=1,
-            text_color=self._nav_text_color,
-            hover_color=self._nav_hover_color,
+            **GUIStyles.get_button_args(),
             command=lambda: switch_to_edit_mode(activate_listeners=True)
         )
         record_button.grid(row=0, column=0, sticky="ew", ipady=4)
 
 
-        entry = ctk.CTkEntry(right_frame, corner_radius=8, placeholder_text="请按下快捷键...")
+        entry = ctk.CTkEntry(
+            right_frame, 
+            placeholder_text="请按下快捷键...",
+            **GUIStyles.get_entry_args()
+        )
 
         bubble_container = ctk.CTkFrame(
             right_frame,
@@ -918,8 +1147,8 @@ class VoiceInputGUI:
             # 使用一个 Frame 同时作为边框和内部所有组件的容器
             display_frame = ctk.CTkFrame(
                 bubble_container,
-                fg_color=self._card_bg_color,
-                border_color=("#C0C0C0", "#404040"),
+                fg_color=GUIStyles.COLOR_BUBBLE_FRAME_BG,
+                border_color=GUIStyles.COLOR_BUBBLE_BORDER,
                 border_width=1,
                 corner_radius=8
             )
@@ -931,7 +1160,9 @@ class VoiceInputGUI:
             # 优先 pack 到右侧，以确保它始终在最右边
             delete_normal_text_color = ("gray25", "gray75")
             delete_hover_text_color = ("#000000", "#FFFFFF")
-            key_bubble_bg_color = ("#C0C0C0", "#404040")  # 气泡背景色
+            
+            # 气泡背景色
+            key_bubble_bg_color = GUIStyles.COLOR_BUBBLE_BG
 
             delete_button = ctk.CTkLabel(
                 display_frame,
@@ -971,7 +1202,7 @@ class VoiceInputGUI:
                     fg_color=key_bubble_bg_color,
                     corner_radius=6,
                     border_width=1,
-                    border_color=("#C0C0C0", "#404040")
+                    border_color=GUIStyles.COLOR_BUBBLE_BORDER
                 )
                 # pack 到左侧，第一个气泡左侧有边距，其他气泡之间有边距
                 key_bubble.pack(side="left", padx=(4 if i == 0 else 0, 4), pady=4)
@@ -981,7 +1212,7 @@ class VoiceInputGUI:
                     key_bubble,
                     text=key.upper(),
                     fg_color="transparent",
-                    text_color=("#000000", "#FFFFFF")
+                    text_color=GUIStyles.COLOR_BUBBLE_TEXT
                 )
                 label.pack(padx=8, pady=2)
 
@@ -1021,9 +1252,8 @@ class VoiceInputGUI:
         def switch_to_initial_mode() -> None:
             _clear_widgets()
             record_button.grid(row=0, column=0, sticky="ew", ipady=4)
-            # 鼠标悬停时改变按钮样式
-            record_button.bind("<Enter>", lambda e: record_button.configure(fg_color=self._nav_hover_color))
-            record_button.bind("<Leave>", lambda e: record_button.configure(fg_color=self._card_bg_color))
+            # 鼠标悬停时改变按钮样式 - 已由 GUIStyles 统一管理，无需手动绑定
+
 
         def _stop_recording() -> None:
             """停止录制并清理资源"""
@@ -1115,12 +1345,27 @@ class VoiceInputGUI:
         if not page_name:
             return
 
-        for name, btn in (self._nav_buttons or {}).items():
+        for name, components in (self._nav_buttons or {}).items():
             try:
+                btn = components["button"]
+                indicator = components["indicator"]
+                
                 if name == page_name:
-                    btn.configure(fg_color=self._nav_active_color, hover_color=self._nav_active_color)
+                    # Active State
+                    btn.configure(
+                        fg_color=GUIStyles.COLOR_NAV_BG_ACTIVE,
+                        text_color=GUIStyles.COLOR_NAV_TEXT_ACTIVE,
+                        hover_color=GUIStyles.COLOR_NAV_BG_ACTIVE # Keep active color on hover
+                    )
+                    indicator.configure(fg_color=GUIStyles.COLOR_NAV_INDICATOR_ACTIVE)
                 else:
-                    btn.configure(fg_color=self._nav_default_color, hover_color=self._nav_hover_color)
+                    # Inactive State
+                    btn.configure(
+                        fg_color=GUIStyles.COLOR_NAV_BG_DEFAULT,
+                        text_color=GUIStyles.COLOR_NAV_TEXT_DEFAULT,
+                        hover_color=GUIStyles.COLOR_NAV_BG_HOVER
+                    )
+                    indicator.configure(fg_color="transparent")
             except Exception:
                 pass
 
@@ -1258,6 +1503,104 @@ class VoiceInputGUI:
                 pass
 
     def exit_application(self, sender: Any = None, app_data: Any = None) -> None:
+        # 检查是否已有弹窗
+        if getattr(self, "_is_exiting_prompt_active", False):
+            for widget in self.root.winfo_children():
+                if isinstance(widget, ctk.CTkToplevel) and getattr(widget, "_is_exit_dialog", False):
+                    try:
+                        widget.lift()
+                        widget.focus_force()
+                    except Exception:
+                        pass
+                    return
+            self._is_exiting_prompt_active = False
+        
+        self._is_exiting_prompt_active = True
+        
+        try:
+            # --- 自定义退出弹窗 (替代 messagebox) ---
+            # 只有自定义弹窗才能实现：1. 无图标 2. 自定义按钮文字("确认退出")
+            
+            dialog = ctk.CTkToplevel(self.root)
+            dialog.title("退出确认")
+            setattr(dialog, "_is_exit_dialog", True)
+            
+            # 窗口大小与位置居中
+            w, h = 300, 160
+            screen_w = self.root.winfo_screenwidth()
+            screen_h = self.root.winfo_screenheight()
+            x = (screen_w - w) // 2
+            y = (screen_h - h) // 2
+            dialog.geometry(f"{w}x{h}+{x}+{y}")
+            dialog.resizable(False, False)
+            
+            # 模态与置顶
+            dialog.transient(self.root)
+            dialog.grab_set()
+            dialog.attributes("-topmost", True)
+            
+            # 关闭回调
+            def on_close():
+                self._is_exiting_prompt_active = False
+                dialog.destroy()
+            dialog.protocol("WM_DELETE_WINDOW", on_close)
+
+            # --- 内容布局 ---
+            # 1. 提示文本 (无图标)
+            content_frame = ctk.CTkFrame(dialog, fg_color="transparent")
+            content_frame.pack(expand=True, fill="both", padx=20, pady=20)
+            
+            ctk.CTkLabel(
+                content_frame, 
+                text="确定要退出吗？\n退出后将无法使用语音输入功能。", 
+                font=ctk.CTkFont(size=14),
+                justify="center",
+                text_color=("black", "white") # 适配深浅色
+            ).pack(pady=(10, 10))
+
+            # 2. 按钮组
+            btn_frame = ctk.CTkFrame(dialog, fg_color="transparent")
+            btn_frame.pack(fill="x", padx=20, pady=(0, 20))
+            
+            def on_confirm():
+                self._is_exiting_prompt_active = False
+                dialog.destroy()
+                self._perform_exit()
+
+            # 取消按钮 (灰色边框)
+            ctk.CTkButton(
+                btn_frame,
+                text="取消",
+                fg_color="transparent",
+                border_width=1,
+                border_color=("gray60", "gray40"),
+                text_color=("gray10", "gray90"),
+                hover_color=("gray90", "gray30"),
+                width=90,
+                height=32,
+                command=on_close
+            ).pack(side="left", padx=(10, 10), expand=True)
+
+            # 确认退出按钮 (红色)
+            ctk.CTkButton(
+                btn_frame,
+                text="确认退出",
+                fg_color="#D32F2F",
+                hover_color="#B71C1C",
+                text_color="white",
+                width=90,
+                height=32,
+                command=on_confirm
+            ).pack(side="right", padx=(10, 10), expand=True)
+
+            dialog.focus_force()
+
+        except Exception as e:
+            print(f"创建退出弹窗失败: {e}")
+            self._is_exiting_prompt_active = False
+
+    def _perform_exit(self) -> None:
+        """执行实际退出逻辑"""
         # 设置关闭状态位
         self._closing = True
         if hasattr(self.app, "exit_application"):
@@ -1698,7 +2041,7 @@ class VoiceInputGUI:
                     self._do_hide()
                 elif action == 'quit':
                     self.exit_application()
-                    return  # 退出后不再继续轮询
+                    # return  # 退出后不再继续轮询 (已移除，以便在取消退出时继续轮询)
                 ## 处理进度条消息 start
                 elif action == 'progress_start':
                     self._show_progress_window(data)
