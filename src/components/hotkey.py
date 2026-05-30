@@ -44,6 +44,37 @@ MODIFIER_MASKS = {
     'option_r': 0x00000040,  # NX_DEVICERALTKEYMASK
 }
 
+# macOS 通用修饰键 flags。部分键盘/系统版本只稳定提供这些高位 mask，
+# 不一定稳定提供上面的左右区分低位 mask。
+GENERIC_MODIFIER_MASKS = {
+    'cmd': 0x00100000,      # kCGEventFlagMaskCommand
+    'ctrl': 0x00040000,     # kCGEventFlagMaskControl
+    'shift': 0x00020000,    # kCGEventFlagMaskShift
+    'option': 0x00080000,   # kCGEventFlagMaskAlternate
+}
+
+MODIFIER_KEYCODE_TO_NAME = {
+    0x36: 'cmd_r',
+    0x37: 'cmd_l',
+    0x38: 'shift_l',
+    0x3A: 'option_l',
+    0x3B: 'ctrl_l',
+    0x3C: 'shift_r',
+    0x3D: 'option_r',
+    0x3E: 'ctrl_r',
+}
+
+MODIFIER_NAME_TO_GENERIC = {
+    'cmd_l': 'cmd',
+    'cmd_r': 'cmd',
+    'ctrl_l': 'ctrl',
+    'ctrl_r': 'ctrl',
+    'shift_l': 'shift',
+    'shift_r': 'shift',
+    'option_l': 'option',
+    'option_r': 'option',
+}
+
 # 键码映射
 KEY_CODES = {
     0x00: 'a', 0x01: 's', 0x02: 'd', 0x03: 'f', 0x04: 'h', 0x05: 'g',
@@ -54,7 +85,7 @@ KEY_CODES = {
     0x1F: 'o', 0x20: 'u', 0x21: '[', 0x22: 'i', 0x23: 'p', 0x25: 'l',
     0x26: 'j', 0x27: "'", 0x28: 'k', 0x29: ';', 0x2A: '\\', 0x2B: ',',
     0x2C: '/', 0x2D: 'n', 0x2E: 'm', 0x2F: '.', 0x32: '`', 0x24: 'return',
-    0x30: 'tab', 0x31: 'space', 0x33: 'delete', 0x35: 'esc', 0x37: 'cmd',
+    0x30: 'tab', 0x31: 'space', 0x33: 'delete', 0x35: 'esc', 0x36: 'right_cmd', 0x37: 'cmd',
     0x38: 'shift', 0x39: 'caps', 0x3A: 'option', 0x3B: 'ctrl', 0x3C: 'right_shift',
     0x3D: 'right_option', 0x3E: 'right_ctrl', 0x3F: 'fn', 0x40: 'f17',
     0x48: 'volume_up', 0x49: 'volume_down', 0x4A: 'mute',
@@ -215,6 +246,7 @@ class UniversalKeyListener:
 
         self._current_keys: Set[str] = set()
         self._last_keys: Set[str] = set()
+        self._modifier_keycode_state: Set[str] = set()
         self._fn_mask: Optional[int] = None
 
         self._running = False
@@ -239,22 +271,48 @@ class UniversalKeyListener:
                 return mask
         return None
 
-    def _flags_to_keys(self, flags: int, keycode: int = -1) -> Set[str]:
+    def _is_modifier_down(self, flags: int, modifier_name: str) -> bool:
+        low_mask = MODIFIER_MASKS.get(modifier_name, 0)
+        if low_mask and (flags & low_mask):
+            return True
+
+        generic_name = MODIFIER_NAME_TO_GENERIC.get(modifier_name)
+        generic_mask = GENERIC_MODIFIER_MASKS.get(generic_name or "", 0)
+        return bool(generic_mask and (flags & generic_mask))
+
+    def _update_modifier_keycode_state(self, flags: int, keycode: int) -> None:
+        modifier_name = MODIFIER_KEYCODE_TO_NAME.get(keycode)
+        if modifier_name is None:
+            return
+
+        if self._is_modifier_down(flags, modifier_name):
+            self._modifier_keycode_state.add(modifier_name)
+        else:
+            self._modifier_keycode_state.discard(modifier_name)
+
+    def _flags_to_keys(self, flags: int, keycode: int = -1, event_type: int = -1) -> Set[str]:
         """将 flags 和 keycode 转换为键集合"""
         keys = set()
 
         # 检测 Fn
-        fn_mask = self._detect_fn_mask(flags)
-        if fn_mask and (flags & fn_mask):
+        # 方向键等导航键在 macOS 上可能携带 Fn flag。只有 flagsChanged
+        # 或明确的 fn+space 场景才把它视为可触发热键的 Fn。
+        should_read_fn = event_type == kCGEventFlagsChanged or keycode in (0x3F, 0x31)
+        fn_mask = self._detect_fn_mask(flags) if should_read_fn else self._fn_mask
+        if should_read_fn and fn_mask and (flags & fn_mask):
             keys.add('fn')
 
-        # 检测修饰键（区分左右）- 关键修复：确保所有修饰键都被检测
+        # 检测修饰键（区分左右）。优先使用低位左右区分 mask。
         for name, mask in MODIFIER_MASKS.items():
             if flags & mask:
                 keys.add(name)
                 if self.debug:
                     print(
                         f"    [Modifier detected] {name}: flags={hex(flags)} & mask={hex(mask)} = {bool(flags & mask)}")
+
+        # 兜底：部分 macOS/键盘组合只稳定提供通用高位 mask。
+        # 对 flagsChanged 事件，用 keycode 维护左右键状态，再合并到当前 keys。
+        keys.update(self._modifier_keycode_state)
 
         # 检测普通键
         if keycode >= 0 and keycode in KEY_CODES:
@@ -282,9 +340,12 @@ class UniversalKeyListener:
                 keycode = Quartz.CGEventGetIntegerValueField(event, 9)
 
             # 关键：实时转换当前状态
-            current_keys = self._flags_to_keys(flags, keycode)
-
             with self._lock:
+                if event_type == kCGEventFlagsChanged:
+                    self._update_modifier_keycode_state(flags, keycode)
+
+                current_keys = self._flags_to_keys(flags, keycode, event_type)
+
                 # 检测变化
                 new_keys = current_keys - self._current_keys
                 released_keys = self._current_keys - current_keys

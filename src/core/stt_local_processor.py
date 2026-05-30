@@ -6,6 +6,8 @@ import shutil
 import sys
 from pathlib import Path
 import re
+from difflib import SequenceMatcher
+import numpy as np
 
 try:
     from ..components.gui_tk import enqueue_action
@@ -44,6 +46,73 @@ class LocalSTTProcessor:
         self._download_model(model_id=self._punc_model_id)
         self.model = self._init_stt_model()
         self.punc = self._init_punc_model()
+
+    def _get_hotwords(self) -> list[str]:
+        raw = self.config.get("funasr_hotwords", [])
+        if isinstance(raw, str):
+            parts = re.split(r"[,，\n\r\t ]+", raw)
+        elif isinstance(raw, list):
+            parts = raw
+        else:
+            parts = []
+
+        hotwords: list[str] = []
+        seen: set[str] = set()
+        for item in parts:
+            word = str(item or "").strip()
+            if not word or word in seen:
+                continue
+            seen.add(word)
+            hotwords.append(word)
+        return hotwords
+
+    def _apply_hotword_bias(self, text: str, hotwords: list[str]) -> str:
+        """
+        对当前 ONNX SenseVoice 路径做保守热词后处理。
+
+        说明：
+        - FunASR AutoModel 支持原生 hotword；当前 funasr_onnx SenseVoiceSmall
+          不消费 hotword 参数，所以这里补一层高阈值近似替换。
+        - 只替换与热词长度接近、相似度很高的连续片段，避免大范围误改。
+        """
+        if not text or not hotwords:
+            return text
+
+        result = text
+        for word in sorted(hotwords, key=len, reverse=True):
+            if not word or word in result:
+                continue
+
+            n = len(word)
+            if n <= 1:
+                continue
+
+            best_score = 0.0
+            best_span: tuple[int, int] | None = None
+            min_len = n if n <= 4 else max(1, n - 1)
+            max_len = n if n <= 4 else min(len(result), n + 2)
+
+            for size in range(min_len, max_len + 1):
+                for start in range(0, len(result) - size + 1):
+                    candidate = result[start:start + size]
+                    if not candidate.strip():
+                        continue
+                    if size == n and candidate[0] != word[0] and candidate[-1] != word[-1]:
+                        continue
+                    score = SequenceMatcher(None, candidate, word).ratio()
+                    if size != n:
+                        score -= 0.15
+                    if score > best_score:
+                        best_score = score
+                        best_span = (start, start + size)
+
+            threshold = 0.75 if n <= 4 else 0.72
+            if best_span is not None and best_score >= threshold:
+                start, end = best_span
+                print(f"🔥 热词后处理: {result[start:end]} -> {word} (score={best_score:.2f})")
+                result = result[:start] + word + result[end:]
+
+        return result
 
     def _download_with_progress(self, model_id, target_dir, local_name):
         """
@@ -314,9 +383,12 @@ class LocalSTTProcessor:
          * @returns 转录文本
         """
         try:
-            rst = self.model(file_path)
+            hotwords = self._get_hotwords()
+            hotword_text = " ".join(hotwords)
+            rst = self.model(file_path, hotword=hotword_text) if hotword_text else self.model(file_path)
             print(f"本地模型转录文本: {rst}")
             raw_text = self.rich_transcription_postprocess(rst[0])
+            raw_text = self._apply_hotword_bias(raw_text, hotwords)
             print(f"本地模型转录文本: {raw_text}")
             if raw_text is None or len(raw_text.strip()) == 0:
                 return ""
@@ -325,10 +397,25 @@ class LocalSTTProcessor:
                 return raw_text
             # 对转录文本进行标点恢复
             punctuated_text = self.punc(raw_text)
-            print(f"本地模型标点恢复文本: {punctuated_text[0]}")
-            return punctuated_text[0]
+            final_text = self._apply_hotword_bias(punctuated_text[0], hotwords)
+            print(f"本地模型标点恢复文本: {final_text}")
+            return final_text
         except Exception as e:
             raise
+
+    def warm_up(self) -> None:
+        """
+        预热 ONNX Runtime 首次推理路径，降低第一次真实录音的等待。
+        """
+        try:
+            print("🔥 开始预热 FunASR 本地模型...")
+            silence = np.zeros(16000, dtype=np.float32)
+            _ = self.model(silence)
+            if self.punc is not None:
+                _ = self.punc("模型预热")
+            print("✅ FunASR 本地模型预热完成")
+        except Exception as e:
+            print(f"⚠️ FunASR 预热失败（不影响后续转写）: {e}")
 
 
 if __name__ == "__main__":

@@ -79,3 +79,8 @@ class STTProcessor:
         except Exception as e:
             print(f"❌ 转录失败: {e}")
             raise
+
+    def warm_up(self) -> None:
+        warm_up = getattr(self.provider, "warm_up", None)
+        if callable(warm_up):
+            warm_up()

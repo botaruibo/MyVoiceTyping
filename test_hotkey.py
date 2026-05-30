@@ -688,7 +688,7 @@ def demo():
     print("\n📝 注册快捷键...")
 
     # 使用 register 方法
-    detector.register('fn+shift_l',
+    detector.register('cmd_r',
                       on_press=lambda s, e: print(f"🎯 {s} 按下 - 特殊功能"),
                       on_release=lambda s, e: print(f"⚪ {s} 释放")
                       )

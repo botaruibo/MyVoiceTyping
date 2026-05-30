@@ -816,6 +816,8 @@ class VoiceInputGUI:
         )
         test_button.grid(row=0, column=2, padx=(10, 0))
 
+        self._create_hotword_setting(model_content, row=1)
+
         # --- 日志部分 ---
         log_content = self._create_section_card(page, "日志", 3)
         self._create_log_row(log_content, 0)
@@ -827,21 +829,31 @@ class VoiceInputGUI:
 
     def _test_api_key(self):
         """
-        测试模型密钥是否生效
+        测试当前文本改写模型是否可用。
         """
+        provider = self.config_manager.get("llm_text_provider", "cloud_llm")
         api_key = self.config_manager.get("api_key")
-        if not api_key:
+        if provider == "cloud_llm" and not api_key:
             self.update_status_error("模型密钥为空")
             return
 
         try:
-            result = self.app.rewriter.test_remote_llm()
+            rewriter = getattr(self.app, "rewriter", None)
+            if rewriter is None:
+                get_rewriter = getattr(self.app, "_get_rewriter_safe", None)
+                rewriter = get_rewriter() if callable(get_rewriter) else None
+            if rewriter is None:
+                self.update_status_error("文本改写模型未初始化")
+                return
+
+            test_llm = getattr(rewriter, "test_llm", None)
+            result = test_llm() if callable(test_llm) else rewriter.test_remote_llm()
             if(result is None):
-                self.update_status_success("模型密钥测试成功")
+                self.update_status_success("文本改写模型测试成功")
             else:
                 self.update_status_error(result)
         except Exception as e:
-            self.update_status_error(f"模型密钥测试失败: {e}")
+            self.update_status_error(f"文本改写模型测试失败: {e}")
 
     def _build_provider_settings_page(self, parent: ctk.CTkFrame) -> ctk.CTkFrame:
         page = ctk.CTkScrollableFrame(parent, fg_color="transparent")
@@ -897,13 +909,45 @@ class VoiceInputGUI:
         except Exception:
             pass
 
+        self._create_hotword_setting(page, row=2)
+
         # （已移除）OpenAI STT API Key
         ctk.CTkLabel(page, text="远程 LLM（用于 AI 纠正等能力）", text_color="gray").grid(
-            row=2, column=0, padx=18, pady=(8, 8), sticky="w"
+            row=3, column=0, padx=18, pady=(8, 8), sticky="w"
         )
+        llm_provider_row = ctk.CTkFrame(page, fg_color=self._card_bg_color)
+        llm_provider_row.grid(row=4, column=0, padx=18, pady=(0, 12), sticky="ew")
+        llm_provider_row.grid_columnconfigure(1, weight=1)
+
+        ctk.CTkLabel(llm_provider_row, text="文本优化引擎", width=120).grid(
+            row=0, column=0, padx=12, pady=12, sticky="w"
+        )
+
+        llm_provider_default = self.config_manager.get("llm_text_provider", "cloud_llm") or "cloud_llm"
+
+        def _on_llm_provider_change(v: str) -> None:
+            self.config_manager.set("llm_text_provider", v)
+            self.update_status_success("已保存配置")
+
+        llm_provider_menu = ctk.CTkOptionMenu(
+            llm_provider_row,
+            values=["cloud_llm", "ollama"],
+            dynamic_resizing=False,
+            fg_color=self._card_bg_color,
+            button_color=self._card_bg_color,
+            button_hover_color=self._nav_hover_color,
+            dropdown_fg_color=("#FCFCFC", "#2B2B2B"),
+            dropdown_hover_color=self._nav_hover_color,
+            text_color=self._nav_text_color,
+            dropdown_text_color=self._nav_text_color,
+            command=_on_llm_provider_change,
+        )
+        llm_provider_menu.set(llm_provider_default)
+        llm_provider_menu.grid(row=0, column=1, padx=12, pady=12, sticky="ew")
+
         # Remote LLM API Key
         api_key_row = ctk.CTkFrame(page, fg_color=self._card_bg_color)
-        api_key_row.grid(row=3, column=0, padx=18, pady=(0, 12), sticky="ew")
+        api_key_row.grid(row=5, column=0, padx=18, pady=(0, 12), sticky="ew")
         api_key_row.grid_columnconfigure(1, weight=1)
 
         ctk.CTkLabel(api_key_row, text="API Key", width=120).grid(
@@ -916,7 +960,7 @@ class VoiceInputGUI:
 
         # Base URL
         base_url_row = ctk.CTkFrame(page, fg_color=self._card_bg_color)
-        base_url_row.grid(row=4, column=0, padx=18, pady=(0, 12), sticky="ew")
+        base_url_row.grid(row=6, column=0, padx=18, pady=(0, 12), sticky="ew")
         base_url_row.grid_columnconfigure(1, weight=1)
 
         ctk.CTkLabel(base_url_row, text="Base URL", width=120).grid(
@@ -929,7 +973,7 @@ class VoiceInputGUI:
 
         # Model Name
         model_name_row = ctk.CTkFrame(page, fg_color=self._card_bg_color)
-        model_name_row.grid(row=5, column=0, padx=18, pady=(0, 18), sticky="ew")
+        model_name_row.grid(row=7, column=0, padx=18, pady=(0, 12), sticky="ew")
         model_name_row.grid_columnconfigure(1, weight=1)
 
         ctk.CTkLabel(model_name_row, text="Model Name", width=120).grid(
@@ -940,7 +984,173 @@ class VoiceInputGUI:
         model_name_entry.grid(row=0, column=1, padx=12, pady=12, sticky="ew")
         _save_var_on_event(model_name_entry, model_name_var, "model_name")
 
+        ctk.CTkLabel(page, text="本地 Ollama", text_color="gray").grid(
+            row=8, column=0, padx=18, pady=(8, 8), sticky="w"
+        )
+
+        ollama_base_url_row = ctk.CTkFrame(page, fg_color=self._card_bg_color)
+        ollama_base_url_row.grid(row=9, column=0, padx=18, pady=(0, 12), sticky="ew")
+        ollama_base_url_row.grid_columnconfigure(1, weight=1)
+
+        ctk.CTkLabel(ollama_base_url_row, text="Ollama URL", width=120).grid(
+            row=0, column=0, padx=12, pady=12, sticky="w"
+        )
+        ollama_base_url_var = tk.StringVar(value=self.config_manager.get("ollama_base_url", "") or "")
+        ollama_base_url_entry = ctk.CTkEntry(ollama_base_url_row, textvariable=ollama_base_url_var)
+        ollama_base_url_entry.grid(row=0, column=1, padx=12, pady=12, sticky="ew")
+        _save_var_on_event(ollama_base_url_entry, ollama_base_url_var, "ollama_base_url")
+
+        ollama_model_row = ctk.CTkFrame(page, fg_color=self._card_bg_color)
+        ollama_model_row.grid(row=10, column=0, padx=18, pady=(0, 18), sticky="ew")
+        ollama_model_row.grid_columnconfigure(1, weight=1)
+
+        ctk.CTkLabel(ollama_model_row, text="Ollama Model", width=120).grid(
+            row=0, column=0, padx=12, pady=12, sticky="w"
+        )
+        ollama_model_var = tk.StringVar(value=self.config_manager.get("ollama_model", "") or "")
+        ollama_model_entry = ctk.CTkEntry(ollama_model_row, textvariable=ollama_model_var)
+        ollama_model_entry.grid(row=0, column=1, padx=12, pady=12, sticky="ew")
+        _save_var_on_event(ollama_model_entry, ollama_model_var, "ollama_model")
+
         return page
+
+    def _create_hotword_setting(self, parent: ctk.CTkFrame, row: int) -> None:
+        container = ctk.CTkFrame(parent, fg_color=self._card_bg_color)
+        container.grid(row=row, column=0, columnspan=2, padx=0, pady=(12, 0), sticky="ew")
+        container.grid_columnconfigure(1, weight=1)
+
+        left = ctk.CTkFrame(container, fg_color="transparent")
+        left.grid(row=0, column=0, padx=12, pady=12, sticky="nw")
+        ctk.CTkLabel(left, text="FunASR 热词", width=120, anchor="w").pack(anchor="w")
+        ctk.CTkLabel(left, text="回车添加", text_color="gray", font=ctk.CTkFont(size=12)).pack(anchor="w", pady=(4, 0))
+
+        right = ctk.CTkFrame(container, fg_color="transparent")
+        right.grid(row=0, column=1, padx=12, pady=12, sticky="ew")
+        right.grid_columnconfigure(0, weight=1)
+
+        entry_var = tk.StringVar(value="")
+        entry = ctk.CTkEntry(right, textvariable=entry_var, placeholder_text="输入产品名、人名、专有名词后回车")
+        entry.grid(row=0, column=0, sticky="ew")
+
+        tags_frame = ctk.CTkFrame(right, fg_color="transparent")
+        tags_frame.grid(row=1, column=0, sticky="ew", pady=(10, 0))
+
+        def _load_hotwords() -> list[str]:
+            raw = self.config_manager.get("funasr_hotwords", [])
+            if isinstance(raw, list):
+                words = raw
+            elif isinstance(raw, str):
+                words = [p for p in raw.replace("，", ",").split(",")]
+            else:
+                words = []
+            result: list[str] = []
+            seen: set[str] = set()
+            for item in words:
+                word = str(item or "").strip()
+                if word and word not in seen:
+                    seen.add(word)
+                    result.append(word)
+            return result
+
+        hotwords = _load_hotwords()
+        editing_word: list[str | None] = [None]
+
+        def _save_hotwords() -> None:
+            self.config_manager.set("funasr_hotwords", hotwords)
+            self.update_status_success("热词已保存，下次转写生效")
+
+        def _start_edit(word: str) -> None:
+            editing_word[0] = word
+            entry_var.set(word)
+            entry.focus_set()
+            entry.select_range(0, "end")
+            self.update_status_success("编辑热词后回车保存")
+
+        def _render_tags() -> None:
+            for widget in tags_frame.winfo_children():
+                widget.destroy()
+
+            if not hotwords:
+                ctk.CTkLabel(tags_frame, text="暂无热词", text_color="gray").pack(anchor="w")
+                return
+
+            for word in hotwords:
+                tag = ctk.CTkFrame(
+                    tags_frame,
+                    fg_color=("#EEF4FF", "#263247"),
+                    border_color=("#BFD4FF", "#415678"),
+                    border_width=1,
+                    corner_radius=14,
+                )
+                tag.pack(side="left", padx=(0, 8), pady=(0, 8))
+
+                label = ctk.CTkLabel(
+                    tag,
+                    text=word,
+                    text_color=("#163B73", "#D8E7FF"),
+                    font=ctk.CTkFont(size=13),
+                )
+                label.pack(side="left", padx=(10, 4), pady=4)
+                try:
+                    label.configure(cursor="hand2")
+                    tag.configure(cursor="hand2")
+                except Exception:
+                    pass
+
+                delete = ctk.CTkLabel(
+                    tag,
+                    text="✕",
+                    width=20,
+                    height=20,
+                    corner_radius=10,
+                    text_color=("#456A9F", "#AFC7E8"),
+                    fg_color="transparent",
+                    font=ctk.CTkFont(size=12, weight="bold"),
+                )
+                delete.pack(side="left", padx=(0, 6), pady=4)
+
+                def _remove(_event=None, w=word) -> None:
+                    if w in hotwords:
+                        hotwords.remove(w)
+                        if editing_word[0] == w:
+                            editing_word[0] = None
+                            entry_var.set("")
+                        _save_hotwords()
+                        _render_tags()
+
+                tag.bind("<Button-1>", lambda _event, w=word: _start_edit(w))
+                label.bind("<Button-1>", lambda _event, w=word: _start_edit(w))
+                delete.bind("<Button-1>", _remove)
+                delete.bind("<Enter>", lambda _e, d=delete: d.configure(fg_color=("#DCEAFF", "#354966")))
+                delete.bind("<Leave>", lambda _e, d=delete: d.configure(fg_color="transparent"))
+
+        def _add_hotword(_event=None) -> None:
+            word = (entry_var.get() or "").strip()
+            if not word:
+                editing_word[0] = None
+                return
+            old_word = editing_word[0]
+            if old_word and old_word in hotwords:
+                old_index = hotwords.index(old_word)
+                if word == old_word:
+                    pass
+                elif word in hotwords:
+                    hotwords.pop(old_index)
+                else:
+                    hotwords[old_index] = word
+                editing_word[0] = None
+                _save_hotwords()
+                _render_tags()
+            elif word not in hotwords:
+                hotwords.append(word)
+                _save_hotwords()
+                _render_tags()
+            else:
+                editing_word[0] = None
+            entry_var.set("")
+
+        entry.bind("<Return>", _add_hotword)
+        _render_tags()
 
     # -------------------------
     # Widgets helpers

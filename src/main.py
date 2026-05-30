@@ -89,7 +89,8 @@ class FlashInputApp:
                     from .core.text_rewrite import get_rewriter
 
                     self.rewriter = get_rewriter()
-                    if bool(self.config_manager.get("FORMAT_TEXT")):
+                    provider = self.config_manager.get("LLM_TEXT_PROVIDER")
+                    if bool(self.config_manager.get("FORMAT_TEXT")) and provider == "cloud_llm":
                         self.rewriter.init_remote_llm_async(reason="post_gui_load")
                 except Exception as e:
                     self.rewriter = None
@@ -138,6 +139,12 @@ class FlashInputApp:
                     from .core.stt_processor import STTProcessor
 
                     self.stt_processor = STTProcessor()
+                    if bool(self.config_manager.get("stt_warmup_on_startup", True)):
+                        try:
+                            self._set_status("正在预热语音模型…")
+                            self.stt_processor.warm_up()
+                        except Exception as e:
+                            print(f"⚠️ 语音模型预热失败（可忽略）: {e}")
                     print(f"stt-----结束时间：{time.perf_counter()}")
                     """/**
                      * 统计：应用启动 -> STTProcessor 初始化完成耗时。
@@ -210,7 +217,12 @@ class FlashInputApp:
         try:
             from .core.text_rewrite import get_rewriter
             self.rewriter = get_rewriter()
-            if self.config_manager is not None and bool(self.config_manager.get("FORMAT_TEXT")):
+            provider = self.config_manager.get("LLM_TEXT_PROVIDER") if self.config_manager is not None else None
+            if (
+                self.config_manager is not None
+                and bool(self.config_manager.get("FORMAT_TEXT"))
+                and provider == "cloud_llm"
+            ):
                 self.rewriter.init_remote_llm_async(reason="lazy_get")
             return self.rewriter
         except Exception as e:
@@ -628,6 +640,36 @@ class FlashInputApp:
         except Exception as e:
             print(f"⚠️ 恢复系统外放失败（可忽略）: {e}")
 
+    def _hide_recording_overlay_safe(self) -> None:
+        """
+        /**
+         * 尽力隐藏录音/转写浮层。
+         *
+         * 说明：
+         * - 用于停止录音失败、无音频数据、开始录音失败等异常分支。
+         * - 不能让 UI 清理失败影响主录音状态机。
+         *
+         * @returns {void}
+         */
+        """
+        try:
+            if self.gui is not None and hasattr(self.gui, "hide_recording_overlay"):
+                self.gui.hide_recording_overlay()
+        except Exception as e:
+            print(f"⚠️ 隐藏录音提示框失败（可忽略）: {e}")
+
+    def _is_audio_too_short(self, audio_data: bytes) -> tuple[bool, float, int]:
+        """
+        判断录音时长是否短到应直接跳过。
+
+        PCM int16 单声道下，字节数只代表采样时长，不代表是否有人声。
+        """
+        byte_len = len(audio_data) if audio_data else 0
+        sample_rate = int(self.config_manager.get("sample_rate", 16000) or 16000)
+        min_duration_ms = int(self.config_manager.get("min_audio_duration_ms", 400) or 400)
+        duration_ms = (byte_len / 2.0) / max(1, sample_rate) * 1000.0
+        return duration_ms < min_duration_ms, duration_ms, min_duration_ms
+
     def start_recording(self) -> None:
         try:
             self._ensure_audio_recorder()
@@ -650,6 +692,7 @@ class FlashInputApp:
                 self._maybe_restore_speaker_after_recording()
             except Exception:
                 pass
+            self._hide_recording_overlay_safe()
             self._set_status(f"开始录音失败：{e}", is_error=True)
 
     def stop_recording(self) -> None:
@@ -657,11 +700,13 @@ class FlashInputApp:
 
         try:
             if not getattr(self.audio_recorder, "is_recording", False):
+                self._hide_recording_overlay_safe()
                 return
 
             self._set_status("停止录音…")
             audio_data = self.audio_recorder.stop_recording()
         except Exception as e:
+            self._hide_recording_overlay_safe()
             self._set_status(f"停止录音失败：{e}", is_error=True)
             return
         finally:
@@ -672,7 +717,18 @@ class FlashInputApp:
                 pass
 
         if not audio_data:
+            self._hide_recording_overlay_safe()
             self._set_status("没有录制到音频数据")
+            return
+
+        is_too_short, duration_ms, min_duration_ms = self._is_audio_too_short(audio_data)
+        if is_too_short:
+            self._hide_recording_overlay_safe()
+            print(
+                f"ℹ️ 录音过短，跳过转写和保存: "
+                f"{duration_ms:.0f}ms < {min_duration_ms}ms"
+            )
+            self._set_status("录音太短，已跳过")
             return
 
         try:
@@ -693,6 +749,7 @@ class FlashInputApp:
     def _handle_voice_input_worker(self, audio_data: bytes) -> None:
         with self._processing_lock:
             if self._is_processing:
+                self._hide_recording_overlay_safe()
                 return
             self._is_processing = True
 
@@ -737,14 +794,11 @@ class FlashInputApp:
 
             self._set_status("写入中…")
             # 隐藏掉录音提示框
-            try:
-                if self.gui is not None and hasattr(self.gui, "hide_recording_overlay"):
-                    self.gui.hide_recording_overlay()
-            except Exception as e:
-                print(f"⚠️ 隐藏录音提示框失败（可忽略）: {e}")
+            self._hide_recording_overlay_safe()
 
             self.write_appname_to_cursor(text)
         except Exception as e:
+            self._hide_recording_overlay_safe()
             self._set_status(f"转写/写入失败：{e}", is_error=True)
         finally:
             self._set_status("就绪")
@@ -777,10 +831,12 @@ class FlashInputApp:
         # 3) 异步加载 STT 模型 和 热键监听
         t0 = time.perf_counter()
         if getattr(self.gui, "root", None) is not None:
-            self.gui.root.after_idle(self.init_stt_async)
+            if bool(self.config_manager.get("preload_stt_on_startup", True)):
+                self.gui.root.after(300, self.init_stt_async)
             self.gui.root.after_idle(self.start_listening_hotkey)
         else:
-            self.init_stt_async()
+            if bool(self.config_manager.get("preload_stt_on_startup", True)):
+                self.init_stt_async()
             self.start_listening_hotkey()
         print(f"[perf] main: schedule stt/hotkey: {(time.perf_counter() - t0) * 1000:.1f}ms")
 

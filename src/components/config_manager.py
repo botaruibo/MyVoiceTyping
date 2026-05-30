@@ -122,6 +122,35 @@ class ConfigManager:
             transcripts_dir_default = "data/transcripts"
 
         self.default_config = {
+            "press_hotkey": "option_l",
+            "toggle_hotkey": "fn",
+            "sample_rate": 16000,
+            "chunk_size": 1024,
+            "stt_provider": "funasr",
+            "openai_api_key": "",
+            "format_text": False,
+            "llm_text_provider": "cloud_llm",
+            "base_url": "",
+            "api_key": "",
+            "model_name": "",
+            "llm_temperature": 0.2,
+            "llm_timeout": 15,
+            "llm_max_tokens": 1024,
+            "ollama_base_url": "http://127.0.0.1:11434",
+            "ollama_model": "qwen2.5:1.5b",
+            "ollama_api_key": "",
+            "ollama_timeout": 15,
+            "ollama_temperature": 0.2,
+            "ollama_num_predict": 512,
+            "funasr_device": "cpu",
+            "funasr_hotwords": [],
+            "preload_stt_on_startup": True,
+            "stt_warmup_on_startup": True,
+            "audio_dir": audio_dir_default,
+            "transcripts_dir": transcripts_dir_default,
+            "models_dir": "data/models",
+            "mute_speaker": True,
+            "min_audio_duration_ms": 400,
         }
         self.main_prompt = ""
 
@@ -217,7 +246,7 @@ class ConfigManager:
 
     def set(self, key, value):
         """设置配置值"""
-        self.config[key] = value
+        self.config[str(key).lower()] = value
         self.save_config()
 
     def _resolve_writable_path(self, raw_value, default_value: str) -> Path:

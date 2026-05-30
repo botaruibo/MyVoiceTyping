@@ -7,7 +7,7 @@ import sys
  *
  * 设计目标：
  * - 显示在屏幕底部居中，尺寸固定（默认 220x60，与 Tk 版本一致）
- * - 透明背景 + 胶囊圆角黑底 + 白色描边
+ * - 透明背景 + 深色磨砂胶囊 + 系统蓝进度 + 柔和波形
  * - 不抢焦点：不成为 key/main window，不影响当前前台应用的输入光标
  * - 鼠标穿透：不影响点击与输入
  * - 支持全屏/Spaces：设置 collectionBehavior（CanJoinAllSpaces + Transient + FullScreenAuxiliary）
@@ -573,12 +573,12 @@ def _get_objc_overlay_classes():
                     radius = h / 2.0
 
                     try:
-                        # 背景：直接用整个 rect 画胶囊
+                        # 背景：深色磨砂胶囊。避免纯黑，接近 macOS 浮层/控制中心的视觉气质。
                         bg_path = NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(rect, radius, radius)
-                        NSColor.blackColor().set()
+                        NSColor.colorWithCalibratedRed_green_blue_alpha_(0.055, 0.071, 0.102, 0.86).set()
                         bg_path.fill()
 
-                        # 半透明进度覆盖层（从左向右增长）
+                        # 系统蓝色进度覆盖层（从左向右增长）
                         try:
                             progress = float(getattr(self, "_progress", 0.0) or 0.0)
                             progress = max(0.0, min(1.0, progress))
@@ -596,7 +596,10 @@ def _get_objc_overlay_classes():
                                 pw = w * progress
                                 if pw > 0.5:
                                     overlay_rect = NSMakeRect(rect.origin.x, rect.origin.y, pw, h)
-                                    NSColor.whiteColor().colorWithAlphaComponent_(0.22).set()
+                                    try:
+                                        NSColor.systemBlueColor().colorWithAlphaComponent_(0.36).set()
+                                    except Exception:
+                                        NSColor.colorWithCalibratedRed_green_blue_alpha_(0.20, 0.52, 0.96, 0.36).set()
                                     NSBezierPath.fillRect_(overlay_rect)
 
                                 try:
@@ -606,7 +609,7 @@ def _get_objc_overlay_classes():
                         except Exception:
                             pass
 
-                        # 白色描边：stroke 会以 path 为中心向内/向外各扩一半线宽。
+                        # 柔和描边：stroke 会以 path 为中心向内/向外各扩一半线宽。
                         # 如果直接对 rect stroke，会因为外侧被裁剪，导致圆角处“看起来粗细不均匀”。
                         # 因此这里把描边路径向内 inset（线宽/2），保证描边完全落在可见区域内。
                         border_lw = max(1.0, min(1.0, float(h) * 0.12))
@@ -631,7 +634,7 @@ def _get_objc_overlay_classes():
                             except Exception:
                                 pass
 
-                            NSColor.whiteColor().set()
+                            NSColor.whiteColor().colorWithAlphaComponent_(0.42).set()
                             border_path.setLineWidth_(border_lw)
                             border_path.stroke()
                     except Exception:
@@ -648,7 +651,7 @@ def _get_objc_overlay_classes():
                         lv = max(0, min(100, int(getattr(self, "_volume_level", 0) or 0)))
                         base_max_h = min_bar_h + (max_bar_h - min_bar_h) * (lv / 100.0)
 
-                        NSColor.whiteColor().set()
+                        NSColor.whiteColor().colorWithAlphaComponent_(0.92).set()
 
                         for i in range(self._num_bars):
                             distance = abs(i - self._num_bars // 2)
