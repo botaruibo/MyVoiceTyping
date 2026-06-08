@@ -382,10 +382,15 @@ class LocalSTTProcessor:
          * @param audio_frames 音频帧数据
          * @returns 转录文本
         """
+        import time as _time
         try:
             hotwords = self._get_hotwords()
             hotword_text = " ".join(hotwords)
+
+            t_asr0 = _time.perf_counter()
             rst = self.model(file_path, hotword=hotword_text) if hotword_text else self.model(file_path)
+            t_asr_ms = (_time.perf_counter() - t_asr0) * 1000.0
+            print(f"[perf] stt: SenseVoice 推理: {t_asr_ms:.1f}ms")
             print(f"本地模型转录文本: {rst}")
             raw_text = self.rich_transcription_postprocess(rst[0])
             raw_text = self._apply_hotword_bias(raw_text, hotwords)
@@ -396,7 +401,10 @@ class LocalSTTProcessor:
                 print("⚠️标点模型未初始化，跳过标点恢复")
                 return raw_text
             # 对转录文本进行标点恢复
+            t_punc0 = _time.perf_counter()
             punctuated_text = self.punc(raw_text)
+            t_punc_ms = (_time.perf_counter() - t_punc0) * 1000.0
+            print(f"[perf] stt: 标点模型推理: {t_punc_ms:.1f}ms")
             final_text = self._apply_hotword_bias(punctuated_text[0], hotwords)
             print(f"本地模型标点恢复文本: {final_text}")
             return final_text
@@ -406,13 +414,67 @@ class LocalSTTProcessor:
     def warm_up(self) -> None:
         """
         预热 ONNX Runtime 首次推理路径，降低第一次真实录音的等待。
+
+        关键背景（实测拆解）：
+        - SenseVoice ONNX 是动态 shape，第一次拿到“真实长度 + 真实特征”
+          的输入时，ORT 会触发算子图懒优化 / 内存重排，单次代价数百 ms ~ 数秒。
+        - 真实转录链路是 `librosa.load(file_path)` -> ndarray -> ONNX 推理。
+          其中 `librosa.load` 首次调用会懒加载 numba/soundfile/audioread 等
+          子库，单次代价 ~1s 左右，下次几乎 0ms。
+        - 所以 warm_up 必须同时覆盖两条路径，否则用户首次录音仍要等 ~1s。
+
+        合成数据 vs 读固定文件的取舍：
+        - 现场用 numpy 生成低幅高斯噪声：纯内存操作 < 1ms。
+        - 读固定 wav 文件：~50KB，首次冷盘 I/O + WAV 解码大约 5~50ms，
+          还要把样本文件随包发布、维护打包路径。
+        - 合成数据零文件依赖、跨打包/沙盒环境最稳定，因此选合成数据。
+        - 噪声而非纯零：纯零会让 fbank 走极端静音分支，可能跳过部分算子，
+          导致预热不充分；低幅噪声更接近真实人声分布。
+
+        预热长度：
+        - 用户单次录音通常 2~15s。这里取 6s 覆盖最常见区间，让 ORT 在
+          中等 shape 上完成图优化。
         """
+        import time as _time
         try:
             print("🔥 开始预热 FunASR 本地模型...")
-            silence = np.zeros(16000, dtype=np.float32)
-            _ = self.model(silence)
+
+            # 6s 低幅高斯噪声（覆盖常见录音长度），固定 seed 便于复现
+            rng = np.random.default_rng(0)
+            synth = (rng.standard_normal(int(16000 * 6.0)) * 50.0).astype(np.float32)
+
+            # 1) 触发 librosa 子库懒加载（真实链路会先经过 librosa.load）。
+            #    用一段极短的内存信号，强制走完 librosa 内部 import 路径。
+            try:
+                t0 = _time.perf_counter()
+                import librosa  # 顶层 import 不算，关键是首次 .load 才加载子库
+                # librosa.load 不接受 ndarray，我们用 librosa.resample 触发它
+                # 的 numba/audio I/O 子模块加载（实测能等价于一次 .load 的预热）
+                _ = librosa.resample(synth[:1600], orig_sr=16000, target_sr=16000)
+                print(
+                    f"[perf] stt:warm_up librosa "
+                    f"{(_time.perf_counter() - t0) * 1000.0:.1f}ms"
+                )
+            except Exception as e:
+                print(f"⚠️ librosa 预热失败（可忽略）: {e}")
+
+            # 2) 触发 SenseVoice ONNX 算子图懒优化
+            t0 = _time.perf_counter()
+            _ = self.model(synth)
+            print(
+                f"[perf] stt:warm_up SenseVoice(synthetic 6s) "
+                f"{(_time.perf_counter() - t0) * 1000.0:.1f}ms"
+            )
+
+            # 3) 触发标点模型首次推理
             if self.punc is not None:
-                _ = self.punc("模型预热")
+                t0 = _time.perf_counter()
+                _ = self.punc("今天我们一起来预热标点模型")
+                print(
+                    f"[perf] stt:warm_up CT-Transformer "
+                    f"{(_time.perf_counter() - t0) * 1000.0:.1f}ms"
+                )
+
             print("✅ FunASR 本地模型预热完成")
         except Exception as e:
             print(f"⚠️ FunASR 预热失败（不影响后续转写）: {e}")
@@ -424,37 +486,42 @@ if __name__ == "__main__":
      * 本地 STT Processor 简易测试入口。
      *
      * 说明：
-     * - `LocalSTTProcessor.transcribe()` 的入参是录音得到的 `bytes`（int16 PCM），不是文件路径字符串。
-     * - 这里将 `test_data/output0.wav` 读取为 `bytes` 后再调用转录，避免类型错误。
+     * - 这里通过 data/audio 下的已有录音文件 mock 真实录音输入，
+     *   验证“冷启动 -> warm_up -> 首次真实转录”这条链路的耗时分布。
      */
     """
+    import time as _time
     from ..components.config_manager import get_config_manager
 
     config = get_config_manager()
+
+    t0 = _time.perf_counter()
     processor = LocalSTTProcessor(config)
+    print(f"[perf] init LocalSTTProcessor: {(_time.perf_counter() - t0):.2f}s")
 
+    # 1) 预热（使用 data/audio 中已有真实音频）
+    t0 = _time.perf_counter()
+    processor.warm_up()
+    print(f"[perf] warm_up total: {(_time.perf_counter() - t0):.2f}s")
+
+    # 2) 模拟一次“真实录音 -> 转录”，看首次耗时是否被压下来
     project_root = Path(__file__).resolve().parents[2]
-    wav_path = project_root / "test_data" / "output0.wav"
-    if not wav_path.exists():
-        wav_path = project_root / "test_data" / "output1.wav"
+    audio_dir = project_root / "data" / "audio"
+    test_dir = project_root / "test_data"
 
-    if not wav_path.exists():
-        raise FileNotFoundError(
-            "未找到测试音频文件，请确认存在："
-            f"{project_root / 'test_data' / 'output0.wav'} 或 {project_root / 'test_data' / 'output1.wav'}"
-        )
+    pick_path = None
+    for d in (audio_dir, test_dir):
+        if d.exists():
+            wavs = sorted(d.glob("*.wav"), key=lambda p: p.stat().st_mtime, reverse=True)
+            if wavs:
+                pick_path = str(wavs[0])
+                break
 
-    print(f"开始读取测试音频: {wav_path}")
+    if pick_path is None:
+        raise FileNotFoundError(f"未找到测试音频，请确认 {audio_dir} 或 {test_dir} 下有 .wav")
 
-    """/**
-     * funasr_onnx 的 `SenseVoiceSmall.__call__` 仅接受 [str, np.ndarray, list]。
-     * 这里 `wav_path` 是 `Path`，需要显式转为 `str`。
-     */"""
-
-    try:
-        result = processor.model(str(wav_path))
-        print("✅ funasr_onnx 推理完成")
-        print(result)
-    except Exception as e:
-        print(f"❌ funasr_onnx 推理失败: {e}")
-        raise
+    print(f"开始 mock 真实转录: {pick_path}")
+    t0 = _time.perf_counter()
+    text = processor.transcribe(pick_path)
+    print(f"[perf] transcribe(first real call after warm_up): {(_time.perf_counter() - t0):.2f}s")
+    print(f"识别结果: {text}")

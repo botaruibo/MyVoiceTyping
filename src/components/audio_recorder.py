@@ -48,19 +48,38 @@ class AudioRecorder:
             raise
 
     def stop_recording(self):
-        """停止录音"""
+        """
+        /**
+         * 停止录音。
+         *
+         * 健壮性要点：
+         * - macOS 上 sounddevice 的 InputStream 长时间空置后，`stream.__exit__`
+         *   偶发卡死。如果在这里无超时地 join，会让主调用方（main.stop_recording
+         *   -> _handle_voice_input_worker）整个挂起，浮窗不消失、状态不复位。
+         * - 这里给 join 加超时，超时后强制丢弃 record_thread 引用并回收已收到
+         *   的音频数据，让上层能正常进入“转写 / 复位浮窗 / 复位 speaker”流程。
+         */
+        """
         if self.is_recording:
             self.is_recording = False
 
             t = self.record_thread
             if t is not None and t.is_alive():
                 try:
-                    t.join()
+                    # 留 2s 给录音线程优雅退出；超时则放弃等待，避免主流程挂死
+                    t.join(timeout=2.0)
+                    if t.is_alive():
+                        print("⚠️ 录音线程在 2s 内未结束，强制放弃 join 以避免挂起")
                 except Exception as e:
                     print(f"⚠️ 等待录音线程结束失败（可忽略）: {e}")
 
+        # 无论 join 成功与否，都把状态清干净，防止残留影响下一次录音
         self.record_thread = None
-        return self._get_frames()
+        try:
+            return self._get_frames()
+        except Exception as e:
+            print(f"⚠️ 拼装录音帧失败（已丢弃本次录音）: {e}")
+            return b""
 
     def _compute_volume_level(self, indata: np.ndarray) -> int:
         """
@@ -284,6 +303,11 @@ class AudioRecorder:
                 "系统设置 -> 隐私与安全性 -> 麦克风 -> 勾选你的终端或 PyCharm\n"
                 "如果你用的是外接麦克风，也可以尝试在系统声音输入里切换设备后重试。"
             )
+            try:
+                from ..util.mac_permissions import prompt_permission
+                prompt_permission("microphone")
+            except Exception:
+                pass
             raise
 
     def _audio_callback(self, indata, frames, time, status):

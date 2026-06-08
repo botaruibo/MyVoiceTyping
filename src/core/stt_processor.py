@@ -12,6 +12,7 @@ class STTProcessor:
     def __init__(self):
         self.config = get_config_manager()  # 使用新的配置管理器
         self.provider = self._init_provider()
+        self.last_audio_path: str | None = None
 
     def _init_provider(self):
         """根据配置初始化STT提供者"""
@@ -48,8 +49,7 @@ class STTProcessor:
                 "audio_frames 应该是录音得到的 bytes（int16 PCM），不应传入文件路径字符串"
             )
 
-        project_root = Path(__file__).resolve().parents[2]
-        audio_dir = project_root / "data" / "audio"
+        audio_dir = self.config.get_audio_dir()
         audio_dir.mkdir(parents=True, exist_ok=True)
 
         base_name = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -68,6 +68,7 @@ class STTProcessor:
         try:
             recorder = AudioRecorder()
             recorder.save_audio(audio_frames, str(wav_path))
+            self.last_audio_path = str(wav_path)
             print(f"✅ 已保存音频到本地: {wav_path}")
         except Exception as e:
             print(f"❌ 保存音频失败: {e}")

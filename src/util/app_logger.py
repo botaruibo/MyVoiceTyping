@@ -142,13 +142,19 @@ class AppLogger:
 
     @classmethod
     def _resolve_logs_dir(cls) -> Path:
+        is_frozen = hasattr(sys, "_MEIPASS") or bool(getattr(sys, "frozen", False))
+        if sys.platform == "darwin" and is_frozen:
+            candidate = Path.home() / "Library" / "Application Support" / "MyVoiceTyping" / "logs"
+            candidate.mkdir(parents=True, exist_ok=True)
+            return candidate
+
         root = get_common_root_dir()
         candidate = root / "logs"
         try:
             candidate.mkdir(parents=True, exist_ok=True)
             return candidate
         except Exception:
-            fallback = Path.home() / "Library" / "Logs" / "MyVoiceInput"
+            fallback = Path.home() / "Library" / "Logs" / "MyVoiceTyping"
             fallback.mkdir(parents=True, exist_ok=True)
             return fallback
 
@@ -188,7 +194,11 @@ class AppLogger:
         is_frozen = hasattr(sys, "_MEIPASS") or bool(getattr(sys, "frozen", False))
         also_to_console = not is_frozen
 
-        env = os.environ.get("MYVOICEINPUT_LOG_TO_CONSOLE", "").strip()
+        env = (
+            os.environ.get("MYVOICETYPING_LOG_TO_CONSOLE")
+            or os.environ.get("MYVOICEINPUT_LOG_TO_CONSOLE")
+            or ""
+        ).strip()
         if env != "":
             also_to_console = env not in ("0", "false", "False", "no", "NO")
 

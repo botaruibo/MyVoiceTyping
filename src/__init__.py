@@ -1,5 +1,5 @@
 """
-MyVoiceInput package init
+MyVoiceTyping package init
 """
 from .main import FlashInputApp
 from typing import Any

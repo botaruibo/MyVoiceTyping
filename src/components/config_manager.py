@@ -6,7 +6,8 @@ import tempfile
 from typing import Optional
 
 _instance = None
-_APP_NAME = "MyVoiceInput"
+_APP_NAME = "MyVoiceTyping"
+_LEGACY_APP_NAME = "MyVoiceInput"
 
 def get_config_manager():
     """
@@ -30,6 +31,17 @@ def get_common_root_dir() -> Path:
 
 def _macos_app_support_root(app_name: str) -> Path:
     return Path.home() / "Library" / "Application Support" / app_name
+
+
+def _migrate_legacy_app_support_root(new_root: Path) -> None:
+    old_root = _macos_app_support_root(_LEGACY_APP_NAME)
+    try:
+        if new_root.exists() or not old_root.exists():
+            return
+        shutil.copytree(old_root, new_root)
+        print(f"✅ 已迁移旧配置目录: {old_root} -> {new_root}")
+    except Exception as e:
+        print(f"⚠️ 迁移旧配置目录失败（将使用新目录默认配置）: {e}")
 
 
 def _guess_bundled_data_dir() -> Optional[Path]:
@@ -92,6 +104,7 @@ class ConfigManager:
         if config_file_path is None:
             if sys.platform == "darwin" and _is_frozen():
                 self._writable_root = _macos_app_support_root(_APP_NAME)
+                _migrate_legacy_app_support_root(self._writable_root)
                 config_dir = self._writable_root / "config"
                 try:
                     config_dir.mkdir(parents=True, exist_ok=True)
@@ -122,14 +135,14 @@ class ConfigManager:
             transcripts_dir_default = "data/transcripts"
 
         self.default_config = {
-            "press_hotkey": "option_l",
+            "press_hotkey": "fn",
             "toggle_hotkey": "fn",
             "sample_rate": 16000,
             "chunk_size": 1024,
             "stt_provider": "funasr",
             "openai_api_key": "",
             "format_text": False,
-            "llm_text_provider": "cloud_llm",
+            "llm_text_provider": "local_mlx_corrector",
             "base_url": "",
             "api_key": "",
             "model_name": "",
@@ -137,15 +150,32 @@ class ConfigManager:
             "llm_timeout": 15,
             "llm_max_tokens": 1024,
             "ollama_base_url": "http://127.0.0.1:11434",
-            "ollama_model": "qwen2.5:1.5b",
+            "ollama_model": "chinese-text-correction-1.5b-q4-local:latest",
             "ollama_api_key": "",
             "ollama_timeout": 15,
-            "ollama_temperature": 0.2,
-            "ollama_num_predict": 512,
+            "ollama_temperature": 0.1,
+            "ollama_num_predict": 96,
+            "ollama_top_p": 0.9,
+            "ollama_top_k": 20,
+            "ollama_repeat_penalty": 1.05,
+            "ollama_prefix_prompt": "文本纠错：\n",
             "funasr_device": "cpu",
             "funasr_hotwords": [],
             "preload_stt_on_startup": True,
             "stt_warmup_on_startup": True,
+            "preload_llama_cpp_on_startup": True,
+            "llama_cpp_n_gpu_layers": -1,
+            "llama_cpp_n_batch": 512,
+            "preload_local_mlx_corrector_on_startup": True,
+            "local_mlx_corrector_model_id": "shibing624/chinese-text-correction-1.5b",
+            "local_mlx_corrector_model_path": "data/models/chinese-text-correction-1.5b-mlx-4bit",
+            "local_mlx_corrector_max_new_tokens": 96,
+            "local_mlx_corrector_temperature": 0.0,
+            "local_mlx_corrector_top_p": 1.0,
+            "local_mlx_corrector_top_k": 0,
+            "local_mlx_corrector_require_quantized": True,
+            "local_mlx_corrector_prefix_prompt": "文本纠错：\n",
+            "local_mlx_corrector_prefetch_model_on_load": True,
             "audio_dir": audio_dir_default,
             "transcripts_dir": transcripts_dir_default,
             "models_dir": "data/models",
@@ -181,8 +211,34 @@ class ConfigManager:
             print(f"复制默认配置文件失败: {e}")
             return False
 
+    def _try_seed_from_bundled_prompt(self) -> bool:
+        if self._bundled_data_dir is None:
+            return False
+
+        bundled_prompt_path = self._bundled_data_dir / "config" / "main_prompt.md"
+        if not bundled_prompt_path.exists():
+            return False
+
+        try:
+            self.prompt_file_path.parent.mkdir(parents=True, exist_ok=True)
+
+            try:
+                if bundled_prompt_path.resolve() == self.prompt_file_path.resolve():
+                    return True
+            except Exception:
+                pass
+
+            if not self.prompt_file_path.exists():
+                shutil.copy2(bundled_prompt_path, self.prompt_file_path)
+            return True
+        except Exception as e:
+            print(f"复制默认提示文件失败: {e}")
+            return False
+
     def load_prompt(self) -> Optional[str]:
         try:
+            if not self.prompt_file_path.exists():
+                self._try_seed_from_bundled_prompt()
             with open(self.prompt_file_path, 'r', encoding='utf-8') as f:
                 return f.read()
         except Exception as e:

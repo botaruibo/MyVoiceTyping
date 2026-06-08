@@ -6,6 +6,7 @@
 
 import ctypes
 import ctypes.util
+import subprocess
 import threading
 import time
 import sys
@@ -22,6 +23,7 @@ CoreFoundation = ctypes.CDLL(ctypes.util.find_library('CoreFoundation'))
 # 常量
 kCGEventTapOptionListenOnly = 1
 kCGHeadInsertEventTap = 0
+kCGHIDEventTap = 0
 kCGSessionEventTap = 0
 
 kCGEventKeyDown = 10
@@ -112,6 +114,10 @@ Quartz.CGEventTapEnable.argtypes = [CFMachPortRef, ctypes.c_bool]
 Quartz.CGEventTapEnable.restype = None
 Quartz.CGEventTapIsEnabled.argtypes = [CFMachPortRef]
 Quartz.CGEventTapIsEnabled.restype = ctypes.c_bool
+Quartz.CGPreflightListenEventAccess.argtypes = []
+Quartz.CGPreflightListenEventAccess.restype = ctypes.c_bool
+Quartz.CGRequestListenEventAccess.argtypes = []
+Quartz.CGRequestListenEventAccess.restype = ctypes.c_bool
 Quartz.CGEventGetFlags.argtypes = [CGEventRef]
 Quartz.CGEventGetFlags.restype = ctypes.c_uint64
 Quartz.CGEventGetIntegerValueField.argtypes = [CGEventRef, ctypes.c_int32]
@@ -258,6 +264,46 @@ class UniversalKeyListener:
         self._health_timer: Optional[threading.Timer] = None
 
         self._callback_ptr = CGEventTapCallback(self._event_callback)
+
+    @staticmethod
+    def _open_input_monitoring_settings() -> None:
+        if sys.platform != "darwin":
+            return
+        for url in (
+            "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent",
+            "x-apple.systempreferences:com.apple.preference.security?Privacy_InputMonitoring",
+        ):
+            try:
+                subprocess.run(["open", url], check=False)
+                return
+            except Exception:
+                continue
+
+    def _ensure_listen_event_permission(self) -> bool:
+        """Request macOS Input Monitoring permission for background key events."""
+        try:
+            if Quartz.CGPreflightListenEventAccess():
+                print("✅ 输入监控权限已授权")
+                return True
+
+            print(
+                "⚠️ 需要输入监控权限才能在应用后台监听 Fn 快捷键。"
+                "正在请求权限并打开 系统设置 > 隐私与安全 > 输入监控。"
+            )
+            granted = bool(Quartz.CGRequestListenEventAccess())
+            if not granted:
+                from ..util.mac_permissions import prompt_permission
+                prompt_permission("input_monitoring")
+                print(
+                    "⚠️ 输入监控权限尚未授权。请在“系统设置 > 隐私与安全 > 输入监控”"
+                    "中添加并开启 MyVoiceTyping，然后退出并重新打开应用。"
+                )
+            else:
+                print("✅ 输入监控权限已授权")
+            return granted
+        except Exception as e:
+            print(f"⚠️ 检查/请求输入监控权限失败，将继续尝试创建 EventTap: {e}")
+            return True
 
     def _detect_fn_mask(self, flags: int) -> Optional[int]:
         if self._fn_mask is not None:
@@ -455,15 +501,22 @@ class UniversalKeyListener:
             return True
 
         try:
+            if not self._ensure_listen_event_permission():
+                raise PermissionError(
+                    "缺少输入监控权限。请前往：\n"
+                    "系统设置 > 隐私与安全 > 输入监控\n"
+                    "添加并开启 MyVoiceTyping，然后退出并重新打开应用。"
+                )
+
             event_mask = (
                     (1 << kCGEventFlagsChanged) |
                     (1 << kCGEventKeyDown) |
                     (1 << kCGEventKeyUp)
             )
 
-            # 在主线程创建 tap 是安全的，且通常需要
+            print("⌨️ 正在启动全局热键监听（CGHIDEventTap/listen-only）...")
             self._tap = Quartz.CGEventTapCreate(
-                kCGSessionEventTap,
+                kCGHIDEventTap,
                 kCGHeadInsertEventTap,
                 kCGEventTapOptionListenOnly,
                 event_mask,
@@ -474,15 +527,14 @@ class UniversalKeyListener:
             if not self._tap:
                 raise PermissionError(
                     "无法创建 EventTap。请前往：\n"
-                    "系统设置 > 隐私与安全 > 辅助功能\n"
-                    "添加当前终端/IDE 并授权"
+                    "系统设置 > 隐私与安全 > 输入监控\n"
+                    "添加并开启 MyVoiceTyping，然后退出并重新打开应用。"
                 )
 
             self._running = True
             self._health_check()
 
-            if self.debug:
-                print("✅ 键盘监听已启动")
+            print("✅ 全局热键监听已启动")
 
             if blocking:
                 self._run_loop_thread()
@@ -522,6 +574,7 @@ class UniversalKeyListener:
 
             # 4. 启用 Tap
             Quartz.CGEventTapEnable(self._tap, True)
+            print("✅ 全局热键 RunLoop 已启动")
 
             # 5. 运行 RunLoop
             CoreFoundation.CFRunLoopRun()

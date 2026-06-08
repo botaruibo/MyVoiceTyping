@@ -1,4 +1,3 @@
-import random
 import sys
 
 
@@ -6,8 +5,8 @@ import sys
  * macOS 原生 Cocoa 录音浮层（不抢占输入光标）。
  *
  * 设计目标：
- * - 显示在屏幕底部居中，尺寸固定（默认 220x60，与 Tk 版本一致）
- * - 透明背景 + 深色磨砂胶囊 + 系统蓝进度 + 柔和波形
+ * - 显示在屏幕底部居中，尺寸固定
+ * - 透明背景 + 黑色胶囊 + 彩色描边光晕 + 语音助手文案 + 5 条音量竖线
  * - 不抢焦点：不成为 key/main window，不影响当前前台应用的输入光标
  * - 鼠标穿透：不影响点击与输入
  * - 支持全屏/Spaces：设置 collectionBehavior（CanJoinAllSpaces + Transient + FullScreenAuxiliary）
@@ -23,7 +22,7 @@ class CocoaRecordingOverlay:
      * - 必须在主线程调用（通常 Tk 主线程就是主线程）。
      */"""
 
-    def __init__(self, width: int = 80, height: int = 40, bottom_margin: int = 20):
+    def __init__(self, width: int = 140, height: int = 44, bottom_margin: int = 20):
         self._width = int(width)
         self._height = int(height)
         self._bottom_margin = int(bottom_margin)
@@ -432,13 +431,16 @@ def _get_objc_overlay_classes():
         from AppKit import (
             NSBezierPath,
             NSColor,
+            NSFont,
+            NSFontAttributeName,
+            NSForegroundColorAttributeName,
             NSGraphicsContext,
             NSPanel,
             NSRoundLineCapStyle,
             NSRoundLineJoinStyle,
             NSView,
         )
-        from Foundation import NSMakeRect
+        from Foundation import NSMakePoint, NSMakeRect, NSString
     except Exception as e:
         raise RuntimeError(f"PyObjC/Cocoa 依赖不可用: {e}")
 
@@ -499,13 +501,17 @@ def _get_objc_overlay_classes():
 
                     self._volume_level = 0
                     self._progress = 0.0
+                    self._wave_phase = 0
 
                     # 浮层内容布局参数（与窗口尺寸强相关）
-                    self._num_bars = 9
+                    self._num_bars = 5
                     self._bar_width = 2
                     self._gap = 3
-                    self._padding_x = 0
-                    self._padding_y = 6
+                    self._pill_inset = 4
+                    self._content_padding_x = 13
+                    self._wave_right_padding = 18
+                    self._wave_min_h = 4
+                    self._wave_max_h = 19
 
                     try:
                         self.setWantsLayer_(True)
@@ -535,6 +541,10 @@ def _get_objc_overlay_classes():
                         self._volume_level = int(lv)
                     except Exception:
                         self._volume_level = 0
+                    try:
+                        self._wave_phase = int(getattr(self, "_wave_phase", 0) or 0) + 1
+                    except Exception:
+                        self._wave_phase = 0
 
                     try:
                         self.setNeedsDisplay_(True)
@@ -570,15 +580,43 @@ def _get_objc_overlay_classes():
                      */"""
                     w = rect.size.width
                     h = rect.size.height
-                    radius = h / 2.0
+                    inset = float(getattr(self, "_pill_inset", 7) or 7)
+                    pill_rect = NSMakeRect(rect.origin.x + inset, rect.origin.y + inset, w - inset * 2, h - inset * 2)
+                    radius = pill_rect.size.height / 2.0
 
                     try:
-                        # 背景：深色磨砂胶囊。避免纯黑，接近 macOS 浮层/控制中心的视觉气质。
-                        bg_path = NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(rect, radius, radius)
-                        NSColor.colorWithCalibratedRed_green_blue_alpha_(0.055, 0.071, 0.102, 0.86).set()
+                        bg_path = NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(pill_rect, radius, radius)
+
+                        # 背景先画，避免后续光晕/文字绘制失败时整个浮窗透明。
+                        NSColor.colorWithCalibratedRed_green_blue_alpha_(0.0, 0.0, 0.0, 0.96).set()
+                        bg_path.fill()
+                    except Exception:
+                        pass
+
+                    try:
+                        bg_path = NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(pill_rect, radius, radius)
+
+                        # 彩色柔光：用几层不同颜色的圆角描边叠出截图中的彩边气质。
+                        glow_specs = [
+                            (3.5, 0.20, (0.95, 0.72, 0.22)),
+                            (2.5, 0.26, (0.93, 0.34, 0.72)),
+                            (1.8, 0.28, (0.49, 0.35, 1.00)),
+                            (1.1, 0.30, (0.18, 0.74, 1.00)),
+                        ]
+                        for line_w, alpha, rgb in glow_specs:
+                            NSColor.colorWithCalibratedRed_green_blue_alpha_(rgb[0], rgb[1], rgb[2], alpha).set()
+                            bg_path.setLineWidth_(line_w)
+                            bg_path.stroke()
+                    except Exception:
+                        pass
+
+                    try:
+                        bg_path = NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(pill_rect, radius, radius)
+                        # 覆盖一次黑色主体，让彩色描边主要留在外缘。
+                        NSColor.colorWithCalibratedRed_green_blue_alpha_(0.0, 0.0, 0.0, 0.96).set()
                         bg_path.fill()
 
-                        # 系统蓝色进度覆盖层（从左向右增长）
+                        # 转写阶段保留轻量进度覆盖层（从左向右增长），不影响录音态样式。
                         try:
                             progress = float(getattr(self, "_progress", 0.0) or 0.0)
                             progress = max(0.0, min(1.0, progress))
@@ -593,13 +631,10 @@ def _get_objc_overlay_classes():
                                 except Exception:
                                     pass
 
-                                pw = w * progress
+                                pw = pill_rect.size.width * progress
                                 if pw > 0.5:
-                                    overlay_rect = NSMakeRect(rect.origin.x, rect.origin.y, pw, h)
-                                    try:
-                                        NSColor.systemBlueColor().colorWithAlphaComponent_(0.36).set()
-                                    except Exception:
-                                        NSColor.colorWithCalibratedRed_green_blue_alpha_(0.20, 0.52, 0.96, 0.36).set()
+                                    overlay_rect = NSMakeRect(pill_rect.origin.x, pill_rect.origin.y, pw, pill_rect.size.height)
+                                    NSColor.colorWithCalibratedRed_green_blue_alpha_(0.00, 0.48, 1.00, 0.32).set()
                                     NSBezierPath.fillRect_(overlay_rect)
 
                                 try:
@@ -609,63 +644,66 @@ def _get_objc_overlay_classes():
                         except Exception:
                             pass
 
-                        # 柔和描边：stroke 会以 path 为中心向内/向外各扩一半线宽。
-                        # 如果直接对 rect stroke，会因为外侧被裁剪，导致圆角处“看起来粗细不均匀”。
-                        # 因此这里把描边路径向内 inset（线宽/2），保证描边完全落在可见区域内。
-                        border_lw = max(1.0, min(1.0, float(h) * 0.12))
-                        inset = border_lw / 2.0
-                        bw = w - inset * 2.0
-                        bh = h - inset * 2.0
-                        if bw > 1.0 and bh > 1.0:
-                            border_rect = NSMakeRect(rect.origin.x + inset, rect.origin.y + inset, bw, bh)
-                            border_radius = bh / 2.0
-
-                            border_path = NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(
-                                border_rect,
-                                border_radius,
-                                border_radius,
-                            )
-                            try:
-                                border_path.setLineJoinStyle_(NSRoundLineJoinStyle)
-                            except Exception:
-                                pass
-                            try:
-                                border_path.setLineCapStyle_(NSRoundLineCapStyle)
-                            except Exception:
-                                pass
-
-                            NSColor.whiteColor().colorWithAlphaComponent_(0.42).set()
-                            border_path.setLineWidth_(border_lw)
-                            border_path.stroke()
+                        border_path = NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(pill_rect, radius, radius)
+                        try:
+                            border_path.setLineJoinStyle_(NSRoundLineJoinStyle)
+                            border_path.setLineCapStyle_(NSRoundLineCapStyle)
+                        except Exception:
+                            pass
+                        NSColor.whiteColor().colorWithAlphaComponent_(0.22).set()
+                        border_path.setLineWidth_(1.0)
+                        border_path.stroke()
                     except Exception:
                         pass
 
                     try:
-                        content_h = max(1.0, h - self._padding_y * 2)
-                        total_width = self._num_bars * (self._bar_width + self._gap) - self._gap
-                        start_x = (w - total_width) / 2.0
+                        text = NSString.stringWithString_("语音输入")
+                        font = NSFont.boldSystemFontOfSize_(13.0)
+                        attrs = {
+                            NSFontAttributeName: font,
+                            NSForegroundColorAttributeName: NSColor.whiteColor(),
+                        }
+                        text_size = text.sizeWithAttributes_(attrs)
+                        text_x = pill_rect.origin.x + float(getattr(self, "_content_padding_x", 24) or 24)
+                        text_y = pill_rect.origin.y + (pill_rect.size.height - text_size.height) / 2.0 - 1.0
+                        text.drawAtPoint_withAttributes_(NSMakePoint(text_x, text_y), attrs)
+                    except Exception:
+                        pass
 
-                        max_bar_h = max(1.0, content_h)
-                        min_bar_h = 0.0
-
+                    try:
                         lv = max(0, min(100, int(getattr(self, "_volume_level", 0) or 0)))
-                        base_max_h = min_bar_h + (max_bar_h - min_bar_h) * (lv / 100.0)
+                        num_bars = int(getattr(self, "_num_bars", 5) or 5)
+                        bar_w = float(getattr(self, "_bar_width", 4) or 4)
+                        gap = float(getattr(self, "_gap", 6) or 6)
+                        min_h = float(getattr(self, "_wave_min_h", 8) or 8)
+                        max_h = float(getattr(self, "_wave_max_h", 38) or 38)
+                        total_width = num_bars * bar_w + (num_bars - 1) * gap
+                        start_x = pill_rect.origin.x + pill_rect.size.width - float(getattr(self, "_wave_right_padding", 36) or 36) - total_width
+                        center_y = pill_rect.origin.y + pill_rect.size.height / 2.0
+                        norm = lv / 100.0
+                        base_h = min_h + (max_h - min_h) * norm
+                        phase = int(getattr(self, "_wave_phase", 0) or 0)
+                        patterns = [
+                            [0.42, 0.78, 1.0, 0.72, 0.50],
+                            [0.56, 0.92, 0.76, 1.0, 0.44],
+                            [0.38, 0.68, 1.0, 0.88, 0.62],
+                            [0.50, 1.0, 0.70, 0.86, 0.46],
+                        ]
+                        multipliers = patterns[phase % len(patterns)]
 
                         NSColor.whiteColor().colorWithAlphaComponent_(0.92).set()
 
-                        for i in range(self._num_bars):
-                            distance = abs(i - self._num_bars // 2)
-                            damp = 1.0 - (distance / (self._num_bars / 2.0)) ** 2
-                            damp = max(0.0, min(1.0, damp))
+                        for i in range(num_bars):
+                            mul = multipliers[i] if i < len(multipliers) else 0.65
+                            idle_lift = 1.0 if lv > 0 else (1.0 if i == num_bars // 2 else 0.55)
+                            bar_h = max(2.0, base_h * mul * idle_lift)
 
-                            jitter = random.uniform(0.85, 1.15)
-                            bar_h = max(min_bar_h, base_max_h * damp * jitter)
+                            x0 = start_x + i * (bar_w + gap)
+                            y0 = center_y - bar_h / 2.0
+                            bar_rect = NSMakeRect(x0, y0, bar_w, bar_h)
+                            bar_path = NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(bar_rect, bar_w / 2.0, bar_w / 2.0)
 
-                            x0 = start_x + i * (self._bar_width + self._gap)
-                            y0 = (h - bar_h) / 2.0
-                            bar_rect = NSMakeRect(x0, y0, self._bar_width, bar_h)
-
-                            NSBezierPath.fillRect_(bar_rect)
+                            bar_path.fill()
                     except Exception:
                         pass
 

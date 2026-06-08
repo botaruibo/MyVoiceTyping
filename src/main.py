@@ -5,8 +5,11 @@ TypelessApp 类 - 无界输入法核心应用
 import os
 import sys
 import time
+import json
 import threading
 import subprocess
+from datetime import datetime
+from pathlib import Path
 
 """/**
  * 兜底记录应用启动时间戳（秒）。
@@ -15,13 +18,13 @@ import subprocess
  * - 正常情况下由 `run.py` 最早写入该环境变量。
  * - 若用户直接运行 `python -m src.main` 或直接运行本文件，也保证存在该变量。
  */"""
-os.environ.setdefault("MYVOICEINPUT_APP_START_TS", str(time.time()))
+os.environ.setdefault("MYVOICETYPING_APP_START_TS", str(time.time()))
 
 from .components.config_manager import get_config_manager
 
 class FlashInputApp:
     def __init__(self):
-        self.app_name = "闪电输入"
+        self.app_name = "MyVoiceTyping"
         # 状态栏应用实例
         self.status_bar_app = None
         self.config_manager = None
@@ -92,6 +95,18 @@ class FlashInputApp:
                     provider = self.config_manager.get("LLM_TEXT_PROVIDER")
                     if bool(self.config_manager.get("FORMAT_TEXT")) and provider == "cloud_llm":
                         self.rewriter.init_remote_llm_async(reason="post_gui_load")
+                    if (
+                        bool(self.config_manager.get("FORMAT_TEXT"))
+                        and provider in {"llama_cpp", "local_llama_cpp", "gguf"}
+                        and bool(self.config_manager.get("preload_llama_cpp_on_startup", True))
+                    ):
+                        self.rewriter.init_local_llama_cpp_async(reason="post_gui_load")
+                    if (
+                        bool(self.config_manager.get("FORMAT_TEXT"))
+                        and provider in {"local_mlx_corrector", "local_mlx", "mlx"}
+                        and bool(self.config_manager.get("preload_local_mlx_corrector_on_startup", True))
+                    ):
+                        self.rewriter.init_local_mlx_corrector_async(reason="post_gui_load")
                 except Exception as e:
                     self.rewriter = None
                     print(f"⚠️ 初始化 rewriter 失败（将降级为不改写）: {e}")
@@ -150,11 +165,11 @@ class FlashInputApp:
                      * 统计：应用启动 -> STTProcessor 初始化完成耗时。
                      *
                      * 说明：
-                     * - 使用 `run.py` / `src/main.py` 写入的 `MYVOICEINPUT_APP_START_TS`。
+                     * - 使用 `run.py` / `src/main.py` 写入的 `MYVOICETYPING_APP_START_TS`。
                      */"""
                     elapsed_s = None
                     try:
-                        start_ts_str = os.environ.get("MYVOICEINPUT_APP_START_TS", "")
+                        start_ts_str = os.environ.get("MYVOICETYPING_APP_START_TS", "")
                         start_ts = float(start_ts_str) if start_ts_str else None
                         if start_ts is not None:
                             elapsed_s = time.time() - start_ts
@@ -224,11 +239,65 @@ class FlashInputApp:
                 and provider == "cloud_llm"
             ):
                 self.rewriter.init_remote_llm_async(reason="lazy_get")
+            if (
+                self.config_manager is not None
+                and bool(self.config_manager.get("FORMAT_TEXT"))
+                and provider in {"local_mlx_corrector", "local_mlx", "mlx"}
+                and bool(self.config_manager.get("preload_local_mlx_corrector_on_startup", True))
+            ):
+                self.rewriter.init_local_mlx_corrector_async(reason="lazy_get")
             return self.rewriter
         except Exception as e:
             print(f"⚠️ 获取 rewriter 失败（将降级为不改写）: {e}")
             self.rewriter = None
             return None
+
+    @staticmethod
+    def _text_char_count(text: str) -> int:
+        return len("".join(str(text or "").split()))
+
+    def _record_transcription_history(
+        self,
+        audio_path: str | None,
+        raw_text: str,
+        final_text: str,
+    ) -> dict | None:
+        if self.config_manager is None:
+            self.config_manager = get_config_manager()
+
+        transcripts_dir = self.config_manager.get_transcripts_dir()
+        transcripts_dir.mkdir(parents=True, exist_ok=True)
+
+        now = datetime.now()
+        record_id = now.strftime("%Y%m%d_%H%M%S_%f")
+        history_path = transcripts_dir / "voice_history.jsonl"
+        audio_file_name = Path(audio_path).name if audio_path else f"{record_id}.wav"
+
+        payload = {
+            "id": record_id,
+            "dataId": audio_file_name,
+            "created_at": now.isoformat(timespec="seconds"),
+            "audio_path": str(audio_path or ""),
+            "raw_text": raw_text or "",
+            "final_text": final_text or raw_text or "",
+            "char_count": self._text_char_count(final_text or raw_text),
+        }
+
+        try:
+            with history_path.open("a", encoding="utf-8") as f:
+                f.write(json.dumps(payload, ensure_ascii=False) + "\n")
+            print(f"✅ 已记录转写历史: {history_path}")
+        except Exception as e:
+            print(f"⚠️ 保存转写历史失败（可忽略）: {e}")
+            return None
+
+        try:
+            if self.gui is not None and hasattr(self.gui, "notify_transcription_record_added"):
+                self.gui.notify_transcription_record_added(payload)
+        except Exception as e:
+            print(f"⚠️ 通知 GUI 刷新历史失败（可忽略）: {e}")
+
+        return payload
 
     def _register_hotkeys_from_config(self) -> None:
         # 1. 初始化（如果尚未存在）
@@ -250,7 +319,6 @@ class FlashInputApp:
 
             # 3. 注册新热键
             press_hotkey = self.config_manager.get("press_hotkey")
-            toggle_hotkey = self.config_manager.get("toggle_hotkey")
 
             if press_hotkey:
                 self.hotkey.register(press_hotkey,
@@ -258,11 +326,8 @@ class FlashInputApp:
                                      on_release=self.stop_recording
                                      )
 
-            if toggle_hotkey:
-                self.hotkey.register(toggle_hotkey,
-                                     on_press=self.toggle_recording,
-                                     on_release=None
-                                     )
+            # 免提模式暂不对外支持：保留 toggle_recording 和 toggle_hotkey 配置，
+            # 但不注册热键，避免用户误触发隐藏能力。
 
         except Exception as e:
             print(f"\n❌ 热键注册错误: {e}")
@@ -282,6 +347,8 @@ class FlashInputApp:
                     self.hotkey.listener.start(blocking=True)
                 except PermissionError as e:
                     print(f"\n❌ 权限错误: {e}")
+                    from .util.mac_permissions import prompt_permission
+                    prompt_permission("input_monitoring")
                 except Exception as e:
                     print(f"\n❌ 错误: {e}")
                 finally:
@@ -670,12 +737,58 @@ class FlashInputApp:
         duration_ms = (byte_len / 2.0) / max(1, sample_rate) * 1000.0
         return duration_ms < min_duration_ms, duration_ms, min_duration_ms
 
+    def _force_reset_after_stuck(self) -> None:
+        """
+        /**
+         * 兜底复位：当上一次录音/转写流程异常未走完时，强制把所有相关状态
+         * 拨回初始值，保证下一次按热键能正常工作。
+         *
+         * 触发场景：
+         * - sounddevice stop 卡住，导致 stop_recording 整链路 hang。
+         * - GUI 浮窗未隐藏 / speaker 静音状态未恢复。
+         * - _is_processing 因为异常未在 finally 复位。
+         */
+        """
+        # 1. 浮窗
+        try:
+            self._hide_recording_overlay_safe()
+        except Exception:
+            pass
+
+        # 2. speaker 静音状态
+        try:
+            self._maybe_restore_speaker_after_recording()
+        except Exception:
+            pass
+        with self._speaker_state_lock:
+            self._speaker_prev_settings = None
+
+        # 3. audio recorder 状态
+        try:
+            if self.audio_recorder is not None:
+                self.audio_recorder.is_recording = False
+                self.audio_recorder.record_thread = None
+        except Exception:
+            pass
+
+        # 4. 处理标记
+        with self._processing_lock:
+            self._is_processing = False
+
     def start_recording(self) -> None:
         try:
             self._ensure_audio_recorder()
 
+            # 防御：上一次 stop_recording 卡住时，is_recording 可能仍是 True，
+            # 或 record_thread 残留。这里先做一次兜底复位，避免本次按键被吞。
+            stuck_thread = getattr(self.audio_recorder, "record_thread", None)
             if getattr(self.audio_recorder, "is_recording", False):
-                return
+                if stuck_thread is None or not stuck_thread.is_alive():
+                    print("⚠️ 检测到 is_recording 残留 True，但录音线程已结束，强制复位")
+                    self._force_reset_after_stuck()
+                else:
+                    # 录音线程还活着说明本次按键被视为重复按下，按原语义忽略
+                    return
 
             try:
                 if self.gui is not None and hasattr(self.gui, "show_recording_overlay"):
@@ -708,9 +821,11 @@ class FlashInputApp:
         except Exception as e:
             self._hide_recording_overlay_safe()
             self._set_status(f"停止录音失败：{e}", is_error=True)
+            # 异常路径同样要兜底复位 speaker / 状态机
+            self._force_reset_after_stuck()
             return
         finally:
-            # 无论停止录音是否成功，都尽力恢复外放（避免一直静音
+            # 无论停止录音是否成功，都尽力恢复外放（避免一直静音）
             try:
                 self._maybe_restore_speaker_after_recording()
             except Exception:
@@ -738,6 +853,8 @@ class FlashInputApp:
                 daemon=True,
             ).start()
         except Exception as e:
+            # 启动转写线程失败：浮窗也要复位，避免一直显示
+            self._hide_recording_overlay_safe()
             self._set_status(f"停止录音失败：{e}", is_error=True)
 
     def toggle_recording(self) -> None:
@@ -766,12 +883,14 @@ class FlashInputApp:
             self._set_status("语音转录中…")
             self._ensure_stt_ready()
             trans_time = time.time()
-            text = self.stt_processor.transcribe(audio_data)
-            print("语音转录结果:", text)
+            raw_text = self.stt_processor.transcribe(audio_data)
+            final_text = raw_text
+            audio_path = getattr(self.stt_processor, "last_audio_path", None)
+            print("语音转录结果:", raw_text)
             print(f"转录耗时 {time.time() - trans_time:.2f}s（从处理开始算起）")
 
 
-            if not text:
+            if not raw_text:
                 print("ℹ️ 转写结果为空，跳过改写")
             else:
                 try:
@@ -784,19 +903,24 @@ class FlashInputApp:
                             print("⚠️ rewriter 不可用，跳过改写")
                         else:
                             rewrite_time = time.time()
-                            text = rewriter.rewrite(text)
+                            final_text = rewriter.rewrite(raw_text)
                             print(f"文本改写耗时 {time.time() - rewrite_time:.2f}s")
-                            print(f"✅ 格式化改写后的文本: {text}")
+                            print(f"✅ 格式化改写后的文本: {final_text}")
                     else:
                         print("ℹ️ FORMAT_TEXT 未开启，跳过改写")
                 except Exception as e:
                     print(f"⚠️ 文本改写失败（将使用原转写结果）: {e}")
+                    final_text = raw_text
+
+            if raw_text or final_text:
+                self._record_transcription_history(audio_path, raw_text, final_text)
 
             self._set_status("写入中…")
             # 隐藏掉录音提示框
             self._hide_recording_overlay_safe()
 
-            self.write_appname_to_cursor(text)
+            if not self.write_appname_to_cursor(final_text):
+                print("⚠️ 文本已转录，但没有成功触发粘贴。请检查“辅助功能”权限或当前输入焦点。")
         except Exception as e:
             self._hide_recording_overlay_safe()
             self._set_status(f"转写/写入失败：{e}", is_error=True)
@@ -941,10 +1065,14 @@ class FlashInputApp:
         except Exception as e:
             print(f"❌ 写入失败：所有输入方案均失败: {e}")
 
-    def write_appname_to_cursor(self, voice_input: str) -> None:
+    def write_appname_to_cursor(self, voice_input: str) -> bool:
         import pyperclip
 
         try:
+            if not voice_input:
+                print("⚠️ 写入文本为空，跳过写入")
+                return False
+
             # 1. 写入剪贴板
             pyperclip.copy(voice_input)
             print(f"✅ 已写入剪贴板: {voice_input[:20]}...")
@@ -961,7 +1089,7 @@ class FlashInputApp:
             print(f"❌ 写入失败: {e}")
             return False
 
-    def paste_with_cgevent(self):
+    def paste_with_cgevent(self) -> bool:
         import ctypes
         import ctypes.util
         import sys
@@ -972,6 +1100,20 @@ class FlashInputApp:
         try:
             # 加载框架
             cg = ctypes.CDLL(ctypes.util.find_library('CoreGraphics'))
+
+            try:
+                from .util.mac_permissions import is_accessibility_trusted, request_accessibility_permission
+
+                if not is_accessibility_trusted(prompt=False):
+                    print("⚠️ 需要辅助功能权限才能把文本粘贴到其他应用，正在请求权限...")
+                    if not request_accessibility_permission():
+                        print(
+                            "⚠️ 辅助功能权限尚未授权。请在“系统设置 > 隐私与安全 > 辅助功能”"
+                            "中添加并开启 MyVoiceTyping，然后退出并重新打开应用。"
+                        )
+                        return False
+            except Exception as e:
+                print(f"⚠️ 辅助功能权限预检失败，将继续尝试 CGEvent 粘贴: {e}")
 
             # 配置函数参数类型（关键！避免类型错误）
             cg.CGEventSourceCreate.restype = ctypes.c_void_p
@@ -999,6 +1141,7 @@ class FlashInputApp:
             cg.CGEventPost(0, v_down)
             cg.CGEventPost(0, v_up)
 
+            print("✅ 已触发 CGEvent Cmd+V 粘贴")
             return True
 
         except Exception as e:
@@ -1065,7 +1208,7 @@ class FlashInputApp:
     #         # 显示引导界面，包含截图和步骤说明
     #         self._show_permission_guide(
     #             title="需要辅助功能权限",
-    #             description="闪电输入需要此权限来监听全局快捷键和在任何应用中输入文本。",
+    #             description="MyVoiceTyping 需要此权限来监听全局快捷键和在任何应用中输入文本。",
     #             setting_url="x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
     #         )
     #
