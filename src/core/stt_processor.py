@@ -15,16 +15,12 @@ class STTProcessor:
         self.last_audio_path: str | None = None
 
     def _init_provider(self):
-        """根据配置初始化STT提供者"""
+        """初始化本地 FunASR STT provider。"""
         stt_provider = self.config.get("STT_PROVIDER")
-        if stt_provider == "openai_api":
-            from .stt_cloud_processor import CloudSTTProcessor
-            return CloudSTTProcessor(self.config)
-        elif stt_provider == "funasr":
-            from .stt_local_processor import LocalSTTProcessor
-            return LocalSTTProcessor(self.config)
-        else:
+        if stt_provider != "funasr":
             raise ValueError(f"不支持的STT提供者: {stt_provider}")
+        from .stt_local_processor import LocalSTTProcessor
+        return LocalSTTProcessor(self.config)
 
     def transcribe(self, audio_frames):
         """

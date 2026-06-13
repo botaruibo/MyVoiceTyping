@@ -32,7 +32,6 @@ class FlashInputApp:
         self.audio_recorder = None
         self.stt_processor = None
         self.rewriter = None
-        self.window_info = None
 
         self.hotkey = None
 
@@ -49,6 +48,9 @@ class FlashInputApp:
 
         self._post_gui_load_started = False
         self._post_gui_load_lock = threading.Lock()
+
+        self._model_bootstrap_started = False
+        self._model_bootstrap_lock = threading.Lock()
 
     def on_gui_ready(self) -> None:
         """/**
@@ -91,33 +93,12 @@ class FlashInputApp:
                 try:
                     from .core.text_rewrite import get_rewriter
 
+                    # 仅创建轻量 rewriter 实例；本地模型的下载与预加载统一由
+                    # start_model_bootstrap -> _preload_local_rewriter 处理。
                     self.rewriter = get_rewriter()
-                    provider = self.config_manager.get("LLM_TEXT_PROVIDER")
-                    if bool(self.config_manager.get("FORMAT_TEXT")) and provider == "cloud_llm":
-                        self.rewriter.init_remote_llm_async(reason="post_gui_load")
-                    if (
-                        bool(self.config_manager.get("FORMAT_TEXT"))
-                        and provider in {"llama_cpp", "local_llama_cpp", "gguf"}
-                        and bool(self.config_manager.get("preload_llama_cpp_on_startup", True))
-                    ):
-                        self.rewriter.init_local_llama_cpp_async(reason="post_gui_load")
-                    if (
-                        bool(self.config_manager.get("FORMAT_TEXT"))
-                        and provider in {"local_mlx_corrector", "local_mlx", "mlx"}
-                        and bool(self.config_manager.get("preload_local_mlx_corrector_on_startup", True))
-                    ):
-                        self.rewriter.init_local_mlx_corrector_async(reason="post_gui_load")
                 except Exception as e:
                     self.rewriter = None
                     print(f"⚠️ 初始化 rewriter 失败（将降级为不改写）: {e}")
-
-                try:
-                    from .core.window_info import WindowInfo
-
-                    self.window_info = WindowInfo()
-                except Exception as e:
-                    self.window_info = None
-                    print(f"⚠️ 初始化 WindowInfo 失败（可能影响窗口信息/光标定位）: {e}")
 
                 try:
                     from .components.audio_recorder import AudioRecorder
@@ -141,6 +122,109 @@ class FlashInputApp:
 
         threading.Thread(target=_worker, daemon=True).start()
 
+
+    def start_model_bootstrap(self) -> None:
+        """/**
+         * 启动时集中检查并按需下载全部本地模型（仅下载，不加载到内存）。
+         *
+         * 覆盖 3 个模型：
+         * - 语音转录：SenseVoiceSmall-onnx
+         * - 标点恢复：punc_ct-onnx
+         * - 文本纠错：本地 GGUF 中文纠错模型（仅当 format_text 开启且使用 llama.cpp provider 时）
+         *
+         * 下载完成后再触发 STT 加载与本地改写模型预加载，避免两个线程同时
+         * 下载同一目录造成竞争。
+         *
+         * @returns {void}
+         */"""
+        with self._model_bootstrap_lock:
+            if self._model_bootstrap_started:
+                return
+            self._model_bootstrap_started = True
+
+        def _worker() -> None:
+            try:
+                if self.config_manager is None:
+                    self.config_manager = get_config_manager()
+
+                self._set_status("正在检查本地模型…")
+
+                from .core.stt_local_processor import (
+                    STT_MODEL_ID,
+                    PUNC_MODEL_ID,
+                    is_model_downloaded,
+                    ensure_model_files,
+                )
+
+                for label, model_id in (
+                    ("语音转录", STT_MODEL_ID),
+                    ("标点恢复", PUNC_MODEL_ID),
+                ):
+                    try:
+                        if is_model_downloaded(model_id):
+                            print(f"✅ {label}模型已存在: {model_id}")
+                            continue
+                        self._set_status(f"正在下载{label}模型…")
+                        ensure_model_files(model_id)
+                    except Exception as e:
+                        print(f"⚠️ {label}模型检查/下载失败: {e}")
+
+                # 文本纠错模型：语音模型完成后再检查；是否预加载仍由 format_text 控制。
+                provider = self.config_manager.get("LLM_TEXT_PROVIDER")
+                if provider in {"llama_cpp", "local_llama_cpp", "gguf"}:
+                    try:
+                        from .core.text_rewrite import LocalLlamaCppRewrite
+
+                        self._set_status("正在检查文本纠错模型…")
+                        # ensure_model_downloaded 内部已做存在性判断，存在则跳过
+                        LocalLlamaCppRewrite().ensure_model_downloaded()
+                        print("✅ 文本纠错模型已就绪")
+                    except Exception as e:
+                        print(f"⚠️ 文本纠错模型检查/下载失败: {e}")
+
+                self._set_status("本地模型检查完成")
+            except Exception as e:
+                print(f"❌ 模型检查/下载流程异常: {e}")
+            finally:
+                # 下载就绪后再触发加载与预加载（在各自的异步方法里完成）
+                try:
+                    if bool(self.config_manager.get("preload_stt_on_startup", True)):
+                        self.init_stt_async()
+                except Exception as e:
+                    print(f"⚠️ 触发 STT 预加载失败: {e}")
+                try:
+                    self._preload_local_rewriter()
+                except Exception as e:
+                    print(f"⚠️ 触发本地改写模型预加载失败: {e}")
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+
+    def _preload_local_rewriter(self) -> None:
+        """/**
+         * 按当前 provider 预加载本地改写所需的 LLM 模型。
+         *
+         * 与 STT 预加载对称：把模型加载/预热成本吸收到启动期。
+         * 仅在开启 format_text 且使用对应本地 provider 时触发。
+         *
+         * @returns {void}
+         */"""
+        if self.config_manager is None:
+            self.config_manager = get_config_manager()
+        if not bool(self.config_manager.get("FORMAT_TEXT")):
+            return
+        provider = self.config_manager.get("LLM_TEXT_PROVIDER")
+
+        from .core.text_rewrite import get_rewriter
+
+        if self.rewriter is None:
+            self.rewriter = get_rewriter()
+
+        if (
+            provider in {"llama_cpp", "local_llama_cpp", "gguf"}
+            and bool(self.config_manager.get("preload_llama_cpp_on_startup", True))
+        ):
+            self.rewriter.init_local_llama_cpp_async(reason="model_bootstrap")
 
     def init_stt_async(self) -> None:
         def _worker() -> None:
@@ -242,10 +326,10 @@ class FlashInputApp:
             if (
                 self.config_manager is not None
                 and bool(self.config_manager.get("FORMAT_TEXT"))
-                and provider in {"local_mlx_corrector", "local_mlx", "mlx"}
-                and bool(self.config_manager.get("preload_local_mlx_corrector_on_startup", True))
+                and provider in {"llama_cpp", "local_llama_cpp", "gguf"}
+                and bool(self.config_manager.get("preload_llama_cpp_on_startup", True))
             ):
-                self.rewriter.init_local_mlx_corrector_async(reason="lazy_get")
+                self.rewriter.init_local_llama_cpp_async(reason="lazy_get")
             return self.rewriter
         except Exception as e:
             print(f"⚠️ 获取 rewriter 失败（将降级为不改写）: {e}")
@@ -370,9 +454,6 @@ class FlashInputApp:
          */
         """
 
-        if sys.platform != "darwin":
-            raise RuntimeError("当前系统非 macOS，无法执行 osascript")
-
         try:
             proc = subprocess.run(
                 ["osascript", "-e", script],
@@ -385,66 +466,6 @@ class FlashInputApp:
             stderr = (e.stderr or "").strip()
             raise RuntimeError(f"osascript 执行失败: {stderr}") from e
 
-    def _windows_waveout_get_volume(self) -> int:
-        """
-        /**
-         * Windows：读取 waveOut 音量（左右声道各 16-bit，打包为 32-bit）。
-         *
-         * 说明：
-         * - 这是一个“系统级”音量接口（更接近旧式 waveOut 设备）。
-         * - 优点：不需要额外 pip 依赖；缺点：与新式应用的每应用音量不完全等价。
-         * - 对“录音期间静音外放”场景足够实用。
-         *
-         * @returns {number} packed_volume
-         * @throws {RuntimeError} 获取失败
-         */
-        """
-
-        import ctypes
-        from ctypes import wintypes
-
-        winmm = ctypes.WinDLL("winmm")
-        wave_out_get_volume = winmm.waveOutGetVolume
-        wave_out_get_volume.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
-        wave_out_get_volume.restype = wintypes.UINT
-
-        volume = wintypes.DWORD(0)
-
-        # 优先使用 WAVE_MAPPER(-1)，失败再尝试 0
-        for hwo in (ctypes.c_void_p(-1), ctypes.c_void_p(0)):
-            rc = wave_out_get_volume(hwo, ctypes.byref(volume))
-            if rc == 0:
-                return int(volume.value)
-
-        raise RuntimeError(f"waveOutGetVolume 失败，错误码: {rc}")
-
-    def _windows_waveout_set_volume(self, packed_volume: int) -> None:
-        """
-        /**
-         * Windows：设置 waveOut 音量。
-         *
-         * @param packed_volume 32-bit packed volume
-         * @returns {void}
-         * @throws {RuntimeError} 设置失败
-         */
-        """
-
-        import ctypes
-        from ctypes import wintypes
-
-        winmm = ctypes.WinDLL("winmm")
-        wave_out_set_volume = winmm.waveOutSetVolume
-        wave_out_set_volume.argtypes = [wintypes.HANDLE, wintypes.DWORD]
-        wave_out_set_volume.restype = wintypes.UINT
-
-        packed = wintypes.DWORD(int(packed_volume) & 0xFFFFFFFF)
-
-        for hwo in (ctypes.c_void_p(-1), ctypes.c_void_p(0)):
-            rc = wave_out_set_volume(hwo, packed)
-            if rc == 0:
-                return
-
-        raise RuntimeError(f"waveOutSetVolume 失败，错误码: {rc}")
 
     def _macos_get_volume_settings(self) -> dict:
         """
@@ -547,31 +568,13 @@ class FlashInputApp:
          * 获取系统外放设置（音量/静音）。
          *
          * - macOS：使用 AppleScript 获取 output volume/output muted
-         * - Windows：使用 waveOutGetVolume 获取 packed volume（并推算一个 0~100 的近似音量）
          *
          * @returns {object} 当前外放设置（含 platform 字段）
          */
         """
 
-        if sys.platform == "darwin":
-            s = self._macos_get_volume_settings()
-            return {"platform": "darwin", "output_volume": s["output_volume"], "output_muted": s["output_muted"]}
-
-        if sys.platform == "win32":
-            packed = self._windows_waveout_get_volume()
-            left = packed & 0xFFFF
-            right = (packed >> 16) & 0xFFFF
-            avg = int((left + right) / 2)
-            approx_volume = int(round(avg / 0xFFFF * 100)) if avg > 0 else 0
-            approx_muted = left == 0 and right == 0
-            return {
-                "platform": "win32",
-                "waveout_volume": packed,
-                "output_volume": approx_volume,
-                "output_muted": approx_muted,
-            }
-
-        return {"platform": sys.platform, "supported": False}
+        s = self._macos_get_volume_settings()
+        return {"platform": "darwin", "output_volume": s["output_volume"], "output_muted": s["output_muted"]}
 
     def _set_speaker_settings(self, output_volume: int, output_muted: bool) -> None:
         """
@@ -579,7 +582,6 @@ class FlashInputApp:
          * 设置系统外放设置（音量/静音）。
          *
          * - macOS：通过 AppleScript 设置音量/静音
-         * - Windows：通过 waveOutSetVolume 设置音量（output_muted=true 时设为 0）
          *
          * @param output_volume 音量 0~100
          * @param output_muted 是否静音
@@ -589,30 +591,16 @@ class FlashInputApp:
 
         vol = int(max(0, min(100, int(output_volume))))
 
-        if sys.platform == "darwin":
-            muted_literal = "true" if bool(output_muted) else "false"
-            script = (
-                f"set volume output volume {vol}\n"
-                f"if {muted_literal} then\n"
-                "  set volume with output muted\n"
-                "else\n"
-                "  set volume without output muted\n"
-                "end if\n"
-            )
-            self._osascript(script)
-            return
-
-        if sys.platform == "win32":
-            if output_muted:
-                self._windows_waveout_set_volume(0)
-                return
-
-            level = int(round(vol / 100 * 0xFFFF))
-            packed = (level & 0xFFFF) | ((level & 0xFFFF) << 16)
-            self._windows_waveout_set_volume(packed)
-            return
-
-        raise RuntimeError(f"当前系统不支持设置外放音量/静音: {sys.platform}")
+        muted_literal = "true" if bool(output_muted) else "false"
+        script = (
+            f"set volume output volume {vol}\n"
+            f"if {muted_literal} then\n"
+            "  set volume with output muted\n"
+            "else\n"
+            "  set volume without output muted\n"
+            "end if\n"
+        )
+        self._osascript(script)
 
     def _is_mute_speaker_enabled(self) -> bool:
         """
@@ -641,31 +629,16 @@ class FlashInputApp:
         if not self._is_mute_speaker_enabled():
             return
 
-        # 仅支持 macOS/Windows
-        if sys.platform not in ("darwin", "win32"):
-            return
-
         with self._speaker_state_lock:
             if self._speaker_prev_settings is not None:
                 return
 
             try:
-                if sys.platform == "darwin":
-                    prev = self._macos_get_settings_and_mute()
-                    self._speaker_prev_settings = prev
-                    print("🔇 已静音系统外放（macOS 单次 osascript）")
-                    return
-
-                # Windows
-                prev = self._get_speaker_settings()
-                if not isinstance(prev, dict) or prev.get("supported") is False:
-                    print(f"⚠️ 当前系统不支持静音外放（platform={sys.platform}），已跳过")
-                    self._speaker_prev_settings = None
-                    return
-
+                prev = self._macos_get_settings_and_mute()
                 self._speaker_prev_settings = prev
-                self._set_speaker_settings(prev.get("output_volume", 0), True)
-                print("🔇 已静音系统外放（Windows waveOut）")
+                print("🔇 已静音系统外放（macOS 单次 osascript）")
+                return
+
             except Exception as e:
                 self._speaker_prev_settings = None
                 print(f"⚠️ 静音系统外放失败（已跳过，不影响录音）: {e}")
@@ -678,10 +651,6 @@ class FlashInputApp:
          * @returns {void}
          */
         """
-        # 仅支持 macOS/Windows
-        if sys.platform not in ("darwin", "win32"):
-            return
-
         with self._speaker_state_lock:
             prev = self._speaker_prev_settings
             self._speaker_prev_settings = None
@@ -690,19 +659,10 @@ class FlashInputApp:
             return
 
         try:
-            if prev.get("platform") == "win32" and "waveout_volume" in prev:
-                self._windows_waveout_set_volume(int(prev["waveout_volume"]))
-            elif prev.get("platform") == "darwin":
-                self._macos_restore_speaker_settings(
-                    output_volume=prev.get("output_volume", 0),
-                    output_muted=bool(prev.get("output_muted", False)),
-                )
-            else:
-                self._set_speaker_settings(
-                    output_volume=prev.get("output_volume", 0),
-                    output_muted=bool(prev.get("output_muted", False)),
-                )
-
+            self._macos_restore_speaker_settings(
+                output_volume=prev.get("output_volume", 0),
+                output_muted=bool(prev.get("output_muted", False)),
+            )
             print(f"🔊 已恢复系统外放（录音结束后，platform={prev.get('platform')}）")
         except Exception as e:
             print(f"⚠️ 恢复系统外放失败（可忽略）: {e}")
@@ -952,150 +912,64 @@ class FlashInputApp:
         self.config_manager = get_config_manager()
         print(f"[perf] main: bind config_manager: {(time.perf_counter() - t0) * 1000:.1f}ms")
 
-        # 3) 异步加载 STT 模型 和 热键监听
+        # 3) 启动模型检查/下载引导（下载就绪后触发 STT 加载 + 本地改写预加载）和 热键监听
         t0 = time.perf_counter()
         if getattr(self.gui, "root", None) is not None:
-            if bool(self.config_manager.get("preload_stt_on_startup", True)):
-                self.gui.root.after(300, self.init_stt_async)
+            self.gui.root.after(300, self.start_model_bootstrap)
             self.gui.root.after_idle(self.start_listening_hotkey)
         else:
-            if bool(self.config_manager.get("preload_stt_on_startup", True)):
-                self.init_stt_async()
+            self.start_model_bootstrap()
             self.start_listening_hotkey()
-        print(f"[perf] main: schedule stt/hotkey: {(time.perf_counter() - t0) * 1000:.1f}ms")
+        print(f"[perf] main: schedule model bootstrap/hotkey: {(time.perf_counter() - t0) * 1000:.1f}ms")
 
         print(f"[perf] main: run() pre-mainloop total: {(time.perf_counter() - _run_t0) * 1000:.1f}ms")
         self.gui.run()
 
 
-    def write_appname_to_cursor1(self, voice_input: str) -> None:
-        """
-        /**
-         * 将转写/改写后的文本写入到当前光标所在位置。
-         *
-         * 说明：
-         * - 该方法可能运行在后台线程（转写线程），不得触碰 Tk UI。
-         * - macOS 下优先使用“写入剪贴板 + 系统粘贴（Cmd+V）”，更稳定且支持中文。
-         * - 若剪贴板/粘贴不可用，再回退到逐字输入。
-         *
-         * @param {string} voice_input - 需要写入的文本。
-         * @returns {void}
-         */
-        """
-        if not voice_input:
-            print("⚠️ 写入文本为空，跳过写入")
-            return
-
-        text = str(voice_input)
-        print(f"📝 准备写入文本（长度={len(text)}）")
-
-        # macOS：剪贴板 + Cmd+V
-        if sys.platform == "darwin":
-            clipboard_ok = False
-            pasted = False
-
-            # 方案 A：pyperclip
-            try:
-                import pyperclip
-
-                pyperclip.copy(text)
-                print("✅ 已写入剪贴板（pyperclip）")
-
-                try:
-                    subprocess.run(
-                        [
-                            "osascript",
-                            "-e",
-                            'tell application "System Events" to keystroke "v" using {command down}',
-                        ],
-                        check=True,
-                        capture_output=True,
-                        text=True,
-                    )
-                    print("✅ 已触发系统粘贴（Cmd+V）")
-                    pasted = True
-                except Exception as e:
-                    print(f"⚠️ 系统粘贴失败（将尝试 pbcopy 方案）: {e}")
-
-            except Exception as e:
-                print(f"⚠️ pyperclip 不可用（将尝试 pbcopy 方案）: {e}")
-
-            # 方案 B：pbcopy
-            if not pasted:
-                try:
-                    proc = subprocess.Popen(["pbcopy"], stdin=subprocess.PIPE)
-                    try:
-                        proc.communicate(input=text.encode("utf-8"), timeout=2)
-                    except Exception:
-                        try:
-                            proc.kill()
-                        except Exception:
-                            pass
-                        raise
-
-                    if proc.returncode not in (0, None):
-                        raise RuntimeError(f"pbcopy 返回码异常: {proc.returncode}")
-
-                    print("✅ 已写入剪贴板（pbcopy）")
-
-                    subprocess.run(
-                        [
-                            "osascript",
-                            "-e",
-                            'tell application "System Events" to keystroke "v" using {command down}',
-                        ],
-                        check=True,
-                        capture_output=True,
-                        text=True,
-                    )
-                    print("✅ 已触发系统粘贴（Cmd+V）")
-                    pasted = True
-                except Exception as e:
-                    print(f"⚠️ pbcopy 方案失败（将回退逐字输入）: {e}")
-
-            if pasted:
-                return
-
-        # 兜底：逐字输入
-        try:
-            import pyautogui
-
-            pyautogui.write(text, interval=0.01)
-            print("✅ 已逐字输入完成（pyautogui）")
-        except Exception as e:
-            print(f"❌ 写入失败：所有输入方案均失败: {e}")
-
     def write_appname_to_cursor(self, voice_input: str) -> bool:
-        import pyperclip
-
         try:
             if not voice_input:
                 print("⚠️ 写入文本为空，跳过写入")
                 return False
 
-            # 1. 写入剪贴板
-            pyperclip.copy(voice_input)
+            if not self._copy_text_to_pasteboard(str(voice_input)):
+                return False
             print(f"✅ 已写入剪贴板: {voice_input[:20]}...")
 
-            # 2. 使用 CGEvent 粘贴（最可靠）
             if self.paste_with_cgevent():
                 return True
 
-            # 3. 回退方案
-            print("⚠️ CGEvent 失败，尝试其他方案...")
+            print("⚠️ CGEvent 失败，未触发粘贴")
             return False
 
         except Exception as e:
             print(f"❌ 写入失败: {e}")
             return False
 
+    def _copy_text_to_pasteboard(self, text: str) -> bool:
+        """使用 macOS pbcopy 写入系统剪贴板，避免第三方剪贴板依赖。"""
+        try:
+            proc = subprocess.run(
+                ["pbcopy"],
+                input=text,
+                text=True,
+                check=False,
+                capture_output=True,
+                timeout=2,
+            )
+            if proc.returncode != 0:
+                stderr = (proc.stderr or "").strip()
+                print(f"❌ 写入系统剪贴板失败: pbcopy 返回码 {proc.returncode} {stderr}")
+                return False
+            return True
+        except Exception as e:
+            print(f"❌ 写入系统剪贴板失败: {e}")
+            return False
+
     def paste_with_cgevent(self) -> bool:
         import ctypes
         import ctypes.util
-        import sys
-        """极简可靠的 CGEvent Cmd+V 实现"""
-        if sys.platform != "darwin":
-            return False
+        """macOS CGEvent Cmd+V 粘贴。"""
 
         try:
             # 加载框架

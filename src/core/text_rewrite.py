@@ -9,7 +9,6 @@
 import argparse
 import json
 import os
-import queue
 import ssl
 import sys
 import threading
@@ -33,7 +32,11 @@ except ImportError:
 _instance = None
 _instance_lock = threading.Lock()
 
-LOCAL_MLX_PROVIDERS = {"local_mlx_corrector", "local_mlx", "mlx"}
+LOCAL_LLAMA_CPP_PROVIDERS = {"llama_cpp", "local_llama_cpp", "gguf"}
+DEFAULT_LLAMA_CPP_MODEL_ID = "botaruibo/chinese_text_correction_1.5b_gguf"
+DEFAULT_LLAMA_CPP_MODEL_REVISION = "master"
+DEFAULT_LLAMA_CPP_MODEL_FILE = "chinese_text_correction_1.5b-q4_k_m.gguf"
+DEFAULT_LLAMA_CPP_LOCAL_NAME = "chinese_text_correction_1.5b"
 
 
 def _to_int(value: Any, default: int) -> int:
@@ -93,8 +96,6 @@ class Rewrite:
         self._remote_init_started = False
         self._local_llama_cpp_init_lock = threading.Lock()
         self._local_llama_cpp_init_started = False
-        self._local_mlx_corrector_init_lock = threading.Lock()
-        self._local_mlx_corrector_init_started = False
 
     def init_remote_llm_async(self, reason: str = "") -> None:
         """
@@ -150,6 +151,8 @@ class Rewrite:
                     self.local_llm_client, LocalLlamaCppRewrite
                 ):
                     self.local_llm_client = LocalLlamaCppRewrite()
+                # 先确认/下载 GGUF 模型文件（带 GUI 进度），再加载与预热。
+                self.local_llm_client.ensure_model_downloaded()
                 self.local_llm_client.warm_up()
                 print("✅ 本地 llama.cpp 改写模型初始化完成")
             except Exception as e:
@@ -157,30 +160,6 @@ class Rewrite:
                 print(f"⚠️ 本地 llama.cpp 改写模型初始化失败（运行期会重试）: {e}")
                 with self._local_llama_cpp_init_lock:
                     self._local_llama_cpp_init_started = False
-
-        threading.Thread(target=_worker, daemon=True).start()
-
-    def init_local_mlx_corrector_async(self, reason: str = "") -> None:
-        """异步初始化 LocalMLXCorrector 本地中文纠错模型。"""
-        with self._local_mlx_corrector_init_lock:
-            if self._local_mlx_corrector_init_started:
-                return
-            self._local_mlx_corrector_init_started = True
-
-        def _worker() -> None:
-            tag = f"reason={reason}" if reason else ""
-            try:
-                print(f"📝 开始初始化 LocalMLXCorrector 中文纠错模型 {tag}...")
-                if self.local_llm_client is None or not isinstance(
-                    self.local_llm_client, LocalMLXCorrector
-                ):
-                    self.local_llm_client = LocalMLXCorrector()
-                self.local_llm_client.warm_up()
-                print("✅ LocalMLXCorrector 中文纠错模型初始化完成")
-            except Exception as e:
-                print(f"⚠️ LocalMLXCorrector 中文纠错模型初始化失败（运行期会降级）: {e}")
-                with self._local_mlx_corrector_init_lock:
-                    self._local_mlx_corrector_init_started = False
 
         threading.Thread(target=_worker, daemon=True).start()
 
@@ -274,12 +253,12 @@ class Rewrite:
             except Exception as e:
                 return str(e)
 
-        if provider in LOCAL_MLX_PROVIDERS:
+        if provider in LOCAL_LLAMA_CPP_PROVIDERS:
             try:
                 if self.local_llm_client is None or not isinstance(
-                    self.local_llm_client, LocalMLXCorrector
+                    self.local_llm_client, LocalLlamaCppRewrite
                 ):
-                    self.local_llm_client = LocalMLXCorrector()
+                    self.local_llm_client = LocalLlamaCppRewrite()
                 return self.local_llm_client.test()
             except Exception as e:
                 return str(e)
@@ -336,7 +315,7 @@ class Rewrite:
                 print(f"⚠️ 本地 Ollama 文本改写失败（将降级返回原文）: {e}")
                 return raw_text
 
-        if provider in {"llama_cpp", "local_llama_cpp", "gguf"}:
+        if provider in LOCAL_LLAMA_CPP_PROVIDERS:
             try:
                 if self.local_llm_client is None or not isinstance(
                     self.local_llm_client, LocalLlamaCppRewrite
@@ -347,362 +326,12 @@ class Rewrite:
                 print(f"⚠️ 本地 llama.cpp 文本改写失败（将降级返回原文）: {e}")
                 return raw_text
 
-        if provider in LOCAL_MLX_PROVIDERS:
-            try:
-                if self.local_llm_client is None or not isinstance(
-                    self.local_llm_client, LocalMLXCorrector
-                ):
-                    self.local_llm_client = LocalMLXCorrector()
-                return self.local_llm_client.rewrite(raw_text)
-            except Exception as e:
-                print(f"⚠️ LocalMLXCorrector 中文纠错失败（将降级返回原文）: {e}")
-                return raw_text
-
         print(f"⚠️ 未知文本改写 provider: {provider}，直接返回原文")
         return raw_text
 
 systemPrompt = (
     "文本纠错：\n"
 )
-
-
-class LocalMLXCorrector:
-    """
-    使用 mlx-lm 直接加载本地 MLX 量化模型做 ASR 后文本纠错。
-
-    默认模型来自 `shibing624/chinese-text-correction-1.5b`，使用本项目生成的
-    MLX 4bit 模型目录。
-    """
-
-    def __init__(self):
-        self.config = get_config_manager()
-        self.model_id = (
-            self.config.get("local_mlx_corrector_model_id")
-            or "shibing624/chinese-text-correction-1.5b"
-        )
-        quantized_path = self.config.get("local_mlx_corrector_model_path")
-        self.quantized_model_path = (
-            self._resolve_project_path(quantized_path) if quantized_path else None
-        )
-        self.max_new_tokens = _to_int(
-            self.config.get("local_mlx_corrector_max_new_tokens"),
-            96,
-        )
-        self.temperature = _to_float(
-            self.config.get("local_mlx_corrector_temperature"),
-            0.0,
-        )
-        self.top_p = _to_float(
-            self.config.get("local_mlx_corrector_top_p"),
-            1.0,
-        )
-        self.top_k = _to_int(
-            self.config.get("local_mlx_corrector_top_k"),
-            0,
-        )
-        self.require_quantized = bool(
-            self.config.get("local_mlx_corrector_require_quantized")
-            or False
-        )
-        self.prompt = str(
-            self.config.get("local_mlx_corrector_prefix_prompt")
-            or systemPrompt
-        )
-        self.prefetch_model = bool(
-            self.config.get("local_mlx_corrector_prefetch_model_on_load")
-            or True
-        )
-
-        self._model = None
-        self._tokenizer = None
-        self._load_lock = threading.Lock()
-        self._warm_done = False
-        self._mlx_queue: queue.Queue | None = None
-        self._mlx_worker_thread: threading.Thread | None = None
-        self._mlx_worker_ident: int | None = None
-        self._mlx_worker_lock = threading.Lock()
-        self._chat_template_warned = False
-
-    @staticmethod
-    def _resolve_project_path(raw_path: str) -> Path:
-        path = Path(str(raw_path)).expanduser()
-        if path.is_absolute():
-            return path
-
-        try:
-            parts = path.parts
-            if len(parts) >= 2 and parts[0] == "data" and parts[1] == "models":
-                models_root = get_config_manager().get_models_dir()
-                candidate = models_root.joinpath(*parts[2:])
-                if candidate.exists():
-                    return candidate
-        except Exception:
-            pass
-
-        if hasattr(sys, "_MEIPASS"):
-            candidate = Path(sys._MEIPASS) / path
-            if candidate.exists():
-                return candidate
-
-        try:
-            exe_path = Path(sys.executable).resolve()
-            resources_dir = exe_path.parent.parent / "Resources"
-            candidate = resources_dir / path
-            if candidate.exists():
-                return candidate
-        except Exception:
-            pass
-
-        return Path(__file__).resolve().parents[2] / path
-
-    def _ensure_quantized_path(self) -> Path:
-        path = self.quantized_model_path
-        if path is not None and path.exists() and path.is_dir():
-            return path
-        if self.require_quantized:
-            raise FileNotFoundError(
-                "未找到 LocalMLXCorrector 量化模型目录: "
-                f"{path}。请先运行 "
-                "`python scripts/quantize_chinese_error_corrector_4bit.py`。"
-            )
-        return Path(self.model_id)
-
-    def _resolve_model_path(self) -> str:
-        model_path = self._ensure_quantized_path()
-        if model_path.exists():
-            return str(model_path)
-
-        if not self.prefetch_model:
-            return self.model_id
-
-        import time as _time
-
-        try:
-            from huggingface_hub import snapshot_download
-        except ImportError:
-            return self.model_id
-
-        t0 = _time.perf_counter()
-        print(f"📦 检查/下载 LocalMLXCorrector 模型缓存: {self.model_id}")
-        snapshot_path = snapshot_download(repo_id=self.model_id)
-        print(
-            f"📦 LocalMLXCorrector 模型缓存就绪，耗时 {(_time.perf_counter() - t0):.2f}s: "
-            f"{snapshot_path}"
-        )
-        return snapshot_path
-
-    def _ensure_mlx_worker(self) -> None:
-        with self._mlx_worker_lock:
-            if self._mlx_worker_thread is not None and self._mlx_worker_thread.is_alive():
-                return
-
-            self._mlx_queue = queue.Queue()
-
-            def _worker() -> None:
-                self._mlx_worker_ident = threading.get_ident()
-                while True:
-                    item = self._mlx_queue.get()
-                    if item is None:
-                        return
-                    func, args, kwargs, done, result = item
-                    try:
-                        result["value"] = func(*args, **kwargs)
-                    except Exception as e:
-                        result["error"] = e
-                    finally:
-                        done.set()
-
-            self._mlx_worker_thread = threading.Thread(
-                target=_worker,
-                name="LocalMLXCorrectorWorker",
-                daemon=True,
-            )
-            self._mlx_worker_thread.start()
-
-    def _run_on_mlx_worker(self, func, *args, **kwargs):
-        if threading.get_ident() == self._mlx_worker_ident:
-            return func(*args, **kwargs)
-
-        self._ensure_mlx_worker()
-        if self._mlx_queue is None:
-            raise RuntimeError("MLX worker 未初始化")
-
-        done = threading.Event()
-        result: dict[str, Any] = {}
-        self._mlx_queue.put((func, args, kwargs, done, result))
-        done.wait()
-        if "error" in result:
-            raise result["error"]
-        return result.get("value")
-
-    def ensure_loaded(self) -> None:
-        self._run_on_mlx_worker(self._ensure_loaded_current_thread)
-
-    def _ensure_loaded_current_thread(self) -> None:
-        if self._model is not None:
-            return
-        with self._load_lock:
-            if self._model is not None:
-                return
-
-            import time as _time
-            t0 = _time.perf_counter()
-            model_path = self._ensure_quantized_path()
-            print(f"🔄 正在加载 LocalMLXCorrector 中文纠错模型 path={model_path}")
-
-            try:
-                from mlx_lm import load
-            except ImportError as e:
-                raise RuntimeError(
-                    "未安装 mlx-lm。请先执行 `pip install -r requirements.txt`，"
-                    "再运行 4bit 量化脚本。"
-                ) from e
-            self._model, self._tokenizer = load(str(model_path))
-
-            print(
-                f"✅ LocalMLXCorrector 中文纠错模型加载完成，"
-                f"耗时 {(_time.perf_counter() - t0):.2f}s"
-            )
-
-    def _build_correction_query(self, raw_text: str) -> str:
-        query = f"{self.prompt}{raw_text}"
-        if "纠错后" not in query:
-            query = f"{query}\n纠错后："
-        return query
-
-    def _build_prompt(self, raw_text: str) -> str:
-        query = self._build_correction_query(raw_text)
-        messages = [{"role": "user", "content": query}]
-        apply_chat_template = getattr(self._tokenizer, "apply_chat_template", None)
-        chat_template = getattr(self._tokenizer, "chat_template", None)
-        if callable(apply_chat_template) and chat_template:
-            try:
-                return apply_chat_template(
-                    messages,
-                    tokenize=False,
-                    add_generation_prompt=True,
-                    enable_thinking=False,
-                )
-            except TypeError:
-                return apply_chat_template(
-                    messages,
-                    tokenize=False,
-                    add_generation_prompt=True,
-                )
-            except Exception as e:
-                if not self._chat_template_warned:
-                    print(f"⚠️ tokenizer chat_template 不可用，改用 Qwen 兼容纠错模板: {e}")
-                    self._chat_template_warned = True
-        elif not self._chat_template_warned:
-            print("ℹ️ tokenizer 未提供 chat_template，使用 Qwen 兼容纠错模板")
-            self._chat_template_warned = True
-
-        # Qwen-style chat fallback for MLX-converted local models without chat_template.
-        # The empty think block mirrors enable_thinking=False and avoids wasting tokens.
-        return (
-            "<|im_start|>user\n"
-            f"{query}<|im_end|>\n"
-            "<|im_start|>assistant\n"
-            "<think>\n\n</think>\n\n"
-        )
-
-    def _generation_max_tokens(self, raw_text: str) -> int:
-        text_len = len((raw_text or "").strip())
-        if text_len <= 0:
-            return 1
-        dynamic_limit = max(24, int(text_len * 1.4) + 8)
-        return max(8, min(self.max_new_tokens, dynamic_limit))
-
-    @staticmethod
-    def _clean_output(text: str, raw_text: str = "") -> str:
-        cleaned = (text or "").strip()
-        for token in ("<|im_end|>", "<|endoftext|>"):
-            if token in cleaned:
-                cleaned = cleaned.split(token, 1)[0].strip()
-        if cleaned.startswith("<think>"):
-            end = cleaned.find("</think>")
-            if end >= 0:
-                cleaned = cleaned[end + len("</think>"):].strip()
-        if not cleaned:
-            return cleaned
-
-        cleaned = cleaned.split("\n", 1)[0].strip()
-        raw_text = (raw_text or "").strip()
-        if raw_text:
-            raw_pos = cleaned.find(raw_text)
-            if raw_pos > 0:
-                cleaned = cleaned[:raw_pos].strip()
-
-        max_reasonable_len = max(len(raw_text) * 2 + 20, 120) if raw_text else 200
-        if len(cleaned) > max_reasonable_len:
-            for mark in ("。", "！", "？", ".", "!", "?"):
-                pos = cleaned.find(mark)
-                if 0 <= pos < max_reasonable_len:
-                    cleaned = cleaned[:pos + 1].strip()
-                    break
-            else:
-                cleaned = cleaned[:max_reasonable_len].strip()
-        return cleaned
-
-    def _rewrite_with_mlx(self, raw_text: str) -> str:
-        import time as _time
-
-        from mlx_lm import generate
-        from mlx_lm.sample_utils import make_sampler
-
-        self._ensure_loaded_current_thread()
-        t0 = _time.perf_counter()
-        prompt = self._build_prompt(raw_text)
-        max_tokens = self._generation_max_tokens(raw_text)
-        output = generate(
-            self._model,
-            self._tokenizer,
-            prompt=prompt,
-            max_tokens=max_tokens,
-            sampler=make_sampler(
-                temp=self.temperature,
-                top_p=self.top_p,
-                top_k=self.top_k,
-            ),
-            verbose=False,
-        )
-        rewritten = self._clean_output(output, raw_text)
-        print(
-            f"🧹 LocalMLXCorrector 纠错耗时 {(_time.perf_counter() - t0):.2f}s "
-            f"(max_tokens={max_tokens}, input_len={len(raw_text)})"
-        )
-        return rewritten
-
-    def rewrite(self, raw_text: str) -> str:
-        if not raw_text or not raw_text.strip():
-            return raw_text
-        import time as _time
-        t0 = _time.perf_counter()
-        result = self._run_on_mlx_worker(self._rewrite_with_mlx, raw_text)
-        print(f"🧹 LocalMLXCorrector 总耗时 {(_time.perf_counter() - t0):.2f}s")
-        return result
-
-    def warm_up(self) -> None:
-        if self._warm_done:
-            return
-        try:
-            import time as _time
-            t0 = _time.perf_counter()
-            _ = self.rewrite("少先队员因该为老人让坐。")
-            self._warm_done = True
-            print(f"🔥 LocalMLXCorrector 中文纠错模型预热完成，耗时 {(_time.perf_counter() - t0):.2f}s")
-        except Exception as e:
-            print(f"⚠️ LocalMLXCorrector 中文纠错模型预热失败（可忽略）: {e}")
-
-    def test(self) -> Optional[str]:
-        try:
-            out = self.rewrite("少先队员因该为老人让坐。")
-            print(f"LocalMLXCorrector 中文纠错测试响应: {out}")
-            if out:
-                return None
-            return "模型返回空结果"
-        except Exception as e:
-            return str(e)
 
 
 class LocalLlamaRewrite:
@@ -1133,11 +762,12 @@ if __name__ == "__main__":
 
 
 # ---------------------------------------------------------------------------
-# LocalLlamaCppRewrite: 直接通过 llama-cpp-python 加载本地 GGUF 模型做文本改写。
+# LocalLlamaCppRewrite: 直接通过 llama-cpp-python 加载本地 GGUF 模型做文本改写/纠错。
 #
 # 设计目标：
 # - 不依赖 ollama HTTP daemon，进程内直接 mmap GGUF 权重做推理。
-# - 模型权重复用 ~/.ollama/models 下已有 blob，无需重新下载。
+# - 模型权重默认取自 data/models/<name> 目录下的 *.gguf；也兼容直接指定文件、
+#   打包 .app 内置目录与（历史）ollama manifest blob。
 # - 与现有 Rewrite 分发解耦：通过 `llm_text_provider="llama_cpp"` 选用。
 # - 重型加载放到首次调用时懒执行，启动期不阻塞。
 # ---------------------------------------------------------------------------
@@ -1145,11 +775,9 @@ if __name__ == "__main__":
 
 class LocalLlamaCppRewrite:
     """
-    /**
-     * 通过 llama-cpp-python 直接加载本地 GGUF 模型进行文本改写。
-     *
-     * 不通过 ollama HTTP 服务，自行解析 ollama manifest 拿到 GGUF blob 路径。
-     */
+    通过 llama-cpp-python 直接加载本地 GGUF 模型做中文文本纠错。
+
+    默认从 data/models/<llama_cpp_model_path 目录名> 下查找 *.gguf 权重。
     """
 
     def __init__(
@@ -1167,7 +795,7 @@ class LocalLlamaCppRewrite:
             or systemPrompt
         )
 
-        # 优先级：显式传参 > 配置 llama_cpp_model_path > 从 ollama 模型 tag 解析
+        # 优先级：显式传参 > 配置 llama_cpp_model_path > 环境变量 > ollama 模型 tag
         self.model_path: Optional[str] = (
             model_path
             or self.config.get("llama_cpp_model_path")
@@ -1176,15 +804,38 @@ class LocalLlamaCppRewrite:
         self.ollama_model_tag: Optional[str] = (
             ollama_model_tag
             or self.config.get("llama_cpp_ollama_tag")
-            or self.config.get("ollama_model")
             or os.getenv("LLAMA_CPP_OLLAMA_TAG")
+        )
+        self.model_id = (
+            self.config.get("llama_cpp_model_id")
+            or os.getenv("LLAMA_CPP_MODEL_ID")
+            or DEFAULT_LLAMA_CPP_MODEL_ID
+        )
+        self.model_revision = (
+            self.config.get("llama_cpp_model_revision")
+            or os.getenv("LLAMA_CPP_MODEL_REVISION")
+            or DEFAULT_LLAMA_CPP_MODEL_REVISION
+        )
+        self.model_file = (
+            self.config.get("llama_cpp_model_file")
+            or os.getenv("LLAMA_CPP_MODEL_FILE")
+            or DEFAULT_LLAMA_CPP_MODEL_FILE
         )
 
         self.n_ctx = _to_int(n_ctx or self.config.get("llama_cpp_n_ctx"), 4096)
         self.n_threads = _to_int(n_threads or self.config.get("llama_cpp_n_threads"), 0) or None
-        self.temperature = _to_float(self.config.get("llama_cpp_temperature"), 0.2)
-        self.max_tokens = _to_int(self.config.get("llama_cpp_max_tokens"), 1024)
+        self.temperature = _to_float(self.config.get("llama_cpp_temperature"), 0.0)
+        self.max_tokens = _to_int(self.config.get("llama_cpp_max_tokens"), 96)
+        self.top_p = _to_float(self.config.get("llama_cpp_top_p"), 1.0)
+        self.top_k = _to_int(self.config.get("llama_cpp_top_k"), 0)
         self.verbose = bool(self.config.get("llama_cpp_verbose"))
+
+        # 文本纠错前缀提示词；与历史本地纠错模型保持一致的 "文本纠错：\n…\n纠错后：" 结构。
+        self.prefix_prompt = str(
+            self.config.get("llama_cpp_prefix_prompt")
+            or self.config.get("ollama_prefix_prompt")
+            or systemPrompt
+        )
 
         # Metal GPU 加速：默认 -1 表示尽可能多的层放到 Metal 上；
         # 0 表示纯 CPU；正整数表示放在 GPU 上的层数。
@@ -1200,6 +851,66 @@ class LocalLlamaCppRewrite:
     # ---------- 模型路径解析 ----------
 
     @staticmethod
+    def _resolve_project_path(raw_path: str) -> Path:
+        """将相对 data/models/* 路径解析为开发目录或打包目录下的真实路径。"""
+        path = Path(str(raw_path)).expanduser()
+        if path.is_absolute():
+            return path
+
+        try:
+            parts = path.parts
+            if len(parts) >= 2 and parts[0] == "data" and parts[1] == "models":
+                models_root = get_config_manager().get_models_dir()
+                candidate = models_root.joinpath(*parts[2:])
+                if candidate.exists():
+                    return candidate
+                try:
+                    from .stt_local_processor import get_models_root
+
+                    writable_candidate = get_models_root().joinpath(*parts[2:])
+                    if writable_candidate.exists():
+                        return writable_candidate
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        if hasattr(sys, "_MEIPASS"):
+            candidate = Path(sys._MEIPASS) / path
+            if candidate.exists():
+                return candidate
+
+        try:
+            exe_path = Path(sys.executable).resolve()
+            resources_dir = exe_path.parent.parent / "Resources"
+            candidate = resources_dir / path
+            if candidate.exists():
+                return candidate
+        except Exception:
+            pass
+
+        return Path(__file__).resolve().parents[2] / path
+
+    @staticmethod
+    def _find_gguf_in_dir(directory: Path, preferred_name: str = "") -> Optional[Path]:
+        """在目录中查找 *.gguf 权重文件；优先选配置文件名，其次选体积最大的。"""
+        try:
+            if not (directory.exists() and directory.is_dir()):
+                return None
+            if preferred_name:
+                preferred = directory / preferred_name
+                if preferred.exists() and preferred.is_file():
+                    return preferred
+            ggufs = sorted(
+                directory.glob("*.gguf"),
+                key=lambda p: p.stat().st_size,
+                reverse=True,
+            )
+            return ggufs[0] if ggufs else None
+        except Exception:
+            return None
+
+    @staticmethod
     def _parse_ollama_tag(tag: str) -> tuple[str, str]:
         """`name:variant` -> (`name`, `variant`)，缺省 variant 视为 `latest`。"""
         if ":" in tag:
@@ -1209,12 +920,10 @@ class LocalLlamaCppRewrite:
 
     def _resolve_gguf_from_ollama(self, tag: str) -> str:
         """
-        /**
-         * 从 ollama 本地 manifest 中找到 GGUF blob 路径。
-         *
-         * 目录约定：~/.ollama/models/manifests/registry.ollama.ai/library/<name>/<variant>
-         * manifest 内 layers 中 mediaType 为 application/vnd.ollama.image.model 的层即模型文件。
-         */
+        从 ollama 本地 manifest 中找到 GGUF blob 路径（历史兼容路径）。
+
+        目录约定：~/.ollama/models/manifests/registry.ollama.ai/library/<name>/<variant>
+        manifest 内 layers 中 mediaType 为 application/vnd.ollama.image.model 的层即模型文件。
         """
         name, variant = self._parse_ollama_tag(tag)
 
@@ -1253,13 +962,106 @@ class LocalLlamaCppRewrite:
         return str(blob_path)
 
     def _resolve_model_path(self) -> str:
-        if self.model_path and Path(self.model_path).exists():
-            return self.model_path
+        """定位本地 GGUF 权重文件。
+
+        查找顺序：
+        1. 配置/传参 model_path：可直接是 .gguf 文件，或是包含 .gguf 的目录。
+        2. 将相对 data/models/* 路径解析到开发/打包目录后再按文件或目录处理。
+        3. （历史兼容）从 ollama manifest 解析 blob。
+        """
+        if self.model_path:
+            raw = Path(self.model_path).expanduser()
+            # 1a. 直接指向 .gguf 文件
+            if raw.suffix == ".gguf" and raw.exists():
+                return str(raw)
+            # 1b. 指向目录
+            found = self._find_gguf_in_dir(raw, str(self.model_file or ""))
+            if found is not None:
+                return str(found)
+
+            # 2. 解析相对路径到真实目录/文件
+            resolved = self._resolve_project_path(self.model_path)
+            if resolved.suffix == ".gguf" and resolved.exists():
+                return str(resolved)
+            found = self._find_gguf_in_dir(resolved, str(self.model_file or ""))
+            if found is not None:
+                return str(found)
+
+        # 3. 历史兼容：从 ollama manifest 解析
         if self.ollama_model_tag:
             return self._resolve_gguf_from_ollama(self.ollama_model_tag)
+
         raise FileNotFoundError(
-            "未配置 llama_cpp_model_path 或 ollama 模型 tag，无法定位 GGUF 权重"
+            f"未找到 GGUF 模型文件：请将 *.gguf 放入 {self.model_path or 'data/models/<模型目录>'}"
         )
+
+    def _download_target_dir(self) -> Path:
+        """返回 GGUF 模型下载目标目录，打包后固定使用用户可写模型目录。"""
+        model_path = Path(str(self.model_path or "")).expanduser()
+        if model_path.suffix == ".gguf":
+            local_name = model_path.parent.name or DEFAULT_LLAMA_CPP_LOCAL_NAME
+        elif model_path.name:
+            local_name = model_path.name
+        else:
+            local_name = DEFAULT_LLAMA_CPP_LOCAL_NAME
+
+        try:
+            from .stt_local_processor import get_models_root
+
+            return get_models_root() / local_name
+        except Exception:
+            models_root = get_config_manager().get_models_dir()
+            return models_root / local_name
+
+    @staticmethod
+    def _fix_gguf_download_layout(target_dir: Path) -> None:
+        """整理 ModelScope 下载后的目录，确保 GGUF 权重位于目标目录根部。"""
+        if not target_dir.exists():
+            return
+        for root, _dirs, files in os.walk(str(target_dir)):
+            current_root = Path(root)
+            if current_root == target_dir:
+                continue
+            for file in files:
+                if file.endswith((".gguf", ".json", ".md", ".txt")):
+                    src_path = current_root / file
+                    dst_path = target_dir / file
+                    if dst_path.exists():
+                        continue
+                    try:
+                        import shutil
+
+                        print(f"📂 [GGUF目录修复] 移动 {file} -> {target_dir}")
+                        shutil.move(str(src_path), str(dst_path))
+                    except Exception as e:
+                        print(f"⚠️ GGUF目录修复失败: {src_path} -> {dst_path}: {e}")
+
+    def ensure_model_downloaded(self) -> None:
+        """供初始化阶段检查并按需下载 GGUF 中文纠错模型。"""
+        try:
+            path = self._resolve_model_path()
+            print(f"✅ 本地 GGUF 纠错模型已就绪: {path}")
+            return
+        except Exception as e:
+            print(f"⬇️ 未检测到本地 GGUF 纠错模型，准备下载: {e}")
+
+        target_dir = self._download_target_dir()
+        local_name = target_dir.name or DEFAULT_LLAMA_CPP_LOCAL_NAME
+        try:
+            from .stt_local_processor import download_model_with_progress
+
+            target_dir.mkdir(parents=True, exist_ok=True)
+            download_model_with_progress(
+                str(self.model_id or DEFAULT_LLAMA_CPP_MODEL_ID),
+                target_dir,
+                local_name,
+                revision=str(self.model_revision or DEFAULT_LLAMA_CPP_MODEL_REVISION),
+            )
+            self._fix_gguf_download_layout(target_dir)
+            path = self._resolve_model_path()
+            print(f"✅ 本地 GGUF 纠错模型下载完成: {path}")
+        except Exception as e:
+            raise RuntimeError(f"GGUF 中文纠错模型下载失败: {e}") from e
 
     # ---------- 模型加载 ----------
 
@@ -1301,9 +1103,6 @@ class LocalLlamaCppRewrite:
         """
         启动期预热：触发一次 dummy 推理，把首次 prompt eval 与 Metal pipeline 的代价
         吸收到启动期，避免用户第一次按热键改写时再等几秒。
-
-        - 复用真实的 system_prompt，使首次 KV cache 与权重内存映射也被加载到 page cache。
-        - max_tokens 设小（4），避免预热本身耗时过长。
         """
         if self._warm_done:
             return
@@ -1311,14 +1110,7 @@ class LocalLlamaCppRewrite:
             import time as _time
             _t0 = _time.perf_counter()
             self.ensure_loaded()
-            _ = self._llm.create_chat_completion(
-                messages=[
-                    {"role": "system", "content": self.system_prompt},
-                    {"role": "user", "content": "你好"},
-                ],
-                temperature=0,
-                max_tokens=4,
-            )
+            _ = self.rewrite("少先队员因该为老人让坐。")
             self._warm_done = True
             print(
                 f"🔥 本地 GGUF 模型预热完成，耗时 {(_time.perf_counter() - _t0):.2f}s"
@@ -1328,37 +1120,82 @@ class LocalLlamaCppRewrite:
 
     # ---------- 业务方法 ----------
 
+    def _build_user_prompt(self, raw_text: str) -> str:
+        """构造文本纠错的用户输入（前缀提示词 + 原文 + 纠错引导）。"""
+        query = f"{self.prefix_prompt}{raw_text}"
+        if "纠错后" not in query:
+            query = f"{query}\n纠错后："
+        return query
+
+    def _generation_max_tokens(self, raw_text: str) -> int:
+        text_len = len((raw_text or "").strip())
+        if text_len <= 0:
+            return 1
+        dynamic_limit = max(24, int(text_len * 1.4) + 8)
+        return max(8, min(self.max_tokens, dynamic_limit))
+
+    @staticmethod
+    def _clean_output(text: str, raw_text: str = "") -> str:
+        cleaned = (text or "").strip()
+        for token in ("<|im_end|>", "<|endoftext|>"):
+            if token in cleaned:
+                cleaned = cleaned.split(token, 1)[0].strip()
+        if cleaned.startswith("<think>"):
+            end = cleaned.find("</think>")
+            if end >= 0:
+                cleaned = cleaned[end + len("</think>"):].strip()
+        if not cleaned:
+            return cleaned
+
+        cleaned = cleaned.split("\n", 1)[0].strip()
+        raw_text = (raw_text or "").strip()
+        if raw_text:
+            raw_pos = cleaned.find(raw_text)
+            if raw_pos > 0:
+                cleaned = cleaned[:raw_pos].strip()
+
+        max_reasonable_len = max(len(raw_text) * 2 + 20, 120) if raw_text else 200
+        if len(cleaned) > max_reasonable_len:
+            for mark in ("。", "！", "？", ".", "!", "?"):
+                pos = cleaned.find(mark)
+                if 0 <= pos < max_reasonable_len:
+                    cleaned = cleaned[:pos + 1].strip()
+                    break
+            else:
+                cleaned = cleaned[:max_reasonable_len].strip()
+        return cleaned
+
     def test(self) -> Optional[str]:
-        """简单连通性测试；成功返回 None。"""
+        """纠错连通性测试；成功返回 None。"""
         try:
-            self.ensure_loaded()
-            out = self._llm.create_chat_completion(
-                messages=[
-                    {"role": "system", "content": "你是连接测试助手，请只返回 OK。"},
-                    {"role": "user", "content": "测试连接"},
-                ],
-                temperature=0,
-                max_tokens=8,
-            )
-            content = (out["choices"][0]["message"].get("content") or "").strip()
-            print(f"本地 llama.cpp 测试响应: {content}")
-            if "ok" in content.lower():
+            out = self.rewrite("少先队员因该为老人让坐。")
+            print(f"本地 llama.cpp 纠错测试响应: {out}")
+            if out:
                 return None
-            return f"模型返回非预期内容: {content}"
+            return "模型返回空结果"
         except Exception as e:
             return str(e)
 
     def rewrite(self, raw_text: str) -> str:
         if not raw_text or not raw_text.strip():
             return raw_text
+        import time as _time
+        t0 = _time.perf_counter()
         self.ensure_loaded()
+        max_tokens = self._generation_max_tokens(raw_text)
         out = self._llm.create_chat_completion(
             messages=[
-                {"role": "system", "content": self.system_prompt},
-                {"role": "user", "content": raw_text},
+                {"role": "user", "content": self._build_user_prompt(raw_text)},
             ],
             temperature=self.temperature,
-            max_tokens=self.max_tokens,
+            top_p=self.top_p,
+            top_k=self.top_k,
+            max_tokens=max_tokens,
         )
         content = out["choices"][0]["message"].get("content") or ""
-        return content.strip()
+        rewritten = self._clean_output(content, raw_text)
+        print(
+            f"🧹 本地 llama.cpp 纠错总耗时 {(_time.perf_counter() - t0):.2f}s "
+            f"(max_tokens={max_tokens}, input_len={len(raw_text)})"
+        )
+        return rewritten

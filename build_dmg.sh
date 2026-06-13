@@ -49,10 +49,6 @@ fi
 
 echo "🔎 检查打包运行资源..."
 REQUIRED_APP_FILES=(
-    "$APP_BUNDLE/Contents/Frameworks/mlx/core.cpython-311-darwin.so"
-    "$APP_BUNDLE/Contents/Frameworks/mlx/lib/libmlx.dylib"
-    "$APP_BUNDLE/Contents/Frameworks/mlx/lib/libjaccl.dylib"
-    "$APP_BUNDLE/Contents/Frameworks/mlx/lib/mlx.metallib"
     "$APP_BUNDLE/Contents/Resources/data/config/app_config.json"
     "$APP_BUNDLE/Contents/Resources/data/config/main_prompt.md"
 )

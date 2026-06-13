@@ -49,6 +49,9 @@ class ProgressBarFrame(ctk.CTkFrame):
         )
         self.progress_bar.pack(padx=28, pady=8)
         self.progress_bar.set(0)
+        self._indeterminate_value = 0.0
+        self._determinate_started = False
+        self._last_progress = 0.0
 
         # 状态文本（如百分比）
         self.status_label = ctk.CTkLabel(
@@ -59,8 +62,35 @@ class ProgressBarFrame(ctk.CTkFrame):
         )
         self.status_label.pack(padx=28, pady=(4, 26))
 
-    def update_progress(self, progress: float, desc: str):
-        self.progress_bar.set(progress)
+    def configure_text(self, title: str = "", label_text: str = ""):
+        if title:
+            self.title_label.configure(text=title)
+        if label_text:
+            self.desc_label.configure(text=label_text)
+
+    def reset_progress(self):
+        self._indeterminate_value = 0.0
+        self._determinate_started = False
+        self._last_progress = 0.0
+        self.progress_bar.set(0)
+        self.status_label.configure(text="准备中...")
+
+    def update_progress(self, progress: float | None, desc: str):
+        if progress is None:
+            if desc:
+                self.status_label.configure(text=desc)
+            self.update_idletasks()
+            return
+        if progress < 0:
+            if not self._determinate_started:
+                self._indeterminate_value = (self._indeterminate_value + 0.035) % 1.0
+                self.progress_bar.set(self._indeterminate_value)
+        else:
+            value = max(0.0, min(1.0, progress))
+            if value + 0.001 >= self._last_progress:
+                self._determinate_started = True
+                self._last_progress = value
+                self.progress_bar.set(value)
         if desc:
             self.status_label.configure(text=desc)
         # 强制刷新界面

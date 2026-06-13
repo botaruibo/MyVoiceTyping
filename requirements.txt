@@ -3,27 +3,34 @@ pyobjc-framework-ApplicationServices>=9.2
 pyobjc-framework-Cocoa>=9.2
 
 pillow>=10.0.0
-pygetwindow~=0.0.9
-pyautogui~=0.9.54
 numpy>=1.26.4,<1.27
+PyYAML>=6.0
+requests>=2.25
 sounddevice~=0.5.5
+soundfile>=0.13.0
 customtkinter>=5.2.2
 onnxruntime>=1.16.3
+onnx>=1.16.0
+funasr-onnx>=0.4.1
+funasr>=1.3.0
 modelscope~=1.34.0
-pyperclip~=1.11.0
-# 本地 MLX 文本纠错（rewrite）所需，仅 Apple Silicon
-mlx-lm==0.24.1; platform_system == "Darwin"
-transformers>=4.51.0,<5
-accelerate>=1.6.0
-huggingface-hub>=0.30.0
+librosa>=0.11.0
+scipy>=1.11.0
+numba>=0.60.0
+soxr>=1.0.0
+audioread>=3.0.0
+torch>=2.0.0
+pyinstaller>=6.0.0
+pyinstaller-hooks-contrib>=2024.0
+# 本地 llama.cpp 文本纠错（rewrite）所需，加载本地 GGUF 模型
+llama-cpp-python>=0.3.0
 
 # 以下为可选/历史 rewrite 后端，本安装包默认不打包：
 # - langchain-openai / langchain-core: 云端 LLM 改写
-# - llama-cpp-python / gguf: 本地 llama.cpp 改写
+# - gguf: GGUF 模型转换/读取工具
 # - bitsandbytes: 非 Apple 平台量化
 # 需要时手动安装：
 #langchain-openai~=1.1.7
 #langchain-core~=1.2.7
-#llama-cpp-python>=0.3.0
 #gguf>=0.19.0
 #bitsandbytes>=0.43.0; platform_system != "Darwin"

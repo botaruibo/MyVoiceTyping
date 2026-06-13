@@ -5,9 +5,8 @@ import sys
 import json
 import shutil
 import subprocess
-import importlib.util
 from pathlib import Path
-from PyInstaller.utils.hooks import collect_data_files, collect_dynamic_libs, collect_submodules
+from PyInstaller.utils.hooks import collect_dynamic_libs, collect_submodules
 
 block_cipher = None
 
@@ -41,15 +40,18 @@ except NameError:
 
 # 自动收集子模块（只收集真正需要的推理库）
 #funasr_onnx_hidden = collect_submodules('funasr_onnx')
-#modelscope_hidden = collect_submodules('modelscope')
+modelscope_hidden = []
+try:
+    modelscope_hidden += collect_submodules('modelscope')
+except Exception:
+    pass
 
-# 本地 MLX 纠错后端依赖 mlx / mlx_lm，需收集其子模块
-mlx_hidden = []
-for pkg in ('mlx', 'mlx_lm'):
-    try:
-        mlx_hidden += collect_submodules(pkg)
-    except Exception:
-        pass
+# 本地 llama.cpp 纠错后端依赖 llama_cpp，需收集其子模块与动态库
+llama_cpp_hidden = []
+try:
+    llama_cpp_hidden += collect_submodules('llama_cpp')
+except Exception:
+    pass
 
 def prepare_package_config() -> Path:
     """Create a sanitized config directory for packaged builds."""
@@ -76,12 +78,11 @@ def prepare_package_config() -> Path:
             if key in config:
                 config[key] = ''
 
-        # 本安装包内置本地 MLX 纠错模型，默认启用文本改写。
-        # 仅保留本地 MLX 后端，云端 LLM 与 llama.cpp 相关库不打包。
+        # 本安装包内置本地 GGUF 纠错模型，默认启用文本改写。
+        # 仅保留本地 llama.cpp 后端，云端 LLM 相关库不打包。
         config['format_text'] = True
-        config['llm_text_provider'] = 'local_mlx_corrector'
-        config['preload_local_mlx_corrector_on_startup'] = True
-        config['preload_llama_cpp_on_startup'] = False
+        config['llm_text_provider'] = 'llama_cpp'
+        config['preload_llama_cpp_on_startup'] = True
 
         with app_config.open('w', encoding='utf-8') as f:
             json.dump(config, f, ensure_ascii=False, indent=2)
@@ -101,50 +102,16 @@ datas = [
     (str(package_config_dir), 'data/config'),
 ]
 
-for model_name in (
-    'SenseVoiceSmall-onnx',
-    'punc_ct-onnx',
-    # 本地 MLX 中文纠错模型（rewrite 默认后端）
-    'chinese-text-correction-1.5b-mlx-4bit',
-):
-    model_dir = project_root / 'data' / 'models' / model_name
-    if model_dir.exists():
-        datas.append((str(model_dir), f'data/models/{model_name}'))
-
-# MLX / transformers 的运行期数据文件（tokenizer、配置模板等）
-for pkg in ('mlx_lm', 'transformers'):
-    try:
-        datas += collect_data_files(pkg, include_py_files=False)
-    except Exception:
-        pass
-
-# MLX 的 Metal shader 运行库不是 dylib，PyInstaller 不会随 dynamic libs 自动收集。
-# 缺少该文件时打包应用会报：Failed to load the default metallib.
-mlx_metallib_path = None
-try:
-    mlx_spec = importlib.util.find_spec('mlx')
-    mlx_package_dir = None
-    if mlx_spec and mlx_spec.origin:
-        mlx_package_dir = Path(mlx_spec.origin).resolve().parent
-    elif mlx_spec and mlx_spec.submodule_search_locations:
-        mlx_package_dir = Path(next(iter(mlx_spec.submodule_search_locations))).resolve()
-
-    if mlx_package_dir is not None:
-        candidate = mlx_package_dir / 'lib' / 'mlx.metallib'
-        if candidate.exists():
-            mlx_metallib_path = candidate
-            datas.append((str(candidate), 'mlx/lib'))
-except Exception:
-    pass
+# 不打包 data/models 下的模型文件；首次启动时下载到用户可写的 Application Support。
 
 binaries = []
 try:
-    binaries += collect_dynamic_libs('mlx')
+    binaries += collect_dynamic_libs('llama_cpp')
 except Exception:
     pass
 
 for libomp_candidate in (
-    project_root / '.venv' / 'lib' / 'python3.11' / 'site-packages' / 'torch' / 'lib' / 'libomp.dylib',
+    project_root / 'venv' / 'lib' / 'python3.11' / 'site-packages' / 'torch' / 'lib' / 'libomp.dylib',
     Path('/usr/local/lib/libomp.dylib'),
     Path('/opt/homebrew/lib/libomp.dylib'),
 ):
@@ -179,13 +146,11 @@ a = Analysis(
         'Foundation',
         'Quartz',
         'CoreFoundation',
-        'pyautogui',
-        'pygetwindow',
-        'pyperclip',
         'sounddevice',
         'PIL',
         'numpy',
         'requests',
+        'modelscope',
         'yaml',
         'librosa',
         'scipy',
@@ -194,18 +159,11 @@ a = Analysis(
         'soundfile',
         'soxr',
         'audioread',
-        # 本地 MLX 纠错后端
-        'mlx',
-        'mlx_lm',
-        'mlx_lm.models.base',
-        'mlx_lm.models.cache',
-        'mlx_lm.models.rope_utils',
-        'mlx_lm.models.qwen2',
-        'transformers',
-        'huggingface_hub',
-        *mlx_hidden,
+        # 本地 llama.cpp 纠错后端
+        'llama_cpp',
+        *llama_cpp_hidden,
 #        *funasr_onnx_hidden,
-#        *modelscope_hidden,
+        *modelscope_hidden,
     ],
     hookspath=[],
     hooksconfig={},
@@ -221,7 +179,6 @@ a = Analysis(
         'keras',
         'datasets',
         'pyarrow',
-        'modelscope',
         'umap',
         'matplotlib',      # 排除绘图库
         'pandas',
@@ -243,7 +200,6 @@ a = Analysis(
         'langchain_core',
         'langchain_openai',
         'langchain_community',
-        'llama_cpp',
         'gguf',
         'bitsandbytes',
     ],
@@ -308,13 +264,3 @@ app = BUNDLE(
         'NSSupportsSuddenTermination': False,
     },
 )
-
-# BUNDLE 会把 datas 放入 Contents/Resources，而 MLX 的 libmlx 在打包后位于
-# Contents/Frameworks/mlx/lib。额外复制一份到 libmlx 同目录，匹配 wheel 原始布局。
-try:
-    if mlx_metallib_path is not None:
-        bundled_mlx_lib = project_root / 'dist' / 'MyVoiceTyping.app' / 'Contents' / 'Frameworks' / 'mlx' / 'lib'
-        if bundled_mlx_lib.exists():
-            shutil.copy2(mlx_metallib_path, bundled_mlx_lib / 'mlx.metallib')
-except Exception as e:
-    print(f'⚠️ 复制 MLX metallib 到 Frameworks 失败: {e}')

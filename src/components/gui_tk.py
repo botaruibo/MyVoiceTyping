@@ -8,13 +8,11 @@ import subprocess
 from pathlib import Path
 
 import customtkinter as ctk
-import platform
 
 import queue
 
-if platform.system() == "Darwin":
-    from AppKit import NSStatusBar, NSMenu, NSMenuItem, NSObject
-    import objc
+from AppKit import NSStatusBar, NSMenu, NSMenuItem, NSObject
+import objc
 
 from .config_manager import get_config_manager
 from .ui_theme import GUIStyles
@@ -192,6 +190,8 @@ class VoiceInputGUI:
         self._recording_overlay_progress_job = None
         self._recording_overlay_progress_value = 0.0
         self._recording_overlay_progress_last_ts = 0.0
+        self._progress_overlay_requested = False
+        self._progress_overlay_close_job = None
 
         self._nav_buttons: Dict[str, Dict[str, Any]] = {}
         self._nav_icons: Dict[str, ctk.CTkImage] = {}
@@ -999,15 +999,10 @@ class VoiceInputGUI:
                 else:
                     p.parent.mkdir(parents=True, exist_ok=True)
                     p = p.parent
-            if platform.system() == "Darwin":
-                if should_reveal:
-                    subprocess.run(["open", "-R", str(p)], check=False)
-                else:
-                    subprocess.run(["open", str(p)], check=False)
-            elif platform.system() == "Windows":
-                os.startfile(p)
+            if should_reveal:
+                subprocess.run(["open", "-R", str(p)], check=False)
             else:
-                subprocess.run(["xdg-open", str(p)], check=False)
+                subprocess.run(["open", str(p)], check=False)
         except Exception as e:
             print(f"Failed to open path: {e}")
 
@@ -1059,12 +1054,7 @@ class VoiceInputGUI:
             if not log_dir.exists():
                 log_dir.mkdir(parents=True, exist_ok=True)
                 
-            if platform.system() == "Darwin":
-                os.system(f"open '{log_dir}'")
-            elif platform.system() == "Windows":
-                os.startfile(log_dir)
-            else:
-                os.system(f"xdg-open '{log_dir}'")
+            subprocess.run(["open", str(log_dir)], check=False)
         except Exception as e:
             print(f"Failed to open log directory: {e}")
 
@@ -1116,52 +1106,13 @@ class VoiceInputGUI:
             entry.bind("<Return>", _save)
             entry.bind("<FocusOut>", _save)
 
-        # STT Provider
-        stt_provider_row = ctk.CTkFrame(page, fg_color=self._card_bg_color)
-        stt_provider_row.grid(row=1, column=0, padx=18, pady=(0, 12), sticky="ew")
-        stt_provider_row.grid_columnconfigure(1, weight=1)
+        self._create_hotword_setting(page, row=1)
 
-        ctk.CTkLabel(stt_provider_row, text="STT 提供者", width=120).grid(
-            row=0, column=0, padx=12, pady=12, sticky="w"
-        )
-
-        stt_provider_default = self.config_manager.get("stt_provider", "funasr") or "funasr"
-
-        def _on_stt_provider_change(v: str) -> None:
-            self.config_manager.set("stt_provider", v)
-            self.update_status_success("已保存配置（切换 STT 提供者需重启生效）")
-
-        stt_provider_menu = ctk.CTkOptionMenu(
-            stt_provider_row,
-            values=["funasr", "openai_api"],
-            dynamic_resizing=False,
-            fg_color=self._card_bg_color,
-            button_color=self._card_bg_color,
-            button_hover_color=self._nav_hover_color,
-            dropdown_fg_color=("#FCFCFC", "#2B2B2B"),
-            dropdown_hover_color=self._nav_hover_color,
-            text_color=self._nav_text_color,
-            dropdown_text_color=self._nav_text_color,
-            command=_on_stt_provider_change,
-        )
-        stt_provider_menu.set(stt_provider_default)
-        stt_provider_menu.grid(row=0, column=1, padx=12, pady=12, sticky="ew")
-
-        try:
-            dropdown_menu = getattr(stt_provider_menu, "_dropdown_menu", None)
-            if dropdown_menu is not None:
-                dropdown_menu.configure(relief="solid", borderwidth=1)
-        except Exception:
-            pass
-
-        self._create_hotword_setting(page, row=2)
-
-        # （已移除）OpenAI STT API Key
         ctk.CTkLabel(page, text="远程 LLM（用于 AI 纠正等能力）", text_color="gray").grid(
-            row=3, column=0, padx=18, pady=(8, 8), sticky="w"
+            row=2, column=0, padx=18, pady=(8, 8), sticky="w"
         )
         llm_provider_row = ctk.CTkFrame(page, fg_color=self._card_bg_color)
-        llm_provider_row.grid(row=4, column=0, padx=18, pady=(0, 12), sticky="ew")
+        llm_provider_row.grid(row=3, column=0, padx=18, pady=(0, 12), sticky="ew")
         llm_provider_row.grid_columnconfigure(1, weight=1)
 
         ctk.CTkLabel(llm_provider_row, text="文本优化引擎", width=120).grid(
@@ -1176,7 +1127,7 @@ class VoiceInputGUI:
 
         llm_provider_menu = ctk.CTkOptionMenu(
             llm_provider_row,
-            values=["cloud_llm", "local_mlx_corrector", "ollama", "llama_cpp"],
+            values=["cloud_llm", "ollama", "llama_cpp"],
             dynamic_resizing=False,
             fg_color=self._card_bg_color,
             button_color=self._card_bg_color,
@@ -2311,11 +2262,6 @@ class VoiceInputGUI:
          * @returns {void}
          */
         """
-        # 非 macOS：不启用录音浮层
-        if sys.platform != "darwin":
-            self._cocoa_recording_overlay = None
-            return
-
         # 已初始化则跳过
         if self._cocoa_recording_overlay is not None:
             return
@@ -2342,19 +2288,34 @@ class VoiceInputGUI:
 
     def _show_progress_window(self, data):
         """显示全屏进度条覆盖层"""
+        self._progress_overlay_requested = True
+        if self._progress_overlay_close_job is not None:
+            try:
+                self.root.after_cancel(self._progress_overlay_close_job)
+            except Exception:
+                pass
+            self._progress_overlay_close_job = None
 
         def _do_show():
             try:
+                if not self._progress_overlay_requested:
+                    return
+
                 # 延迟导入新的 Frame 组件
                 from ..core.progress_bar import ProgressBarFrame
 
-                # 如果已存在，直接返回
-                if hasattr(self, 'progress_overlay') and self.progress_overlay:
-                    self.progress_overlay.lift()
-                    return
-
                 title = data.get('title', '正在准备模型...')
                 label = data.get('label', '首次运行需要下载模型，请稍候...')
+
+                # 如果已存在，复用覆盖层，避免连续下载多个模型时销毁/重建造成闪烁
+                if hasattr(self, 'progress_overlay') and self.progress_overlay:
+                    try:
+                        self.progress_overlay.configure_text(title=title, label_text=label)
+                        self.progress_overlay.reset_progress()
+                    except Exception:
+                        pass
+                    self.progress_overlay.lift()
+                    return
 
                 # 创建全屏覆盖层，直接挂载到 self.root 上
                 # 这样它会遮挡所有其他内容（Sidebar + Content）
@@ -2380,7 +2341,11 @@ class VoiceInputGUI:
             progress = data.get('progress', 0)
             desc = data.get('desc', '')
             # 调用组件内部方法
-            self.progress_overlay.update_progress(progress / 100.0, desc)
+            numeric_progress = float(progress)
+            if numeric_progress < 0:
+                self.progress_overlay.update_progress(-1, desc)
+            else:
+                self.progress_overlay.update_progress(numeric_progress / 100.0, desc)
             # 强制刷新界面（重要！否则下载密集时界面会卡死）
             self.root.update_idletasks()
         except Exception as e:
@@ -2388,13 +2353,27 @@ class VoiceInputGUI:
 
     def _close_progress_window(self):
         """销毁进度条覆盖层"""
-        if hasattr(self, 'progress_overlay') and self.progress_overlay:
+        self._progress_overlay_requested = False
+
+        def _do_close():
+            self._progress_overlay_close_job = None
+            if self._progress_overlay_requested:
+                return
+            if not (hasattr(self, 'progress_overlay') and self.progress_overlay):
+                return
             try:
                 self.progress_overlay.destroy()
             except Exception:
                 pass
             self.progress_overlay = None
             print("✅ 进度覆盖层已关闭")
+
+        if self._progress_overlay_close_job is not None:
+            try:
+                self.root.after_cancel(self._progress_overlay_close_job)
+            except Exception:
+                pass
+        self._progress_overlay_close_job = self.root.after(900, _do_close)
 
     ##### 下载进度条 功能模块---end #####
 
@@ -2447,10 +2426,8 @@ class VoiceInputGUI:
 
     def _setup_statusbar(self):
         """初始化状态栏"""
-        if platform.system() == "Darwin":
-            # 创建并设置
-            self.statusbar = MacStatusBar.alloc().init()
-            self.statusbar.setupWithWindowId_(self._window_id)
+        self.statusbar = MacStatusBar.alloc().init()
+        self.statusbar.setupWithWindowId_(self._window_id)
 
     def _do_show(self):
         """实际显示窗口"""

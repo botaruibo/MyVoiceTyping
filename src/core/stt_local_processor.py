@@ -4,6 +4,7 @@
 import os
 import shutil
 import sys
+import threading
 from pathlib import Path
 import re
 from difflib import SequenceMatcher
@@ -16,22 +17,233 @@ except ImportError:
     def enqueue_action(*args, **kwargs):
         pass
 
+STT_MODEL_ID = "botaruibo/SenseVoiceSmall-onnx"
+PUNC_MODEL_ID = "botaruibo/punc_ct-onnx"
+
+
+def _get_bundled_models_root() -> Path | None:
+    candidates: list[Path] = []
+    if hasattr(sys, "_MEIPASS"):
+        candidates.append(Path(sys._MEIPASS) / "data" / "models")
+    if getattr(sys, "frozen", False) or hasattr(sys, "_MEIPASS"):
+        exe_path = Path(sys.executable).resolve()
+        contents_dir = exe_path.parent.parent
+        candidates.extend([
+            contents_dir / "Resources" / "data" / "models",
+            contents_dir / "Frameworks" / "data" / "models",
+        ])
+    candidates.append(Path(__file__).resolve().parents[2] / "data" / "models")
+
+    seen: set[Path] = set()
+    for candidate in candidates:
+        if candidate in seen:
+            continue
+        seen.add(candidate)
+        try:
+            if candidate.exists() and candidate.is_dir():
+                return candidate
+        except Exception:
+            continue
+    return None
+
+
 def get_models_root() -> Path:
     """
     获取模型根目录
-    - 开发时：工程项目根目录下 data/models
-    - 安装应用后：应用根目录对象下的 data/models (通常位于 .app/Contents/Resources/data/models)
+    - 开发时：工程项目根目录下 data/models。
+    - 安装应用后：下载到用户可写的 Application Support，避免写入 .app 包内部。
     """
-    if hasattr(sys, "_MEIPASS"):
-        # PyInstaller 打包后的运行环境
-        exe_path = Path(sys.executable).resolve()
-        # 假设结构为 .../MyApp.app/Contents/MacOS/MyApp
-        # exe_path.parent -> MacOS
-        # exe_path.parent.parent -> Contents
-        return exe_path.parent.parent / "Resources" / "data" / "models"
+    if getattr(sys, "frozen", False) or hasattr(sys, "_MEIPASS"):
+        return Path.home() / "Library" / "Application Support" / "MyVoiceTyping" / "data" / "models"
 
     # 开发环境：当前文件在 src/core/stt_local_processor.py -> ... -> ProjectRoot
     return Path(__file__).resolve().parents[2] / "data" / "models"
+
+
+def _find_existing_model_dir(local_name: str) -> Path | None:
+    for root in (get_models_root(), _get_bundled_models_root()):
+        if root is None:
+            continue
+        candidate = root / local_name
+        if _is_stt_model_present(candidate):
+            return candidate
+    return None
+
+
+def download_model_with_progress(model_id, target_dir, local_name, revision='v1.0'):
+    """
+    通用模型下载（带 GUI 进度），供 STT 与文本纠错等模块复用。
+
+    使用 tqdm hook 实现带 GUI 进度的下载：直接修改 tqdm.tqdm.update 方法，
+    确保补丁对所有已导入 tqdm 的模块生效。
+
+    :param model_id: ModelScope 模型 id，例如 "botaruibo/xxx"
+    :param target_dir: 下载目标目录 (Path)
+    :param local_name: 用于进度展示的本地名称
+    :param revision: ModelScope 版本号，默认 v1.0
+    """
+    import tqdm
+    import time
+
+    target_dir = Path(target_dir)
+    stop_monitor = threading.Event()
+
+    def _format_bytes(size: int) -> str:
+        value = float(size)
+        for unit in ("B", "KB", "MB", "GB"):
+            if value < 1024 or unit == "GB":
+                return f"{value:.1f} {unit}" if unit != "B" else f"{int(value)} B"
+            value /= 1024.0
+        return f"{size} B"
+
+    def _dir_snapshot() -> tuple[int, int]:
+        total_size = 0
+        total_files = 0
+        if not target_dir.exists():
+            return 0, 0
+        for file_path in target_dir.rglob("*"):
+            try:
+                if file_path.is_file():
+                    total_files += 1
+                    total_size += file_path.stat().st_size
+            except Exception:
+                continue
+        return total_files, total_size
+
+    def _monitor_download_dir() -> None:
+        last_size = -1
+        last_files = -1
+        while not stop_monitor.wait(1.0):
+            files, size = _dir_snapshot()
+            if files != last_files or size != last_size:
+                last_files = files
+                last_size = size
+                desc = f"已写入 {_format_bytes(size)}，{files} 个文件"
+                print(f"==下载目录监控: {local_name} {desc}")
+
+    # 记录原始方法以便恢复
+    _orig_update = tqdm.tqdm.update
+    _last_report_time = [0]  # 使用列表以便在闭包中修改
+    _min_determinate_bytes = 5 * 1024 * 1024
+
+    def patched_update(self, n=1):
+        res = _orig_update(self, n)
+        try:
+            now = time.time()
+            # 限制上报频率 (每 100ms 一次)
+            if now - _last_report_time[0] < 0.1:
+                if not (self.total and self.n >= self.total):
+                    return res
+            _last_report_time[0] = now
+
+            if self.total:
+                desc = self.desc or "下载中..."
+                # ModelScope 会同时为配置/README 等小文件创建 tqdm，它们会瞬间 100%，
+                # 直接映射到主进度条会造成“20% -> 100% -> 25%”的闪烁。
+                if self.total < _min_determinate_bytes:
+                    enqueue_action('progress_update', None, {'progress': -1, 'desc': desc})
+                    return res
+
+                percentage = (self.n / self.total) * 100
+                print(f"==进度上报: {percentage:.2f}% - {desc}")
+                enqueue_action('progress_update', None, {'progress': percentage, 'desc': desc})
+            else:
+                enqueue_action('progress_update', None, {'progress': -1, 'desc': self.desc or "正在下载..."})
+        except Exception as e:
+            print(f"⚠️ 进度上报失败: {e}")
+        return res
+
+    try:
+        print(f"⬇️ [GUI] 开始下载: {model_id}")
+        enqueue_action('progress_start', None, {'title': '模型初始化下载', 'label': f'正在下载 {local_name}...'})
+        threading.Thread(target=_monitor_download_dir, daemon=True).start()
+
+        # 应用补丁：直接修改类方法，这比替换类更彻底
+        tqdm.tqdm.update = patched_update
+        if hasattr(tqdm, 'auto'):
+            tqdm.auto.tqdm.update = patched_update
+
+        target_dir.parent.mkdir(parents=True, exist_ok=True)
+
+        # 延迟加载 modelscope 确保补丁已就绪
+        from modelscope import snapshot_download
+
+        snapshot_download(
+            model_id,
+            local_dir=str(target_dir),
+            revision=revision,
+        )
+        print(f"✅ 模型 {local_name} 下载成功")
+
+    except Exception as e:
+        raise Exception(f"❌ 模型下载失败: {e}")
+    finally:
+        stop_monitor.set()
+        tqdm.tqdm.update = _orig_update
+        if hasattr(tqdm, 'auto'):
+            tqdm.auto.tqdm.update = _orig_update
+        enqueue_action('progress_end', None, None)
+
+
+def _is_stt_model_present(target_dir: Path) -> bool:
+    """判断 STT/标点模型目录是否已下载（含配置与核心 onnx 文件）。"""
+    if not target_dir.exists():
+        return False
+    has_config = (target_dir / "config.yaml").exists() or (target_dir / "configuration.json").exists()
+    has_model = (target_dir / "model.onnx").exists() or (target_dir / "model_quant.onnx").exists()
+    return has_config and has_model
+
+
+def is_model_downloaded(model_id: str) -> bool:
+    """检查指定 STT/标点模型是否已存在于本地或打包目录中（不触发下载）。"""
+    local_name = model_id.split("/")[-1]
+    return _find_existing_model_dir(local_name) is not None
+
+
+def ensure_model_files(model_id: str) -> None:
+    """检查并按需下载 STT/标点模型文件（仅下载，不加载到内存）。
+
+    与 LocalSTTProcessor 的加载逻辑共用同一套存在性判定与目录修复，
+    供应用启动阶段集中预下载使用。
+    """
+    local_name = model_id.split("/")[-1]
+    target_dir = _find_existing_model_dir(local_name)
+    is_exist = target_dir is not None
+
+    if not is_exist:
+        target_dir = get_models_root() / local_name
+        print(f"⬇️ 未检测到本地模型，开始下载: {model_id} -> {target_dir}")
+        try:
+            target_dir.parent.mkdir(parents=True, exist_ok=True)
+            download_model_with_progress(model_id, target_dir, local_name, revision='v1.0')
+            print(f"✅ 模型 {local_name} 下载成功，正在整理文件结构...")
+        except Exception as e:
+            raise Exception(f"模型下载失败: {e}")
+
+    # 目录结构修复：确保关键文件在 target_dir 根目录下
+    try:
+        for root, dirs, files in os.walk(str(target_dir)):
+            current_root = Path(root)
+            if current_root == target_dir:
+                continue
+            for file in files:
+                if file.endswith(('.onnx', '.json', '.yaml', '.txt', '.bin', '.model')):
+                    src_path = current_root / file
+                    dst_path = target_dir / file
+                    if not dst_path.exists():
+                        print(f"📂 [目录修复] 移动 {file} -> {target_dir}")
+                        shutil.move(str(src_path), str(dst_path))
+        for root, dirs, files in os.walk(str(target_dir), topdown=False):
+            for d in dirs:
+                d_path = Path(root) / d
+                try:
+                    if not any(d_path.iterdir()):
+                        d_path.rmdir()
+                except Exception:
+                    pass
+    except Exception as e:
+        print(f"⚠️ 目录结构检查警告: {e}")
+
 
 class LocalSTTProcessor:
     """
@@ -40,8 +252,8 @@ class LocalSTTProcessor:
     """
     def __init__(self, config):
         self.config = config
-        self._stt_model_id = "botaruibo/SenseVoiceSmall-onnx"
-        self._punc_model_id = "botaruibo/punc_ct-onnx"
+        self._stt_model_id = STT_MODEL_ID
+        self._punc_model_id = PUNC_MODEL_ID
         self._download_model(model_id=self._stt_model_id)
         self._download_model(model_id=self._punc_model_id)
         self.model = self._init_stt_model()
@@ -115,80 +327,8 @@ class LocalSTTProcessor:
         return result
 
     def _download_with_progress(self, model_id, target_dir, local_name):
-        """
-        使用 tqdm hook 实现带 GUI 进度的下载
-        通过直接修改 tqdm.tqdm.update 方法，确保补丁对所有已导入 tqdm 的模块生效
-        """
-        import tqdm
-        import time
-
-        # 记录原始方法以便恢复
-        _orig_update = tqdm.tqdm.update
-        _last_report_time = [0]  # 使用列表以便在闭包中修改
-
-        def patched_update(self, n=1):
-            # 执行原始更新
-            res = _orig_update(self, n)
-
-            try:
-                now = time.time()
-                # 限制上报频率 (每 100ms 一次)
-                if now - _last_report_time[0] < 0.1:
-                    # 如果不是最后一次更新，则跳过
-                    if not (self.total and self.n >= self.total):
-                        return
-
-                _last_report_time[0] = now
-
-                if self.total:
-                    percentage = (self.n / self.total) * 100
-                    desc = self.desc or "下载中..."
-                    print(f"==进度上报: {percentage:.2f}% - {desc}")
-                    enqueue_action('progress_update', None, {'progress': percentage, 'desc': desc})
-                else:
-                    # 未知总大小，仅更新描述
-                    enqueue_action('progress_update', None, {'progress': -1, 'desc': self.desc or "正在下载..."})
-            except Exception as e:
-                print(f"⚠️ 进度上报失败: {e}")
-
-            return res
-
-        try:
-            print(f"⬇️ [GUI] 开始下载: {model_id}")
-            # 发送开始信号
-            enqueue_action('progress_start', None, {'title': '模型初始化下载', 'label': f'正在下载 {local_name}...'})
-
-            # 应用补丁：直接修改类方法，这比替换类更彻底
-            tqdm.tqdm.update = patched_update
-            # 同时确保 auto 模块也指向同一个类（通常已经是这样了）
-            if hasattr(tqdm, 'auto'):
-                tqdm.auto.tqdm.update = patched_update
-
-            # 确保父目录存在
-            target_dir.parent.mkdir(parents=True, exist_ok=True)
-
-            # 延迟加载 modelscope 确保补丁已就绪
-            from modelscope import snapshot_download
-
-            # 开始下载
-            snapshot_download(
-                model_id,
-                local_dir=str(target_dir),
-                revision='v1.0'
-            )
-            print(f"✅ 模型 {local_name} 下载成功")
-
-        except Exception as e:
-            # 网络错误等会在这里被捕获
-            raise Exception(f"❌ 模型下载失败: {e}")
-        finally:
-            # 务必还原方法
-            tqdm.tqdm.update = _orig_update
-            if hasattr(tqdm, 'auto'):
-                tqdm.auto.tqdm.update = _orig_update
-
-            # 关闭进度条窗口
-            enqueue_action('progress_end', None, None)
+        """实例方法保留以兼容旧调用，委托给模块级通用下载函数。"""
+        download_model_with_progress(model_id, target_dir, local_name, revision='v1.0')
 
     def _download_model(self, model_id: str):
         """
@@ -196,40 +336,12 @@ class LocalSTTProcessor:
         """
         # 1. 确定模型目录
         local_name = model_id.split("/")[-1]
-        models_root = get_models_root()
-        target_dir = models_root / local_name
-
-        # 检查是否已存在（简单的检查规则：目录存在且包含关键配置文件）
-        is_exist = False
-        if target_dir.exists():
-            if (target_dir / "config.yaml").exists() or (target_dir / "configuration.json").exists():
-                # 进一步检查核心模型文件是否存在
-                if (target_dir / "model.onnx").exists() or (target_dir / "model_quant.onnx").exists():
-                    is_exist = True
-
-        # 兼容性查找逻辑
-        if not is_exist:
-            bundle_root_candidates = []
-            if hasattr(sys, "_MEIPASS"):
-                bundle_root_candidates.append(Path(sys._MEIPASS))
-            exe_path = Path(sys.executable).resolve()
-            bundle_root_candidates.extend([
-                exe_path.parent,
-                exe_path.parent.parent,
-                exe_path.parent.parent / "Resources"
-            ])
-            bundle_root_candidates.append(Path(__file__).resolve().parents[2])
-
-            for root in bundle_root_candidates:
-                candidate = root / "data" / "models" / local_name
-                if candidate.exists() and (
-                        (candidate / "config.yaml").exists() or (candidate / "configuration.json").exists()):
-                    target_dir = candidate
-                    is_exist = True
-                    break
+        target_dir = _find_existing_model_dir(local_name)
+        is_exist = target_dir is not None
 
         # 2. 如果不存在，则下载
         if not is_exist:
+            target_dir = get_models_root() / local_name
             print(f"⬇️ 未检测到本地模型，开始下载: {model_id} -> {target_dir}")
 
             try:
@@ -284,41 +396,15 @@ class LocalSTTProcessor:
         """
         # 1. 确定模型目录
         local_name = model_id.split("/")[-1]
-        models_root = get_models_root()
-        target_dir = models_root / local_name
-
-        # 检查是否已存在（简单的检查规则：目录存在且包含关键配置文件）
-        is_exist = False
-        if target_dir.exists():
-            if (target_dir / "config.yaml").exists() or (target_dir / "configuration.json").exists():
-                # 进一步检查核心模型文件是否存在
-                if (target_dir / "model.onnx").exists() or (target_dir / "model_quant.onnx").exists():
-                    is_exist = True
-
-        # 兼容性查找逻辑
-        if not is_exist:
-            bundle_root_candidates = []
-            if hasattr(sys, "_MEIPASS"):
-                bundle_root_candidates.append(Path(sys._MEIPASS))
-            exe_path = Path(sys.executable).resolve()
-            bundle_root_candidates.extend([
-                exe_path.parent,
-                exe_path.parent.parent,
-                exe_path.parent.parent / "Resources"
-            ])
-            bundle_root_candidates.append(Path(__file__).resolve().parents[2])
-
-            for root in bundle_root_candidates:
-                candidate = root / "data" / "models" / local_name
-                if candidate.exists() and (
-                        (candidate / "config.yaml").exists() or (candidate / "configuration.json").exists()):
-                    target_dir = candidate
-                    is_exist = True
-                    break
+        target_dir = _find_existing_model_dir(local_name)
+        is_exist = target_dir is not None
 
         # 2. 如果不存在，则下载
         if not is_exist:
-            self._download_model(model_id, local_name)
+            self._download_model(model_id)
+            target_dir = _find_existing_model_dir(local_name)
+            if target_dir is None:
+                raise FileNotFoundError(f"模型下载后仍未找到完整模型目录: {local_name}")
 
         # 自动检测量化配置
         if 'quantize' not in kwargs:

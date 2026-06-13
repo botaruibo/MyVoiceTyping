@@ -3,11 +3,13 @@ __pycache__/
 *.py[oc]
 build/
 dist/
+.pyinstaller-cache/
 wheels/
 *.egg-info
 
 # Virtual environments
 .venv
+venv/
 # pixi environments
 .pixi/*
 !.pixi/config.toml
