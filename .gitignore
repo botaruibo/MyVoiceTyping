@@ -17,3 +17,4 @@ data/
 *.dmg
 dmg_root
 *.egg-info/
+logs/
