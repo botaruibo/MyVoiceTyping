@@ -115,7 +115,8 @@ datas = [
     (str(package_config_dir), 'data/config'),
 ]
 
-# 不打包 data/models 下的模型文件；首次启动时下载到用户可写的 Application Support。
+# 不打包 data/audio、data/models、data/transcripts 下的运行数据；
+# 首次启动时模型下载到用户可写的 Application Support。
 
 binaries = []
 try:
@@ -249,6 +250,12 @@ _PRUNE_PREFIXES = (
     'aiohttp',
 )
 
+_FORBIDDEN_DATA_DIRS = (
+    'data/audio',
+    'data/models',
+    'data/transcripts',
+)
+
 
 def _should_prune(dest):
     head = dest.replace('\\', '/').split('/', 1)[0].lower()
@@ -256,7 +263,23 @@ def _should_prune(dest):
     return base in _PRUNE_PREFIXES
 
 
-a.datas = [entry for entry in a.datas if not _should_prune(entry[0])]
+def _is_forbidden_runtime_data(entry):
+    candidates = (entry[0], entry[1] if len(entry) > 1 else '')
+    for candidate in candidates:
+        normalized = str(candidate).replace('\\', '/').strip('/').lower()
+        if any(
+            normalized == forbidden or normalized.startswith(f'{forbidden}/')
+            for forbidden in _FORBIDDEN_DATA_DIRS
+        ):
+            return True
+    return False
+
+
+a.datas = [
+    entry
+    for entry in a.datas
+    if not _should_prune(entry[0]) and not _is_forbidden_runtime_data(entry)
+]
 a.binaries = [entry for entry in a.binaries if not _should_prune(entry[0])]
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)

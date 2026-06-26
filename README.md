@@ -1,22 +1,29 @@
 # MyVoiceTyping
 
-> 面向 macOS 的本地优先语音输入工具：按下快捷键说话，松开后自动转写、轻量纠错，并把文本粘贴到当前输入位置。
+> 面向 macOS 的本地语音输入工具：用说话代替打字，让日常输入更快、更安全、更私密。
 
-MyVoiceTyping 不是聊天机器人，也不是云端听写服务。它的定位更接近一个常驻桌面的“语音输入加速器”：把本地 ASR、标点恢复、本地文本纠错和系统级粘贴串成一条尽量短的链路，让日常写文档、记需求、回消息时少打字、多说话。
+MyVoiceTyping 的目标很简单：让你在写文档、记需求、回消息、整理想法时少敲键盘，多直接表达。对大多数场景来说，说话比打字更快，也更接近日常思考的节奏。
+
+它也可以作为 Typless 的本地化平替工具使用。默认能力全部在本机完成，不依赖云端模型，不上传音频和文本，更适合重视个人数据保护、隐私安全和合规要求的工作场景。
 
 ![MyVoiceTyping dashboard](docs/img/myvoicetyping-dashboard.png)
 
 ## Highlights
 
-- **macOS first**：当前版本只面向 Apple PC/macOS 维护和打包。
-- **本地优先**：语音识别、标点恢复、文本纠错默认都走本地模型，减少音频和文本外发。
-- **全局快捷键**：默认使用 `Fn` 按住说话，基于 Quartz EventTap 监听，应用隐藏后也可触发。
-- **自动写入当前输入框**：转写完成后写入剪贴板，并通过 CGEvent 触发 `Cmd + V`。
-- **轻量纠错润色**：使用本地 GGUF 文本纠错模型，对 ASR 结果做少量改写，尽量保留原意。
-- **热词设置**：支持在设置页维护 FunASR 热词，用于常见技术词、项目词、人名等场景。
-- **历史记录工作台**：记录最近输入、累计字数、节约时间；支持查看和手工修正最近一次输入。
-- **首次启动下载模型**：安装包不内置大模型，首次启动按需下载到用户可写目录。
-- **macOS 权限引导**：对输入监控、辅助功能、麦克风权限做提示和跳转。
+- **输入更快**：用语音完成长句、段落和想法记录，减少键盘输入负担。
+- **Typless 本地平替**：面向 macOS 常驻使用，按住快捷键即可在任意输入位置说话输入。
+- **个人数据更安全**：默认全本地处理，音频和文本不上传云端，更适合敏感内容和办公场景。
+- **自动整理文本**：转写后会做标点恢复、轻量纠错和简单润色，尽量保留原意。
+- **支持热词**：可维护常用技术词、项目词、人名，降低专有名词误识别。
+- **输入工作台**：查看历史输入、累计字数和节约时间，也可以手工修正最近一次输入。
+- **安装包更轻**：大模型不内置在安装包里，首次启动后按需下载到本机。
+
+## Technical Highlights
+
+- **全开源，可替换模型**：项目代码开放，ASR、标点恢复和文本纠错模型都可以按需替换。当前默认使用阿里 FunASR 生态中的模型，并通过 ONNX 推理实现，启动和运行性能更好。
+- **本地化瘦身改造**：对运行链路做了本地化和打包裁剪，减少不必要的大依赖，瘦身安装包。
+- **本地文本纠错与润色**：当前文本纠错使用 [shibing624/chinese-text-correction-1.5b](https://huggingface.co/shibing624/chinese-text-correction-1.5b) 的量化版本。该模型的训练数据主要来自书面 CSC 错别字纠错数据集和跨语言学习错词数据集，以错别字纠正为主，并非专门为语音转录和格式化场景训练。
+- **专用模型计划**：正在整理针对语音转录纠错、口语重复消除和格式化改写的数据样本，后续版本会替换为更适合语音输入场景的专用纠错润色模型。
 
 ## How It Works
 
@@ -49,7 +56,7 @@ flowchart LR
 | --- | --- | --- | --- |
 | ASR | `botaruibo/SenseVoiceSmall-onnx` | 语音转文本 | `~/Library/Application Support/MyVoiceTyping/data/models` |
 | 标点 | `botaruibo/punc_ct-onnx` | 标点恢复 | 同上 |
-| 纠错 | `botaruibo/chinese_text_correction_1.5b_gguf` | ASR 文本纠错/简单润色 | 同上 |
+| 纠错 | `botaruibo/chinese_text_correction_1.5b_gguf`，基于 `shibing624/chinese-text-correction-1.5b` 量化 | ASR 文本纠错/简单润色 | 同上 |
 
 模型文件不会提交到 Git，也不会被打包进 `.app`。首次启动时应用会按顺序检查和下载模型：
 
@@ -155,7 +162,7 @@ CODESIGN_IDENTITY="MyVoiceTyping Self-Signed" bash build_dmg.sh
 
 说明：
 
-- `MyVoiceTyping.spec` 不打包 `data/models` 下的大模型。
+- `MyVoiceTyping.spec` 不打包 `data/audio`、`data/models`、`data/transcripts` 下的运行数据。
 - `build_dmg.sh` 会检查 `.app` 中是否包含默认配置和 prompt。
 - 自签名证书主要用于稳定本机权限身份，不等价于 Apple Developer ID notarization。
 

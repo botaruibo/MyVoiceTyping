@@ -61,6 +61,26 @@ for required_file in "${REQUIRED_APP_FILES[@]}"; do
 done
 echo "✅ 打包运行资源检查通过"
 
+echo "🧹 清理不应进入安装包的运行数据..."
+FORBIDDEN_DATA_DIRS=(
+    "$APP_BUNDLE/Contents/Resources/data/audio"
+    "$APP_BUNDLE/Contents/Resources/data/models"
+    "$APP_BUNDLE/Contents/Resources/data/transcripts"
+)
+for forbidden_dir in "${FORBIDDEN_DATA_DIRS[@]}"; do
+    if [ -e "$forbidden_dir" ]; then
+        rm -rf "$forbidden_dir"
+        echo "已移除: $forbidden_dir"
+    fi
+done
+for forbidden_dir in "${FORBIDDEN_DATA_DIRS[@]}"; do
+    if [ -e "$forbidden_dir" ]; then
+        echo "❌ 运行数据目录仍存在，停止打包: $forbidden_dir"
+        exit 1
+    fi
+done
+echo "✅ 运行数据目录检查通过"
+
 choose_codesign_identity() {
     if [ -n "${CODESIGN_IDENTITY:-}" ]; then
         echo "$CODESIGN_IDENTITY"

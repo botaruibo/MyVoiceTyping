@@ -628,10 +628,10 @@ class VoiceInputGUI:
             value_label = ctk.CTkLabel(
                 card,
                 text=value,
-                font=GUIStyles.get_stat_value_font(),
+                font=GUIStyles.get_saved_time_value_font() if key == "saved_time" else GUIStyles.get_stat_value_font(),
                 text_color=GUIStyles.COLOR_DESTRUCTIVE if key == "saved_time" else GUIStyles.COLOR_TEXT_PRIMARY,
             )
-            value_label.pack(anchor="w", padx=16, pady=(0, 14))
+            value_label.pack(anchor="w", padx=12 if key == "saved_time" else 16, pady=(0, 14))
             self._home_stat_labels[key] = value_label
 
         body = ctk.CTkFrame(page, fg_color="transparent")

@@ -16,7 +16,7 @@ class GUIStyles:
     COLOR_TEXT_SECONDARY = ("#6B7280", "#A7A7A7")
     COLOR_TEXT_MUTED = ("#8E8E93", "#9CA3AF")
     COLOR_ACCENT = ("#007AFF", "#5EA8FF")
-    COLOR_DESTRUCTIVE = "#FF849C"
+    COLOR_DESTRUCTIVE = "#FF4B5C"
     COLOR_BUTTON_FG = ("#FFFFFF", "#2A2A2A")
     COLOR_BUTTON_HOVER = ("#F8F8FA", "#333333")
     COLOR_CONTROL_BG = ("#FFFFFF", "#2B2B2B")
@@ -62,6 +62,10 @@ class GUIStyles:
     @staticmethod
     def get_stat_value_font():
         return ctk.CTkFont(family=GUIStyles.FONT_FAMILY, size=26, weight="bold")
+
+    @staticmethod
+    def get_saved_time_value_font():
+        return ctk.CTkFont(family=GUIStyles.FONT_FAMILY, size=22, weight="bold")
 
     @staticmethod
     def get_label_font():

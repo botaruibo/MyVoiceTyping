@@ -96,4 +96,4 @@ bash build_dmg.sh
 - `LocalLlamaCppRewrite` 是当前默认本地纠错路径。改动模型路径、下载逻辑或打包 hidden imports 时，要同时验证开发环境和 `.app` 内运行。
 - `LocalLlamaRewrite`/Ollama HTTP 代码属于历史兼容路径；不要让默认配置依赖 Ollama daemon。
 - `ConfigManager.default_config` 已提供默认值。新增配置时要同步开发默认配置、打包种子配置和 UI 读写逻辑。
-- `MyVoiceTyping.spec` 不应打包 `data/models` 下的大模型；模型应在首次启动下载到用户 Application Support 目录。
+- `MyVoiceTyping.spec` 不应打包 `data/audio`、`data/models`、`data/transcripts` 下的运行数据；模型应在首次启动下载到用户 Application Support 目录。
