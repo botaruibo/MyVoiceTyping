@@ -6,6 +6,8 @@ dist/
 .pyinstaller-cache/
 wheels/
 *.egg-info
+.DS_Store
+/macos
 
 # Virtual environments
 .venv
@@ -13,7 +15,7 @@ venv/
 # pixi environments
 .pixi/*
 !.pixi/config.toml
-data/
+
 *.dmg
 dmg_root
 *.egg-info/
@@ -21,3 +23,24 @@ logs/
 .idea/
 test_data/
 .trae/
+data/models/
+data/audio/
+data/transcripts/
+
+# Local/private configuration and credentials
+.env
+.env.*
+*.pem
+*.p12
+*.cer
+*.key
+*.mobileprovision
+
+# Local model repositories / model weights
+chinese_text_correction_1.5b_gguf/
+*.gguf
+*.onnx
+*.bin
+*.safetensors
+*.pt
+*.pth

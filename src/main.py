@@ -947,7 +947,30 @@ class FlashInputApp:
             return False
 
     def _copy_text_to_pasteboard(self, text: str) -> bool:
-        """使用 macOS pbcopy 写入系统剪贴板，避免第三方剪贴板依赖。"""
+        """写入系统剪贴板：优先使用进程内 NSPasteboard，pbcopy 仅作兜底。"""
+        if self._copy_via_nspasteboard(text):
+            return True
+        print("⚠️ NSPasteboard 写入失败，回退 pbcopy")
+        return self._copy_via_pbcopy(text)
+
+    def _copy_via_nspasteboard(self, text: str) -> bool:
+        """使用 AppKit NSPasteboard 在进程内写剪贴板，不受子进程环境/locale 影响。"""
+        try:
+            from AppKit import NSPasteboard, NSPasteboardTypeString
+
+            pasteboard = NSPasteboard.generalPasteboard()
+            pasteboard.clearContents()
+            ok = pasteboard.setString_forType_(text, NSPasteboardTypeString)
+            if not ok:
+                print("❌ NSPasteboard setString 返回 False")
+                return False
+            return True
+        except Exception as e:
+            print(f"❌ NSPasteboard 写入异常: {e}")
+            return False
+
+    def _copy_via_pbcopy(self, text: str) -> bool:
+        """使用 macOS pbcopy 写入系统剪贴板，作为 NSPasteboard 的兜底路径。"""
         try:
             proc = subprocess.run(
                 ["pbcopy"],
@@ -967,13 +990,13 @@ class FlashInputApp:
             return False
 
     def paste_with_cgevent(self) -> bool:
+        """macOS CGEvent Cmd+V 粘贴。"""
         import ctypes
         import ctypes.util
-        """macOS CGEvent Cmd+V 粘贴。"""
 
         try:
-            # 加载框架
-            cg = ctypes.CDLL(ctypes.util.find_library('CoreGraphics'))
+            core_graphics = ctypes.util.find_library('CoreGraphics')
+            cg = ctypes.CDLL(core_graphics)
 
             try:
                 from .util.mac_permissions import is_accessibility_trusted, request_accessibility_permission
@@ -1001,21 +1024,38 @@ class FlashInputApp:
 
             # 创建事件源 (1 = kCGEventSourceStateHIDSystemState)
             source = cg.CGEventSourceCreate(1)
+            if not source:
+                print("❌ 创建 CGEvent source 失败")
+                return False
 
-            # 创建 V 键按下/释放事件 (9 = V键)
-            # True = 按下, False = 释放
-            v_down = cg.CGEventCreateKeyboardEvent(source, 9, True)
-            v_up = cg.CGEventCreateKeyboardEvent(source, 9, False)
+            keycode_v = 9
+            keycode_cmd = 55  # 左 Command
+            cmd_flag = 0x00100000
+            tap = 0  # kCGHIDEventTap
 
-            # 添加 Cmd 键标志 (0x00100000)
-            cg.CGEventSetFlags(v_down, 0x00100000)
-            cg.CGEventSetFlags(v_up, 0x00100000)
+            cmd_down = cg.CGEventCreateKeyboardEvent(source, keycode_cmd, True)
+            v_down = cg.CGEventCreateKeyboardEvent(source, keycode_v, True)
+            v_up = cg.CGEventCreateKeyboardEvent(source, keycode_v, False)
+            cmd_up = cg.CGEventCreateKeyboardEvent(source, keycode_cmd, False)
 
-            # 发送事件 (0 = kCGHIDEventTap)
-            cg.CGEventPost(0, v_down)
-            cg.CGEventPost(0, v_up)
+            if not all([cmd_down, v_down, v_up, cmd_up]):
+                print("❌ 创建键盘事件失败")
+                return False
 
-            print("✅ 已触发 CGEvent Cmd+V 粘贴")
+            # 先按下 Cmd，再发送 V，最后释放 Cmd。
+            cg.CGEventSetFlags(cmd_down, cmd_flag)
+            cg.CGEventSetFlags(v_down, cmd_flag)
+            cg.CGEventSetFlags(v_up, cmd_flag)
+            cg.CGEventSetFlags(cmd_up, 0)
+
+            cg.CGEventPost(tap, cmd_down)
+            time.sleep(0.01)
+            cg.CGEventPost(tap, v_down)
+            time.sleep(0.01)
+            cg.CGEventPost(tap, v_up)
+            time.sleep(0.01)
+            cg.CGEventPost(tap, cmd_up)
+
             return True
 
         except Exception as e:

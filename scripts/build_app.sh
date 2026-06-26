@@ -25,4 +25,4 @@ echo "🐍 Python: $("$PYTHON_BIN" -V)"
 echo "📦 PyInstaller: $("$PYINSTALLER_BIN" --version)"
 echo "🧰 PyInstaller cache: $PYINSTALLER_CONFIG_DIR"
 
-"$PYINSTALLER_BIN" --noconfirm MyVoiceInput.spec
+"$PYINSTALLER_BIN" --noconfirm MyVoiceTyping.spec

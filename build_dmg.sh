@@ -55,7 +55,7 @@ REQUIRED_APP_FILES=(
 for required_file in "${REQUIRED_APP_FILES[@]}"; do
     if [ ! -f "$required_file" ]; then
         echo "❌ 缺少打包资源: $required_file"
-        echo "请重新执行: pyinstaller MyVoiceInput.spec"
+        echo "请重新执行: pyinstaller MyVoiceTyping.spec"
         exit 1
     fi
 done

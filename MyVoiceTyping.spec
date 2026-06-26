@@ -38,13 +38,26 @@ try:
 except NameError:
     project_root = Path.cwd().resolve()
 
-# 自动收集子模块（只收集真正需要的推理库）
-#funasr_onnx_hidden = collect_submodules('funasr_onnx')
-modelscope_hidden = []
-try:
-    modelscope_hidden += collect_submodules('modelscope')
-except Exception:
-    pass
+# 仅保留 ModelScope 下载链路所需模块，避免整包收集把无关任务域带入安装包。
+modelscope_hidden = [
+    'modelscope.hub.snapshot_download',
+    'modelscope.hub.api',
+    'modelscope.hub.callback',
+    'modelscope.hub.constants',
+    'modelscope.hub.errors',
+    'modelscope.hub.file_download',
+    'modelscope.hub.git',
+    'modelscope.hub.info',
+    'modelscope.hub.repository',
+    'modelscope.hub.utils.aigc',
+    'modelscope.hub.utils.caching',
+    'modelscope.hub.utils.utils',
+    'modelscope.utils.constant',
+    'modelscope.utils.file_utils',
+    'modelscope.utils.logger',
+    'modelscope.utils.repo_utils',
+    'modelscope.utils.thread_utils',
+]
 
 # 本地 llama.cpp 纠错后端依赖 llama_cpp，需收集其子模块与动态库
 llama_cpp_hidden = []
@@ -111,7 +124,6 @@ except Exception:
     pass
 
 for libomp_candidate in (
-    project_root / 'venv' / 'lib' / 'python3.11' / 'site-packages' / 'torch' / 'lib' / 'libomp.dylib',
     Path('/usr/local/lib/libomp.dylib'),
     Path('/opt/homebrew/lib/libomp.dylib'),
 ):
@@ -141,7 +153,12 @@ a = Analysis(
     hiddenimports=[
         'customtkinter',
         'onnxruntime',
-        'funasr_onnx',
+        'src.vendor.funasr_onnx',
+        'src.vendor.funasr_onnx.sensevoice_bin',
+        'src.vendor.funasr_onnx.punc_bin',
+        'src.vendor.funasr_onnx.utils.frontend',
+        'src.vendor.funasr_onnx.utils.sentencepiece_tokenizer',
+        'src.vendor.funasr_onnx.utils.utils',
         'AppKit',
         'Foundation',
         'Quartz',
@@ -150,19 +167,14 @@ a = Analysis(
         'PIL',
         'numpy',
         'requests',
-        'modelscope',
         'yaml',
-        'librosa',
-        'scipy',
-        'numba',
-        'llvmlite',
         'soundfile',
-        'soxr',
-        'audioread',
+        'sentencepiece',
+        'kaldi_native_fbank',
+        'jieba',
         # 本地 llama.cpp 纠错后端
         'llama_cpp',
         *llama_cpp_hidden,
-#        *funasr_onnx_hidden,
         *modelscope_hidden,
     ],
     hookspath=[],
@@ -170,10 +182,9 @@ a = Analysis(
     runtime_hooks=[str(project_root / 'runtime_hook.py')],
     # 【关键优化：排除重型依赖】
     excludes=[
-        # 注意：funasr_onnx 的 sensevoice_bin 在导入时硬依赖 torch，
-        # 因此本地 SenseVoice ASR 必须打包 torch，不能排除。
-        'torchaudio',      # 排除 TorchAudio (约 100MB)
-        'torchvision',     # 排除 TorchVision
+        'torch',
+        'torchaudio',
+        'torchvision',
         'triton',
         'tensorflow',
         'keras',
@@ -191,10 +202,21 @@ a = Analysis(
         'PySide2',
         'PySide6',
         'sklearn',         # 排除 Scikit-learn
-#        'sympy',
         'networkx',
-#        'llvmlite',
         'cv2',
+        # 当前只支持应用内录制的 16k wav，已移除 librosa/numba 音频读取链路
+        'librosa',
+        'scipy',
+        'numba',
+        'llvmlite',
+        'soxr',
+        'audioread',
+        'funasr',
+        'funasr_onnx',
+        'transformers',
+        'tokenizers',
+        'hf_xet',
+        'safetensors',
         # 本安装包不打包的 rewrite 后端
         'langchain',
         'langchain_core',
@@ -202,12 +224,40 @@ a = Analysis(
         'langchain_community',
         'gguf',
         'bitsandbytes',
+        # 运行时只用 onnxruntime，onnx/ml_dtypes 由 onnxscript 等间接带入，未使用
+        'onnx',
+        'onnxscript',
+        'ml_dtypes',
+        # 云端 LLM 链路依赖，当前 provider=llama_cpp 不走云端
+        'tiktoken',
+        'aiohttp',
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,
     noarchive=False,
 )
+
+# 清理被 hook 通过 copy_metadata 间接带入的残留：dist-info 元数据与零散二进制。
+# excludes 只能挡模块代码，挡不住元数据/数据文件，这里按路径前缀二次过滤。
+_PRUNE_PREFIXES = (
+    'torch',
+    'onnx',
+    'onnxscript',
+    'ml_dtypes',
+    'tiktoken',
+    'aiohttp',
+)
+
+
+def _should_prune(dest):
+    head = dest.replace('\\', '/').split('/', 1)[0].lower()
+    base = head.split('-', 1)[0]
+    return base in _PRUNE_PREFIXES
+
+
+a.datas = [entry for entry in a.datas if not _should_prune(entry[0])]
+a.binaries = [entry for entry in a.binaries if not _should_prune(entry[0])]
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 

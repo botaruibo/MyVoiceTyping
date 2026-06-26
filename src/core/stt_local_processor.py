@@ -9,6 +9,7 @@ from pathlib import Path
 import re
 from difflib import SequenceMatcher
 import numpy as np
+import soundfile as sf
 
 try:
     from ..components.gui_tk import enqueue_action
@@ -19,6 +20,7 @@ except ImportError:
 
 STT_MODEL_ID = "botaruibo/SenseVoiceSmall-onnx"
 PUNC_MODEL_ID = "botaruibo/punc_ct-onnx"
+# PUNC_MODEL_ID = "iic/punc_ct-transformer_cn-en-common-vocab471067-large-onnx"
 
 
 def _get_bundled_models_root() -> Path | None:
@@ -166,7 +168,7 @@ def download_model_with_progress(model_id, target_dir, local_name, revision='v1.
         target_dir.parent.mkdir(parents=True, exist_ok=True)
 
         # 延迟加载 modelscope 确保补丁已就绪
-        from modelscope import snapshot_download
+        from modelscope.hub.snapshot_download import snapshot_download
 
         snapshot_download(
             model_id,
@@ -421,9 +423,9 @@ class LocalSTTProcessor:
         初始化 FunASR ONNX STT 模型
         """
         try:
-            from funasr_onnx import SenseVoiceSmall
+            from ..vendor.funasr_onnx import SenseVoiceSmall
         except ImportError as e:
-            raise ImportError(f"请安装 funasr_onnx: {e}")
+            raise ImportError(f"请检查 vendored funasr_onnx 依赖是否完整: {e}")
 
         return self._load_model(
             model_id=self._stt_model_id,
@@ -437,9 +439,9 @@ class LocalSTTProcessor:
         初始化标点模型
         """
         try:
-            from funasr_onnx import CT_Transformer
+            from ..vendor.funasr_onnx import CT_Transformer
         except ImportError:
-            raise ImportError("请安装 funasr_onnx")
+            raise ImportError("请检查 vendored funasr_onnx 依赖是否完整")
 
         return self._load_model(
             model_id=self._punc_model_id,
@@ -447,6 +449,30 @@ class LocalSTTProcessor:
             device_id=-1,
             # quantize 会自动检测
         )
+
+    def _load_recorded_audio(self, file_path: str) -> np.ndarray:
+        """
+        读取应用内录制的 16k WAV 音频，返回单声道 float32 ndarray。
+
+        当前桌面应用只支持自身录制链路生成的 WAV：
+        - sample rate 必须为 16000
+        - 声道数必须为单声道，或可压平成单声道
+        """
+        audio_array, sample_rate = sf.read(file_path, dtype="float32", always_2d=False)
+
+        if sample_rate != 16000:
+            raise ValueError(f"仅支持 16k WAV，当前采样率: {sample_rate}")
+
+        if isinstance(audio_array, np.ndarray) and audio_array.ndim == 2:
+            if audio_array.shape[1] != 1:
+                raise ValueError(f"仅支持单声道 WAV，当前声道数: {audio_array.shape[1]}")
+            audio_array = audio_array[:, 0]
+
+        audio_array = np.asarray(audio_array, dtype=np.float32)
+        if audio_array.ndim != 1:
+            raise ValueError(f"音频数据维度异常: {audio_array.shape}")
+
+        return audio_array
 
     def rich_transcription_postprocess(self,text: str) -> str:
         """
@@ -472,9 +498,10 @@ class LocalSTTProcessor:
         try:
             hotwords = self._get_hotwords()
             hotword_text = " ".join(hotwords)
+            audio_array = self._load_recorded_audio(file_path)
 
             t_asr0 = _time.perf_counter()
-            rst = self.model(file_path, hotword=hotword_text) if hotword_text else self.model(file_path)
+            rst = self.model(audio_array, hotword=hotword_text) if hotword_text else self.model(audio_array)
             t_asr_ms = (_time.perf_counter() - t_asr0) * 1000.0
             print(f"[perf] stt: SenseVoice 推理: {t_asr_ms:.1f}ms")
             print(f"本地模型转录文本: {rst}")
@@ -504,10 +531,9 @@ class LocalSTTProcessor:
         关键背景（实测拆解）：
         - SenseVoice ONNX 是动态 shape，第一次拿到“真实长度 + 真实特征”
           的输入时，ORT 会触发算子图懒优化 / 内存重排，单次代价数百 ms ~ 数秒。
-        - 真实转录链路是 `librosa.load(file_path)` -> ndarray -> ONNX 推理。
-          其中 `librosa.load` 首次调用会懒加载 numba/soundfile/audioread 等
-          子库，单次代价 ~1s 左右，下次几乎 0ms。
-        - 所以 warm_up 必须同时覆盖两条路径，否则用户首次录音仍要等 ~1s。
+        - 当前真实转录链路是 `soundfile.read(file_path)` -> ndarray -> ONNX 推理。
+          应用内录音固定写出 16k 单声道 wav，因此这里只需预热 ONNX 与标点模型，
+          无需再为 librosa/numba 的懒加载单独预热。
 
         合成数据 vs 读固定文件的取舍：
         - 现场用 numpy 生成低幅高斯噪声：纯内存操作 < 1ms。
@@ -529,22 +555,7 @@ class LocalSTTProcessor:
             rng = np.random.default_rng(0)
             synth = (rng.standard_normal(int(16000 * 6.0)) * 50.0).astype(np.float32)
 
-            # 1) 触发 librosa 子库懒加载（真实链路会先经过 librosa.load）。
-            #    用一段极短的内存信号，强制走完 librosa 内部 import 路径。
-            try:
-                t0 = _time.perf_counter()
-                import librosa  # 顶层 import 不算，关键是首次 .load 才加载子库
-                # librosa.load 不接受 ndarray，我们用 librosa.resample 触发它
-                # 的 numba/audio I/O 子模块加载（实测能等价于一次 .load 的预热）
-                _ = librosa.resample(synth[:1600], orig_sr=16000, target_sr=16000)
-                print(
-                    f"[perf] stt:warm_up librosa "
-                    f"{(_time.perf_counter() - t0) * 1000.0:.1f}ms"
-                )
-            except Exception as e:
-                print(f"⚠️ librosa 预热失败（可忽略）: {e}")
-
-            # 2) 触发 SenseVoice ONNX 算子图懒优化
+            # 1) 触发 SenseVoice ONNX 算子图懒优化
             t0 = _time.perf_counter()
             _ = self.model(synth)
             print(
@@ -552,7 +563,7 @@ class LocalSTTProcessor:
                 f"{(_time.perf_counter() - t0) * 1000.0:.1f}ms"
             )
 
-            # 3) 触发标点模型首次推理
+            # 2) 触发标点模型首次推理
             if self.punc is not None:
                 t0 = _time.perf_counter()
                 _ = self.punc("今天我们一起来预热标点模型")
