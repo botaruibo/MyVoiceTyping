@@ -1077,18 +1077,67 @@ class VoiceInputGUI:
             row=0,
         )
 
+        # --- 文本处理部分 ---
+        rewrite_content = self._create_section_card(page, "文本处理", 2)
+        self._create_text_rewrite_setting(rewrite_content, row=0)
+
         # --- 热词设置部分 ---
-        hotword_content = self._create_section_card(page, "热词设置", 2)
+        hotword_content = self._create_section_card(page, "热词设置", 3)
         self._create_hotword_setting(hotword_content, row=0)
 
         # --- 日志部分 ---
-        log_content = self._create_section_card(page, "日志", 3)
+        log_content = self._create_section_card(page, "日志", 4)
         self._create_log_row(log_content, 0)
 
         # Prevent scrolling jitter at the bottom
-        ctk.CTkFrame(page, height=20, fg_color="transparent").grid(row=4, column=0)
+        ctk.CTkFrame(page, height=20, fg_color="transparent").grid(row=5, column=0)
 
         return page
+
+    def _create_text_rewrite_setting(self, parent: ctk.CTkFrame, row: int) -> None:
+        container = ctk.CTkFrame(parent, fg_color="transparent")
+        container.grid(row=row, column=0, columnspan=2, sticky="ew", padx=12, pady=12)
+        container.grid_columnconfigure(0, weight=1)
+
+        left_frame = ctk.CTkFrame(container, fg_color="transparent")
+        left_frame.grid(row=0, column=0, sticky="w", padx=(0, 20))
+
+        ctk.CTkLabel(
+            left_frame,
+            text="本地纠错和输入润色",
+            font=GUIStyles.get_label_font(),
+            text_color=GUIStyles.COLOR_TEXT_PRIMARY,
+        ).pack(anchor="w")
+        ctk.CTkLabel(
+            left_frame,
+            text="开启后会在转录完成后进行本地文本纠错和简单润色。",
+            font=GUIStyles.get_note_font(),
+            text_color=GUIStyles.COLOR_TEXT_SECONDARY,
+        ).pack(anchor="w", pady=(4, 0))
+
+        enabled_var = tk.BooleanVar(value=bool(self.config_manager.get("format_text", True)))
+
+        def _save() -> None:
+            enabled = bool(enabled_var.get())
+            self.config_manager.set("format_text", enabled)
+            if enabled:
+                self.update_status_success("本地纠错和输入润色已开启")
+                try:
+                    preload = getattr(self.app, "_preload_local_rewriter", None)
+                    if callable(preload):
+                        preload()
+                except Exception as e:
+                    print(f"⚠️ 触发本地纠错模型预加载失败（可忽略）: {e}")
+            else:
+                self.update_status_success("本地纠错和输入润色已关闭")
+
+        ctk.CTkSwitch(
+            container,
+            text="",
+            variable=enabled_var,
+            command=_save,
+            **GUIStyles.get_switch_args(),
+        ).grid(row=0, column=1, sticky="e")
 
     def _build_provider_settings_page(self, parent: ctk.CTkFrame) -> ctk.CTkFrame:
         page = ctk.CTkScrollableFrame(parent, fg_color="transparent")

@@ -22,7 +22,7 @@ MyVoiceTyping 的目标很简单：让你在写文档、记需求、回消息、
 
 - **全开源，可替换模型**：项目代码开放，ASR、标点恢复和文本纠错模型都可以按需替换。当前默认使用阿里 FunASR 生态中的模型，并通过 ONNX 推理实现，启动和运行性能更好。
 - **本地化瘦身改造**：对运行链路做了本地化和打包裁剪，减少不必要的大依赖，瘦身安装包。
-- **本地文本纠错与润色**：当前文本纠错使用 [shibing624/chinese-text-correction-1.5b](https://huggingface.co/shibing624/chinese-text-correction-1.5b) 的量化版本。该模型的训练数据主要来自书面 CSC 错别字纠错数据集和跨语言学习错词数据集，以错别字纠正为主，并非专门为语音转录和格式化场景训练。
+- **本地文本纠错与润色**：当前默认文本后处理模型为 [botaruibo/MyVoiceTyping-1.5b-q4](https://modelscope.cn/models/botaruibo/MyVoiceTyping-1.5b-q4)。该模型基于 `qwen2.5:1.5b` 训练，并量化为适合本地运行的 GGUF 版本；
 - **专用模型计划**：正在整理针对语音转录纠错、口语重复消除和格式化改写的数据样本，后续版本会替换为更适合语音输入场景的专用纠错润色模型。
 
 ## How It Works
@@ -56,13 +56,26 @@ flowchart LR
 | --- | --- | --- | --- |
 | ASR | `botaruibo/SenseVoiceSmall-onnx` | 语音转文本 | `~/Library/Application Support/MyVoiceTyping/data/models` |
 | 标点 | `botaruibo/punc_ct-onnx` | 标点恢复 | 同上 |
-| 纠错 | `botaruibo/chinese_text_correction_1.5b_gguf`，基于 `shibing624/chinese-text-correction-1.5b` 量化 | ASR 文本纠错/简单润色 | 同上 |
+| 纠错 | [botaruibo/MyVoiceTyping-1.5b-q4](https://modelscope.cn/models/botaruibo/MyVoiceTyping-1.5b-q4)，基于 `qwen2.5:1.5b` 训练并量化 | ASR 文本纠错/简单润色 | 同上 |
 
 模型文件不会提交到 Git，也不会被打包进 `.app`。首次启动时应用会按顺序检查和下载模型：
 
 1. 语音转录模型
 2. 标点恢复模型
 3. 中文纠错 GGUF 模型
+
+## Text Rewrite Model
+
+[MyVoiceTyping-1.5b-q4](https://modelscope.cn/models/botaruibo/MyVoiceTyping-1.5b-q4) 是 MyVoiceTyping 当前默认使用的本地文本改写模型。它基于 `qwen2.5:1.5b` 训练，并量化为 GGUF 格式，主要用于 ASR 后处理：纠正常见错别字、减少口语重复、补足基础语义连贯性，并做非常轻量的输入润色。
+
+模型特点：
+
+- **本地运行**：通过 llama.cpp 加载 GGUF 量化模型，不依赖云端推理服务。
+- **体积更小**：基于 1.5B 级别模型训练并量化，适合桌面常驻工具在启动速度、内存占用和效果之间取得平衡。
+- **低改写倾向**：默认参数偏保守，目标是修正明显错误和轻量润色，而不是重写用户表达。
+- **面向语音输入后处理**：当前版本主要用于 ASR 文本纠错、标点后文本整理和简单口语清理。
+- **可替换**：模型路径、仓库 ID 和推理参数都在配置中，二开时可以替换为自己的 GGUF 模型。
+
 
 开发环境默认数据目录在 `data/`；打包后的可写数据在：
 
@@ -88,7 +101,7 @@ flowchart LR
 
 - SenseVoiceSmall ONNX 输出原始文本。
 - CT-Transformer ONNX 恢复标点。
-- llama.cpp 加载 `chinese_text_correction_1.5b` 4bit GGUF，对文本做轻量纠错。
+- llama.cpp 加载 `MyVoiceTyping-1.5b-q4` GGUF，对文本做轻量纠错和简单润色。
 - 默认参数偏保守：低温度、低随机性，减少“自由发挥”。
 
 ### 历史与统计

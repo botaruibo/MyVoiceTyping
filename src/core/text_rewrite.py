@@ -33,10 +33,10 @@ _instance = None
 _instance_lock = threading.Lock()
 
 LOCAL_LLAMA_CPP_PROVIDERS = {"llama_cpp", "local_llama_cpp", "gguf"}
-DEFAULT_LLAMA_CPP_MODEL_ID = "botaruibo/chinese_text_correction_1.5b_gguf"
+DEFAULT_LLAMA_CPP_MODEL_ID = "botaruibo/MyVoiceTyping-1.5b-q4"
 DEFAULT_LLAMA_CPP_MODEL_REVISION = "master"
-DEFAULT_LLAMA_CPP_MODEL_FILE = "chinese_text_correction_1.5b-q4_k_m.gguf"
-DEFAULT_LLAMA_CPP_LOCAL_NAME = "chinese_text_correction_1.5b"
+DEFAULT_LLAMA_CPP_MODEL_FILE = ""
+DEFAULT_LLAMA_CPP_LOCAL_NAME = "MyVoiceTyping-1.5b-q4"
 
 
 def _to_int(value: Any, default: int) -> int:

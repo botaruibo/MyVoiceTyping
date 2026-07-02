@@ -93,6 +93,39 @@ def _guess_bundled_data_dir() -> Optional[Path]:
     return None
 
 class ConfigManager:
+    _OBSOLETE_CONFIG_KEYS = {
+        "toggle_hotkey",
+        "funasr_device",
+        "base_url",
+        "api_key",
+        "model_name",
+        "llm_temperature",
+        "llm_timeout",
+        "llm_max_tokens",
+        "ollama_base_url",
+        "ollama_model",
+        "ollama_api_key",
+        "ollama_timeout",
+        "ollama_temperature",
+        "ollama_num_predict",
+        "ollama_top_p",
+        "ollama_top_k",
+        "ollama_repeat_penalty",
+        "ollama_prefix_prompt",
+        "llama_cpp_ollama_tag",
+    }
+    _LEGACY_LLAMA_CPP_MODEL_VALUES = {
+        "llama_cpp_model_path": {
+            "data/models/chinese_text_correction_1.5b",
+        },
+        "llama_cpp_model_id": {
+            "botaruibo/chinese_text_correction_1.5b_gguf",
+        },
+        "llama_cpp_model_file": {
+            "chinese_text_correction_1.5b-q4_k_m.gguf",
+        },
+    }
+
     """
     配置管理器，将配置数据存储到本地JSON文件中
     """
@@ -139,16 +172,16 @@ class ConfigManager:
             "sample_rate": 16000,
             "chunk_size": 1024,
             "stt_provider": "funasr",
-            "format_text": False,
+            "format_text": True,
             "llm_text_provider": "llama_cpp",
             "funasr_hotwords": [],
             "preload_stt_on_startup": True,
             "stt_warmup_on_startup": True,
             "preload_llama_cpp_on_startup": True,
-            "llama_cpp_model_path": "data/models/chinese_text_correction_1.5b",
-            "llama_cpp_model_id": "botaruibo/chinese_text_correction_1.5b_gguf",
+            "llama_cpp_model_path": "data/models/MyVoiceTyping-1.5b-q4",
+            "llama_cpp_model_id": "botaruibo/MyVoiceTyping-1.5b-q4",
             "llama_cpp_model_revision": "master",
-            "llama_cpp_model_file": "chinese_text_correction_1.5b-q4_k_m.gguf",
+            "llama_cpp_model_file": "",
             "llama_cpp_n_ctx": 4096,
             "llama_cpp_n_threads": 0,
             "llama_cpp_temperature": 0.0,
@@ -247,7 +280,7 @@ class ConfigManager:
 
             final_config = self.default_config.copy()
             final_config.update(loaded_config)
-            return final_config
+            return self._normalize_loaded_config(final_config)
         except Exception as e:
             print(f"加载配置文件时出错: {e}，尝试恢复默认配置文件")
 
@@ -258,13 +291,35 @@ class ConfigManager:
                     if isinstance(loaded_config, dict):
                         final_config = self.default_config.copy()
                         final_config.update(loaded_config)
-                        return final_config
+                        return self._normalize_loaded_config(final_config)
                 except Exception:
                     pass
 
             self.config = self.default_config.copy()
             self.save_config()
             return self.config
+
+    def _normalize_loaded_config(self, config: dict) -> dict:
+        """迁移旧配置并移除不再暴露的历史配置项。"""
+        normalized = dict(config)
+        changed = False
+
+        for key in self._OBSOLETE_CONFIG_KEYS:
+            if key in normalized:
+                normalized.pop(key, None)
+                changed = True
+
+        for key, legacy_values in self._LEGACY_LLAMA_CPP_MODEL_VALUES.items():
+            current_value = normalized.get(key)
+            if current_value in legacy_values:
+                normalized[key] = self.default_config.get(key)
+                changed = True
+
+        if changed:
+            self.config = normalized.copy()
+            self.save_config()
+
+        return normalized
 
     def save_config(self):
         """保存配置到文件"""

@@ -169,9 +169,12 @@ class FlashInputApp:
                     except Exception as e:
                         print(f"⚠️ {label}模型检查/下载失败: {e}")
 
-                # 文本纠错模型：语音模型完成后再检查；是否预加载仍由 format_text 控制。
+                # 文本纠错模型：语音模型完成后再检查；关闭本地纠错时不下载、不预加载。
                 provider = self.config_manager.get("LLM_TEXT_PROVIDER")
-                if provider in {"llama_cpp", "local_llama_cpp", "gguf"}:
+                if (
+                    bool(self.config_manager.get("FORMAT_TEXT"))
+                    and provider in {"llama_cpp", "local_llama_cpp", "gguf"}
+                ):
                     try:
                         from .core.text_rewrite import LocalLlamaCppRewrite
 
@@ -181,6 +184,8 @@ class FlashInputApp:
                         print("✅ 文本纠错模型已就绪")
                     except Exception as e:
                         print(f"⚠️ 文本纠错模型检查/下载失败: {e}")
+                else:
+                    print("ℹ️ 本地纠错和输入润色未开启，跳过文本模型检查")
 
                 self._set_status("本地模型检查完成")
             except Exception as e:
