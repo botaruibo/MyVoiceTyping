@@ -8,6 +8,32 @@ MyVoiceTyping 的目标很简单：让你在写文档、记需求、回消息、
 
 ![MyVoiceTyping dashboard](docs/img/myvoicetyping-dashboard.png)
 
+## Downloads / Releases
+
+- [release-0.02](https://github.com/botaruibo/MyVoiceTyping/releases/tag/release-0.02)
+- [release-0.01](https://github.com/botaruibo/MyVoiceTyping/releases/tag/release-0.01)
+
+## Changelog
+
+### release-0.02
+
+- 优化首页和设置页 UI，新增更清晰的统计卡片、最近输入编辑区和关于页。
+- 默认使用全本地链路：SenseVoice ONNX ASR、CT-Transformer 标点恢复、本地 GGUF 文本改写。
+- 文本改写模型切换为 [botaruibo/MyVoiceTyping-1.5b-q4](https://modelscope.cn/models/botaruibo/MyVoiceTyping-1.5b-q4)。
+- 新增本地纠错和输入润色开关，关闭后启动时不预加载文本模型。
+- 新增多热词词典管理，支持自定义词库和软件研发词库，默认仅加载自定义词库。
+- 优化模型首次下载进度显示，减少下载过程中的界面闪烁。
+- 优化 macOS 状态栏图标、侧边栏 logo 和应用图标资源。
+- 增加 ASR 后处理场景识别日志，记录最终 scene 与 bundle id。
+
+### release-0.01
+
+- 初始可用版本。
+- 支持 macOS 上按住 `Fn` 快捷键录音，松开后自动转写并粘贴到当前输入位置。
+- 支持本地语音识别、标点恢复、录音浮窗、输入历史记录和基础统计。
+- 支持模型缺失时首次启动自动下载。
+- 支持基础设置页、日志目录入口和 macOS 权限引导。
+
 ## Highlights
 
 - **输入更快**：用语音完成长句、段落和想法记录，减少键盘输入负担。

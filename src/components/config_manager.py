@@ -96,23 +96,15 @@ class ConfigManager:
     _OBSOLETE_CONFIG_KEYS = {
         "toggle_hotkey",
         "funasr_device",
+        "funasr_hotwords",
         "base_url",
         "api_key",
         "model_name",
         "llm_temperature",
         "llm_timeout",
         "llm_max_tokens",
-        "ollama_base_url",
-        "ollama_model",
-        "ollama_api_key",
-        "ollama_timeout",
-        "ollama_temperature",
-        "ollama_num_predict",
-        "ollama_top_p",
-        "ollama_top_k",
-        "ollama_repeat_penalty",
-        "ollama_prefix_prompt",
-        "llama_cpp_ollama_tag",
+        "llama_cpp_prefix_prompt",
+        "asr_post_scene",
     }
     _LEGACY_LLAMA_CPP_MODEL_VALUES = {
         "llama_cpp_model_path": {
@@ -124,6 +116,10 @@ class ConfigManager:
         "llama_cpp_model_file": {
             "chinese_text_correction_1.5b-q4_k_m.gguf",
         },
+    }
+    _HOTWORD_DICTIONARY_DISPLAY_NAMES = {
+        "custom_hotwords": "自定义词库",
+        "software_development": "软件研发",
     }
 
     """
@@ -159,13 +155,20 @@ class ConfigManager:
         else:
             self.config_file_path = Path(config_file_path)
             self.config_dir = self.config_file_path.parent
+            self.prompt_file_path = self.config_dir / "main_prompt.md"
 
         if self._writable_root is not None:
             audio_dir_default = "audio"
             transcripts_dir_default = "transcripts"
+            hotword_dict_default = [
+                "config/hotwords/custom_hotwords.txt",
+            ]
         else:
             audio_dir_default = "data/audio"
             transcripts_dir_default = "data/transcripts"
+            hotword_dict_default = [
+                "config/hotwords/custom_hotwords.txt",
+            ]
 
         self.default_config = {
             "press_hotkey": "fn",
@@ -174,7 +177,7 @@ class ConfigManager:
             "stt_provider": "funasr",
             "format_text": True,
             "llm_text_provider": "llama_cpp",
-            "funasr_hotwords": [],
+            "funasr_hotword_dictionaries": hotword_dict_default,
             "preload_stt_on_startup": True,
             "stt_warmup_on_startup": True,
             "preload_llama_cpp_on_startup": True,
@@ -188,7 +191,6 @@ class ConfigManager:
             "llama_cpp_max_tokens": 96,
             "llama_cpp_top_p": 1.0,
             "llama_cpp_top_k": 0,
-            "llama_cpp_prefix_prompt": "文本纠错：\n",
             "llama_cpp_n_gpu_layers": -1,
             "llama_cpp_n_batch": 512,
             "llama_cpp_verbose": False,
@@ -202,6 +204,7 @@ class ConfigManager:
 
         self.config = self.default_config.copy()
         self.config = self.load_config()
+        self._try_seed_from_bundled_hotword_dictionaries()
         self.main_prompt = self.load_prompt()
 
     def _try_seed_from_bundled_config(self) -> bool:
@@ -249,6 +252,28 @@ class ConfigManager:
             return True
         except Exception as e:
             print(f"复制默认提示文件失败: {e}")
+            return False
+
+    def _try_seed_from_bundled_hotword_dictionaries(self) -> bool:
+        if self._writable_root is None or self._bundled_data_dir is None:
+            return False
+
+        bundled_dir = self._bundled_data_dir / "config" / "hotwords"
+        if not bundled_dir.exists():
+            return False
+
+        target_dir = self.get_hotword_dictionaries_dir()
+        copied = False
+        try:
+            target_dir.mkdir(parents=True, exist_ok=True)
+            for src_path in sorted(bundled_dir.glob("*.txt")):
+                dst_path = target_dir / src_path.name
+                if not dst_path.exists():
+                    shutil.copy2(src_path, dst_path)
+                    copied = True
+            return copied
+        except Exception as e:
+            print(f"复制默认热词词典失败: {e}")
             return False
 
     def load_prompt(self) -> Optional[str]:
@@ -304,6 +329,22 @@ class ConfigManager:
         normalized = dict(config)
         changed = False
 
+        legacy_hotwords = normalized.get("funasr_hotwords")
+        if legacy_hotwords:
+            try:
+                self._write_legacy_hotwords_to_custom_dictionary(legacy_hotwords)
+                selected = normalized.get("funasr_hotword_dictionaries") or self.default_config.get(
+                    "funasr_hotword_dictionaries",
+                    [],
+                )
+                custom_path = "config/hotwords/custom_hotwords.txt" if self._writable_root else "data/config/hotwords/custom_hotwords.txt"
+                if custom_path not in selected:
+                    selected = list(selected) + [custom_path]
+                normalized["funasr_hotword_dictionaries"] = selected
+                changed = True
+            except Exception as e:
+                print(f"迁移旧热词配置失败: {e}")
+
         for key in self._OBSOLETE_CONFIG_KEYS:
             if key in normalized:
                 normalized.pop(key, None)
@@ -320,6 +361,29 @@ class ConfigManager:
             self.save_config()
 
         return normalized
+
+    @staticmethod
+    def _normalize_hotword(word: str) -> str:
+        return "".join(str(word or "").split()).strip()
+
+    def _write_legacy_hotwords_to_custom_dictionary(self, raw_hotwords) -> None:
+        if isinstance(raw_hotwords, str):
+            parts = raw_hotwords.replace("，", ",").replace("\n", ",").split(",")
+        elif isinstance(raw_hotwords, list):
+            parts = raw_hotwords
+        else:
+            parts = []
+
+        existing = self.load_hotword_dictionary("custom_hotwords.txt")
+        seen = set(existing)
+        words = list(existing)
+        for item in parts:
+            word = self._normalize_hotword(str(item or ""))
+            if word and word not in seen:
+                seen.add(word)
+                words.append(word)
+        if words:
+            self.save_hotword_dictionary("custom_hotwords.txt", words)
 
     def save_config(self):
         """保存配置到文件"""
@@ -407,3 +471,105 @@ class ConfigManager:
 
         models_dir.mkdir(parents=True, exist_ok=True)
         return models_dir
+
+    def get_hotword_dictionaries_dir(self) -> Path:
+        if self._writable_root is not None:
+            path = self._writable_root / "config" / "hotwords"
+        else:
+            path = Path(__file__).resolve().parents[2] / "data" / "config" / "hotwords"
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+
+    def _resolve_hotword_dictionary_path(self, raw_path: str | Path) -> Path:
+        path = Path(str(raw_path or "")).expanduser()
+        if path.is_absolute():
+            return path
+        if path.parts and path.parts[0] == "data":
+            path = Path(*path.parts[1:])
+        if len(path.parts) >= 2 and path.parts[0] == "config" and path.parts[1] == "hotwords":
+            return self.get_hotword_dictionaries_dir() / Path(*path.parts[2:])
+        if len(path.parts) == 1:
+            return self.get_hotword_dictionaries_dir() / path
+        return self.get_hotword_dictionaries_dir() / path.name
+
+    def _hotword_dictionary_config_path(self, path: Path) -> str:
+        try:
+            relative = path.resolve().relative_to(self.get_hotword_dictionaries_dir().resolve())
+            return str(Path("config") / "hotwords" / relative)
+        except Exception:
+            return str(path)
+
+    def list_hotword_dictionaries(self) -> list[dict]:
+        self._try_seed_from_bundled_hotword_dictionaries()
+        dictionaries: list[dict] = []
+        for path in sorted(self.get_hotword_dictionaries_dir().glob("*.txt")):
+            words = self.load_hotword_dictionary(path)
+            dictionaries.append({
+                "name": self._HOTWORD_DICTIONARY_DISPLAY_NAMES.get(path.stem, path.stem),
+                "filename": path.name,
+                "path": self._hotword_dictionary_config_path(path),
+                "word_count": len(words),
+            })
+        return dictionaries
+
+    def load_hotword_dictionary(self, path_or_name) -> list[str]:
+        path = self._resolve_hotword_dictionary_path(path_or_name)
+        if not path.exists():
+            return []
+        seen: set[str] = set()
+        words: list[str] = []
+        for line in path.read_text(encoding="utf-8", errors="ignore").splitlines():
+            word = self._normalize_hotword(line.split("#", 1)[0])
+            if word and word not in seen:
+                seen.add(word)
+                words.append(word)
+        return words
+
+    def save_hotword_dictionary(self, path_or_name, words: list[str]) -> None:
+        path = self._resolve_hotword_dictionary_path(path_or_name)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        seen: set[str] = set()
+        clean_words: list[str] = []
+        for item in words:
+            word = self._normalize_hotword(str(item or ""))
+            if word and word not in seen:
+                seen.add(word)
+                clean_words.append(word)
+        path.write_text("\n".join(clean_words) + ("\n" if clean_words else ""), encoding="utf-8")
+
+    def get_selected_hotword_dictionary_paths(self) -> list[str]:
+        raw = self.config.get("funasr_hotword_dictionaries", [])
+        if isinstance(raw, str):
+            parts = [item.strip() for item in raw.replace("，", ",").split(",")]
+        elif isinstance(raw, list):
+            parts = raw
+        else:
+            parts = []
+        selected: list[str] = []
+        seen: set[str] = set()
+        for item in parts:
+            path = str(item or "").strip()
+            if path and path not in seen:
+                seen.add(path)
+                selected.append(path)
+        return selected
+
+    def set_selected_hotword_dictionary_paths(self, paths: list[str]) -> None:
+        seen: set[str] = set()
+        selected: list[str] = []
+        for item in paths:
+            path = str(item or "").strip()
+            if path and path not in seen:
+                seen.add(path)
+                selected.append(path)
+        self.set("funasr_hotword_dictionaries", selected)
+
+    def get_funasr_hotwords(self) -> list[str]:
+        seen: set[str] = set()
+        hotwords: list[str] = []
+        for dictionary_path in self.get_selected_hotword_dictionary_paths():
+            for word in self.load_hotword_dictionary(dictionary_path):
+                if word not in seen:
+                    seen.add(word)
+                    hotwords.append(word)
+        return hotwords

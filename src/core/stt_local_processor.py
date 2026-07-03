@@ -262,13 +262,21 @@ class LocalSTTProcessor:
         self.punc = self._init_punc_model()
 
     def _get_hotwords(self) -> list[str]:
-        raw = self.config.get("funasr_hotwords", [])
+        if hasattr(self.config, "get_funasr_hotwords"):
+            return self.config.get_funasr_hotwords()
+
+        raw = self.config.get("funasr_hotword_dictionaries", [])
+        parts: list[str] = []
         if isinstance(raw, str):
-            parts = re.split(r"[,，\n\r\t ]+", raw)
-        elif isinstance(raw, list):
-            parts = raw
-        else:
-            parts = []
+            raw = [raw]
+        if isinstance(raw, list):
+            for dictionary_path in raw:
+                path = Path(str(dictionary_path)).expanduser()
+                if not path.is_absolute():
+                    path = Path(__file__).resolve().parents[2] / path
+                if not path.exists():
+                    continue
+                parts.extend(path.read_text(encoding="utf-8", errors="ignore").splitlines())
 
         hotwords: list[str] = []
         seen: set[str] = set()

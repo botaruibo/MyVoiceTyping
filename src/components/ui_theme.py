@@ -61,7 +61,7 @@ class GUIStyles:
 
     @staticmethod
     def get_stat_value_font():
-        return ctk.CTkFont(family=GUIStyles.FONT_FAMILY, size=26, weight="bold")
+        return ctk.CTkFont(family=GUIStyles.FONT_FAMILY, size=22, weight="bold")
 
     @staticmethod
     def get_saved_time_value_font():

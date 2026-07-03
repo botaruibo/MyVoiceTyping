@@ -1,21 +1,10 @@
-"""
-文本重写模块 - 更新以使用新的配置
+"""本地 llama.cpp/GGUF 文本重写模块。"""
 
-说明：
-- 为了加速启动与 GUI 首次渲染，本模块默认不在 import/初始化阶段进行任何联网测试。
-- 远程 LLM 客户端会在 GUI 就绪后的“后加载”阶段异步初始化，或在首次需要时懒加载。
-"""
-
-import argparse
-import json
+import logging
 import os
-import ssl
 import sys
 import threading
-import urllib.error
-import urllib.request
 from pathlib import Path
-from urllib.parse import urlparse
 from typing import Any, Optional
 
 try:
@@ -37,6 +26,205 @@ DEFAULT_LLAMA_CPP_MODEL_ID = "botaruibo/MyVoiceTyping-1.5b-q4"
 DEFAULT_LLAMA_CPP_MODEL_REVISION = "master"
 DEFAULT_LLAMA_CPP_MODEL_FILE = ""
 DEFAULT_LLAMA_CPP_LOCAL_NAME = "MyVoiceTyping-1.5b-q4"
+ASR_POST_TAGS = "<ASR_POST><MIN_EDIT><CORRECT><NO_NEW_LINKS><PRESERVE_EXISTING_LINKS>"
+DEFAULT_ASR_POST_SCENE = "general"
+SYSTEM_PROMPT_FALLBACK = "你是中文文本纠错助手。"
+APP_SCENE_BY_BUNDLE_ID = {
+    "com.apple.MobileSMS": "chat",
+    "com.tencent.xinWeChat": "chat",
+    "com.tencent.WeWorkMac": "chat",
+    "com.tinyspeck.slackmacgap": "chat",
+    "us.zoom.xos": "meeting",
+    "com.microsoft.teams2": "meeting",
+    "com.apple.Safari": "browser",
+    "com.google.Chrome": "browser",
+    "com.microsoft.edgemac": "browser",
+    "org.mozilla.firefox": "browser",
+    "com.apple.mail": "email",
+    "com.microsoft.Outlook": "email",
+    "com.apple.Notes": "note",
+    "com.youdao.note.YoudaoNoteMac": "note",
+    "com.apple.TextEdit": "document",
+    "com.microsoft.Word": "document",
+    "com.apple.iWork.Pages": "document",
+    "com.microsoft.Excel": "spreadsheet",
+    "com.apple.iWork.Numbers": "spreadsheet",
+    "com.microsoft.Powerpoint": "presentation",
+    "com.apple.iWork.Keynote": "presentation",
+    "com.apple.Terminal": "terminal",
+    "com.googlecode.iterm2": "terminal",
+    "com.microsoft.VSCode": "code",
+    "com.jetbrains.pycharm": "code",
+    "com.apple.dt.Xcode": "code",
+}
+
+
+def _resolve_system_prompt(prompt: Optional[str]) -> str:
+    text = (prompt or "").strip()
+    return text or SYSTEM_PROMPT_FALLBACK
+
+
+def _frontmost_app_identity() -> tuple[str, str]:
+    try:
+        from AppKit import NSWorkspace
+
+        app = NSWorkspace.sharedWorkspace().frontmostApplication()
+        if app is None:
+            return "", ""
+        name = str(app.localizedName() or "")
+        bundle_id = str(app.bundleIdentifier() or "")
+        return name, bundle_id
+    except Exception:
+        return "", ""
+
+
+def _running_app_identity_for_pid(pid: Any) -> tuple[str, str]:
+    try:
+        from AppKit import NSRunningApplication
+
+        app = NSRunningApplication.runningApplicationWithProcessIdentifier_(int(pid))
+        if app is None:
+            return "", ""
+        name = str(app.localizedName() or "")
+        bundle_id = str(app.bundleIdentifier() or "")
+        return name, bundle_id
+    except Exception:
+        return "", ""
+
+
+def _accessibility_api() -> Any:
+    try:
+        import ApplicationServices  # type: ignore
+
+        return ApplicationServices
+    except Exception:
+        import Quartz  # type: ignore
+
+        return Quartz
+
+
+def _ax_copy_attribute(element: Any, attribute: str) -> Any:
+    try:
+        ax = _accessibility_api()
+        result = ax.AXUIElementCopyAttributeValue(element, attribute, None)
+        if isinstance(result, tuple):
+            err = result[0] if len(result) > 0 else -1
+            value = result[1] if len(result) > 1 else None
+            if int(err) == 0:
+                return value
+    except Exception:
+        return None
+    return None
+
+
+def _ax_element_pid(element: Any) -> Optional[int]:
+    if element is None:
+        return None
+
+    try:
+        ax = _accessibility_api()
+        result = ax.AXUIElementGetPid(element, None)
+        if isinstance(result, tuple):
+            err = result[0] if len(result) > 0 else -1
+            pid = result[1] if len(result) > 1 else None
+            if int(err) == 0 and pid is not None:
+                return int(pid)
+    except Exception:
+        pass
+
+    pid_value = _ax_copy_attribute(element, "AXPID")
+    try:
+        return int(pid_value) if pid_value is not None else None
+    except Exception:
+        return None
+
+
+def _focused_app_identity_from_accessibility() -> tuple[str, str]:
+    try:
+        ax = _accessibility_api()
+        system_wide = ax.AXUIElementCreateSystemWide()
+        if system_wide is None:
+            return "", ""
+
+        focused_element_attr = getattr(
+            ax,
+            "kAXFocusedUIElementAttribute",
+            "AXFocusedUIElement",
+        )
+        focused_element = _ax_copy_attribute(system_wide, focused_element_attr)
+        pid = _ax_element_pid(focused_element)
+        if pid is not None:
+            identity = _running_app_identity_for_pid(pid)
+            if identity[1]:
+                return identity
+
+        focused_app_attr = getattr(
+            ax,
+            "kAXFocusedApplicationAttribute",
+            "AXFocusedApplication",
+        )
+        focused_app = _ax_copy_attribute(system_wide, focused_app_attr)
+        pid = _ax_element_pid(focused_app)
+        if pid is not None:
+            identity = _running_app_identity_for_pid(pid)
+            if identity[1]:
+                return identity
+    except Exception:
+        return "", ""
+
+    return "", ""
+
+
+def _focused_or_frontmost_app_identity() -> tuple[str, str]:
+    identity = _focused_app_identity_from_accessibility()
+    if identity[1]:
+        return identity
+    return _frontmost_app_identity()
+
+
+def _infer_asr_post_scene() -> str:
+    app_name, bundle_id = _focused_or_frontmost_app_identity()
+
+    def _log_scene(scene: str, source: str) -> str:
+        logging.info(
+            "ASR 后处理场景识别: scene=%s, bundle_id=%s, app_name=%s, source=%s",
+            scene,
+            bundle_id or "<empty>",
+            app_name or "<empty>",
+            source,
+        )
+        return scene
+
+    if bundle_id == "com.myvoicetyping.desktop" or app_name == "MyVoiceTyping":
+        return _log_scene(DEFAULT_ASR_POST_SCENE, "self_app")
+
+    scene = APP_SCENE_BY_BUNDLE_ID.get(bundle_id)
+    if scene:
+        return _log_scene(scene, "bundle_id")
+
+    normalized = f"{app_name} {bundle_id}".lower()
+    keyword_scenes = (
+        ("browser", ("browser", "chrome", "safari", "firefox", "edge")),
+        ("chat", ("wechat", "微信", "slack", "telegram", "discord", "messages", "飞书", "lark")),
+        ("meeting", ("zoom", "teams", "meeting", "会议")),
+        ("email", ("mail", "outlook", "邮箱", "邮件")),
+        ("code", ("code", "xcode", "pycharm", "intellij", "cursor", "trae", "terminal", "iterm")),
+        ("document", ("word", "pages", "textedit", "docs", "文档")),
+        ("spreadsheet", ("excel", "numbers", "sheet", "表格")),
+        ("presentation", ("powerpoint", "keynote", "slides", "演示")),
+        ("note", ("note", "notes", "notion", "obsidian", "备忘录", "笔记")),
+    )
+    for scene_name, keywords in keyword_scenes:
+        if any(keyword in normalized for keyword in keywords):
+            return _log_scene(scene_name, "keyword")
+    return _log_scene(DEFAULT_ASR_POST_SCENE, "default")
+
+
+def _build_asr_post_user_prompt(raw_text: str, scene: Optional[str] = None) -> str:
+    scene = (scene or _infer_asr_post_scene() or DEFAULT_ASR_POST_SCENE).strip()
+    if scene:
+        logging.info("ASR 后处理最终 prompt 场景: scene=%s", scene)
+    return f"{ASR_POST_TAGS}\n场景：{scene}\n原文：{(raw_text or '').strip()}"
 
 
 def _to_int(value: Any, default: int) -> int:
@@ -88,47 +276,9 @@ class Rewrite:
         """
         self.config = get_config_manager()
 
-        self.rewrite_llm_client_status = False
-        self.remote_llm_client = None
-        self.local_llm_client = None
-
-        self._remote_init_lock = threading.Lock()
-        self._remote_init_started = False
+        self.local_llama_cpp_client = None
         self._local_llama_cpp_init_lock = threading.Lock()
         self._local_llama_cpp_init_started = False
-
-    def init_remote_llm_async(self, reason: str = "") -> None:
-        """
-        /**
-         * 异步初始化远程 LLM 客户端（不会阻塞调用方）。
-         *
-         * @param {string} reason - 触发原因（用于日志排查）。
-         * @returns {void}
-         */
-        """
-        print("====rewrite.0")
-        with self._remote_init_lock:
-            if self._remote_init_started:
-                return
-            self._remote_init_started = True
-
-        def _worker() -> None:
-            tag = f"reason={reason}" if reason else ""
-            try:
-                print(f"🌐 开始初始化远程文本改写模型 {tag}...")
-                err = self.test_remote_llm()
-                if err is None:
-                    print("✅ 远程文本改写模型初始化完成")
-                else:
-                    print(f"⚠️ 远程文本改写模型初始化失败（将自动降级为不改写）: {err}")
-            except Exception as e:
-                print(f"⚠️ 远程文本改写模型初始化异常（将自动降级为不改写）: {e}")
-
-            finally:
-                # 重置初始化状态
-                self._remote_init_started = False
-
-        threading.Thread(target=_worker, daemon=True).start()
 
     def init_local_llama_cpp_async(self, reason: str = "") -> None:
         """
@@ -147,13 +297,13 @@ class Rewrite:
             tag = f"reason={reason}" if reason else ""
             try:
                 print(f"🌐 开始初始化本地 llama.cpp 改写模型 {tag}...")
-                if self.local_llm_client is None or not isinstance(
-                    self.local_llm_client, LocalLlamaCppRewrite
+                if self.local_llama_cpp_client is None or not isinstance(
+                    self.local_llama_cpp_client, LocalLlamaCppRewrite
                 ):
-                    self.local_llm_client = LocalLlamaCppRewrite()
+                    self.local_llama_cpp_client = LocalLlamaCppRewrite()
                 # 先确认/下载 GGUF 模型文件（带 GUI 进度），再加载与预热。
-                self.local_llm_client.ensure_model_downloaded()
-                self.local_llm_client.warm_up()
+                self.local_llama_cpp_client.ensure_model_downloaded()
+                self.local_llama_cpp_client.warm_up()
                 print("✅ 本地 llama.cpp 改写模型初始化完成")
             except Exception as e:
                 # 失败不致命：rewrite() 时会再做懒加载
@@ -163,118 +313,19 @@ class Rewrite:
 
         threading.Thread(target=_worker, daemon=True).start()
 
-    def _create_chat_client(self):
-        """创建 ChatOpenAI 客户端（延迟导入，避免启动时加载重型依赖）。"""
-        from langchain_openai import ChatOpenAI
-
-        api_key_str = self.config.get("API_KEY")
-        model_name = self.config.get("MODEL_NAME")
-        base_url = self.config.get("BASE_URL")
-        temperature = _to_float(self.config.get("llm_temperature"), 0.2)
-        timeout = _to_int(self.config.get("llm_timeout"), 15)
-        max_tokens = _to_int(self.config.get("llm_max_tokens"), 1024)
-
-        return ChatOpenAI(
-            model=model_name,
-            base_url=base_url,
-            api_key=api_key_str,
-            temperature=temperature,
-            timeout=timeout,
-            max_tokens=max_tokens,
-        )
-
-    def test_remote_llm(self) -> Optional[str]:
-        """
-        /**
-         * 测试远程 LLM 是否可用；成功则缓存 client。
-         *
-         * 说明：
-         * - 该方法会触发真实联网请求，适合在“用户点击测试”或“GUI 就绪后的后加载线程”调用。
-         * - 不建议在应用启动早期（GUI 渲染前）调用。
-         *
-         * @returns {string | null} 失败原因；成功返回 null
-         */
-        """
-        model_name = self.config.get("MODEL_NAME")
-
-        try:
-            from langchain_core.messages import HumanMessage, SystemMessage
-
-            test_client = self._create_chat_client()
-            response = test_client.invoke(
-                [
-                    SystemMessage(content="你是一个测试助手，请直接返回 'OK'。"),
-                    HumanMessage(content="测试连接"),
-                ]
-            )
-
-            content = getattr(response, "content", "")
-            print(f"模型 {model_name} 测试响应: {content}")
-
-            if "ok" in str(content).lower():
-                self.rewrite_llm_client_status = True
-                self.remote_llm_client = test_client
-                return None
-
-            return f"模型返回非预期内容: {content}"
-        except Exception as e:
-            print(f"模型 {model_name} 测试失败: {e}")
-
-            if "401" in str(e):
-                return "API 密钥无效或已过期"
-            if "timed out" in str(e).lower():
-                return "请求超时，请检查网络或代理设置"
-            if "error" in str(e).lower():
-                return "测试失败"
-
-            return f"连接失败: {e}"
-
     def test_llm(self) -> Optional[str]:
-        """按当前 provider 测试文本改写模型。成功返回 None。"""
+        """测试当前本地 llama.cpp 文本改写模型。成功返回 None。"""
         provider = self.config.get("LLM_TEXT_PROVIDER")
-        if provider == "cloud_llm":
-            return self.test_remote_llm()
-
-        if provider in {"ollama", "local_llm", "local_ollama"}:
-            try:
-                if self.local_llm_client is None:
-                    self.local_llm_client = LocalLlamaRewrite()
-                return self.local_llm_client.test_local_llama()
-            except Exception as e:
-                return str(e)
-
-        if provider in {"llama_cpp", "local_llama_cpp", "gguf"}:
-            try:
-                if self.local_llm_client is None or not isinstance(
-                    self.local_llm_client, LocalLlamaCppRewrite
-                ):
-                    self.local_llm_client = LocalLlamaCppRewrite()
-                return self.local_llm_client.test()
-            except Exception as e:
-                return str(e)
-
-        if provider in LOCAL_LLAMA_CPP_PROVIDERS:
-            try:
-                if self.local_llm_client is None or not isinstance(
-                    self.local_llm_client, LocalLlamaCppRewrite
-                ):
-                    self.local_llm_client = LocalLlamaCppRewrite()
-                return self.local_llm_client.test()
-            except Exception as e:
-                return str(e)
-
-        return f"未知文本改写 provider: {provider}"
-
-    def _rewrite_with_cloud_llm_single_turn(self, raw_text: str) -> str:
-        """使用远程 LLM 进行单轮改写（要求 remote_llm_client 已就绪）。"""
-        from langchain_core.messages import HumanMessage, SystemMessage
-
-        messages = [
-            SystemMessage(content=self.config.main_prompt),
-            HumanMessage(content=raw_text),
-        ]
-        response = self.remote_llm_client.invoke(messages)
-        return getattr(response, "content", "")
+        if provider not in LOCAL_LLAMA_CPP_PROVIDERS:
+            return f"未知文本改写 provider: {provider}"
+        try:
+            if self.local_llama_cpp_client is None or not isinstance(
+                self.local_llama_cpp_client, LocalLlamaCppRewrite
+            ):
+                self.local_llama_cpp_client = LocalLlamaCppRewrite()
+            return self.local_llama_cpp_client.test()
+        except Exception as e:
+            return str(e)
 
     def rewrite(self, raw_text: str) -> str:
         """
@@ -294,480 +345,26 @@ class Rewrite:
             return raw_text
 
         provider = self.config.get("LLM_TEXT_PROVIDER")
-        if provider == "cloud_llm":
-            if not self.rewrite_llm_client_status or self.remote_llm_client is None:
-                print("⚠️ 远程文本格式化模型未就绪，本次直接返回原文")
-                self.init_remote_llm_async(reason="rewrite")
-                return raw_text
-
-            try:
-                return self._rewrite_with_cloud_llm_single_turn(raw_text)
-            except Exception as e:
-                print(f"⚠️ 文本改写失败（将降级返回原文）: {e}")
-                return raw_text
-
-        if provider in {"ollama", "local_llm", "local_ollama"}:
-            try:
-                if self.local_llm_client is None:
-                    self.local_llm_client = LocalLlamaRewrite()
-                return self.local_llm_client.rewrite(raw_text)
-            except Exception as e:
-                print(f"⚠️ 本地 Ollama 文本改写失败（将降级返回原文）: {e}")
-                return raw_text
-
-        if provider in LOCAL_LLAMA_CPP_PROVIDERS:
-            try:
-                if self.local_llm_client is None or not isinstance(
-                    self.local_llm_client, LocalLlamaCppRewrite
-                ):
-                    self.local_llm_client = LocalLlamaCppRewrite()
-                return self.local_llm_client.rewrite(raw_text)
-            except Exception as e:
-                print(f"⚠️ 本地 llama.cpp 文本改写失败（将降级返回原文）: {e}")
-                return raw_text
-
-        print(f"⚠️ 未知文本改写 provider: {provider}，直接返回原文")
-        return raw_text
-
-systemPrompt = (
-    "文本纠错：\n"
-)
-
-
-class LocalLlamaRewrite:
-    """通过本地 OpenAI 兼容接口调用 Llama 模型进行文本改写。"""
-
-
-    def __init__(
-        self,
-        base_url: Optional[str] = None,
-        model_name: Optional[str] = None,
-        api_key: Optional[str] = None,
-        timeout: Optional[int] = None,
-        main_prompt: Optional[str] = None,
-        verify_ssl: Optional[bool] = None,
-    ):
-        self.config = get_config_manager()
-        self.system_prompt = (
-            main_prompt
-            or self.config.main_prompt
-            or systemPrompt
-        )
-
-        self.base_url = (
-            base_url
-            or self.config.get("ollama_base_url")
-            or os.getenv("OLLAMA_BASE_URL")
-            or os.getenv("LOCAL_LLAMA_BASE_URL")
-            or "http://127.0.0.1:11434"
-        )
-        self.model_name = (
-            model_name
-            or self.config.get("ollama_model")
-            or self.config.get("local_llama_model")
-            or os.getenv("OLLAMA_MODEL")
-            or os.getenv("LOCAL_LLAMA_MODEL")
-            or "qwen2.5:1.5b"
-        )
-        self.api_key = api_key
-        if self.api_key is None:
-            self.api_key = (
-                self.config.get("ollama_api_key")
-                or self.config.get("local_llama_api_key")
-                or os.getenv("LOCAL_LLAMA_API_KEY")
-                or "EMPTY"
-            )
-
-        self.timeout = timeout or _to_int(self.config.get("ollama_timeout"), 15)
-        self.temperature = _to_float(self.config.get("ollama_temperature"), 0.2)
-        self.num_predict = _to_int(self.config.get("ollama_num_predict"), 512)
-        self.top_p = _to_float(self.config.get("ollama_top_p"), 1.0)
-        self.top_k = _to_int(self.config.get("ollama_top_k"), 0)
-        self.repeat_penalty = _to_float(self.config.get("ollama_repeat_penalty"), 1.0)
-        configured_prefix = self.config.get("ollama_prefix_prompt")
-        if configured_prefix is None and "chinese-text-correction" in str(self.model_name):
-            configured_prefix = systemPrompt
-        self.prefix_prompt = str(configured_prefix or "")
-        self.chat_completion_url = self._normalize_chat_completion_url(self.base_url)
-        self.tags_url = self._normalize_tags_url(self.base_url)
-        self.verify_ssl = self._resolve_verify_ssl(verify_ssl)
-
-        if not self.model_name:
-            raise ValueError("未配置本地 Llama 模型名称，请通过 --model 或配置文件提供")
-
-    @staticmethod
-    def _to_bool(value: Any) -> Optional[bool]:
-        if value is None or value == "":
-            return None
-        if isinstance(value, bool):
-            return value
-        normalized = str(value).strip().lower()
-        if normalized in {"1", "true", "yes", "y", "on"}:
-            return True
-        if normalized in {"0", "false", "no", "n", "off"}:
-            return False
-        return None
-
-    @staticmethod
-    def _is_local_host(hostname: Optional[str]) -> bool:
-        if not hostname:
-            return False
-        return hostname.lower() in {"localhost", "127.0.0.1", "::1"}
-
-    def _resolve_verify_ssl(self, verify_ssl: Optional[bool]) -> bool:
-        cli_value = self._to_bool(verify_ssl)
-        if cli_value is not None:
-            return cli_value
-
-        config_value = self._to_bool(
-            self.config.get("LOCAL_LLAMA_VERIFY_SSL")
-            or os.getenv("LOCAL_LLAMA_VERIFY_SSL")
-        )
-        if config_value is not None:
-            return config_value
-
-        parsed_url = urlparse(self.chat_completion_url)
-        if parsed_url.scheme == "https" and self._is_local_host(parsed_url.hostname):
-            return False
-        return True
-
-    def _build_ssl_context(self) -> Optional[ssl.SSLContext]:
-        parsed_url = urlparse(self.chat_completion_url)
-        if parsed_url.scheme != "https":
-            return None
-
-        if self.verify_ssl:
-            return ssl.create_default_context()
-
-        context = ssl._create_unverified_context()
-        context.check_hostname = False
-        context.verify_mode = ssl.CERT_NONE
-        return context
-
-    @staticmethod
-    def _normalize_chat_completion_url(base_url: str) -> str:
-        """将基础地址标准化为 Ollama 的 `/api/chat` 接口。"""
-        normalized = base_url.rstrip("/")
-        if normalized.endswith("/api/chat"):
-            return normalized
-        if normalized.endswith("/api/generate"):
-            return f"{normalized[:-len('/api/generate')]}/api/chat"
-        if normalized.endswith("/v1"):
-            return f"{normalized[:-len('/v1')]}/api/chat"
-        return f"{normalized}/api/chat"
-
-    @staticmethod
-    def _normalize_tags_url(base_url: str) -> str:
-        normalized = base_url.rstrip("/")
-        for suffix in ("/api/chat", "/api/generate", "/v1"):
-            if normalized.endswith(suffix):
-                normalized = normalized[:-len(suffix)]
-                break
-        return f"{normalized}/api/tags"
-
-    def _build_headers(self) -> dict[str, str]:
-        headers = {
-            "Content-Type": "application/json",
-            "LOCAL_LLAMA_VERIFY_SSL": "false",
-        }
-        if self.api_key and self.api_key != "EMPTY":
-            headers["Authorization"] = f"Bearer {self.api_key}"
-        return {str(key): str(value) for key, value in headers.items()}
-
-    @staticmethod
-    def _extract_message_content(payload: dict[str, Any]) -> str:
-        message = payload.get("message") or {}
-        ollama_content = message.get("content")
-        if isinstance(ollama_content, str):
-            return ollama_content.strip()
-
-        choices = payload.get("choices") or []
-        if not choices:
-            response_text = payload.get("response")
-            if isinstance(response_text, str):
-                return response_text.strip()
-            raise ValueError(f"模型返回数据缺少可识别的消息字段: {payload}")
-
-        message = choices[0].get("message") or {}
-        content = message.get("content")
-
-        if isinstance(content, str):
-            return content.strip()
-
-        if isinstance(content, list):
-            parts: list[str] = []
-            for item in content:
-                if isinstance(item, dict) and item.get("type") == "text":
-                    parts.append(str(item.get("text", "")))
-                elif isinstance(item, str):
-                    parts.append(item)
-            return "".join(parts).strip()
-
-        text = choices[0].get("text")
-        if isinstance(text, str):
-            return text.strip()
-
-        raise ValueError(f"无法从模型返回中解析文本内容: {payload}")
-
-    def _post_chat_completion(
-        self,
-        messages: list[dict[str, str]],
-        temperature: Optional[float] = None,
-        num_predict: Optional[int] = None,
-    ) -> dict[str, Any]:
-        options: dict[str, Any] = {
-            "temperature": self.temperature if temperature is None else temperature,
-            "top_p": self.top_p,
-            "top_k": self.top_k,
-            "repeat_penalty": self.repeat_penalty,
-        }
-        predict_limit = self.num_predict if num_predict is None else num_predict
-        if predict_limit > 0:
-            options["num_predict"] = predict_limit
-
-        payload = {
-            "model": self.model_name,
-            "messages": messages,
-            "stream": False,
-            "options": options,
-        }
-
-        request = urllib.request.Request(
-            self.chat_completion_url,
-            data=json.dumps(payload).encode("utf-8"),
-            headers=self._build_headers(),
-            method="POST",
-        )
-
-        try:
-            ssl_context = self._build_ssl_context()
-            with urllib.request.urlopen(request, timeout=self.timeout, context=ssl_context) as response:
-                response_text = response.read().decode("utf-8")
-            print(f"本地 Llama 响应: {response_text}")
-            return json.loads(response_text)
-        except urllib.error.HTTPError as e:
-            detail = e.read().decode("utf-8", errors="ignore")
-            raise RuntimeError(f"本地 Llama 接口请求失败，HTTP {e.code}: {detail}") from e
-        except urllib.error.URLError as e:
-            reason = getattr(e, "reason", None)
-            if isinstance(reason, ssl.SSLCertVerificationError):
-                raise RuntimeError(
-                    "HTTPS 证书校验失败；如果这是本地自签名证书，请添加 `--insecure`，"
-                    "或将 `LOCAL_LLAMA_VERIFY_SSL=false` 后重试"
-                ) from e
-            raise RuntimeError(f"无法连接到本地 Llama 接口: {e}") from e
-        except json.JSONDecodeError as e:
-            raise RuntimeError(f"本地 Llama 接口返回了无法解析的 JSON: {e}") from e
-
-    def _get_model_tags(self) -> list[str]:
-        request = urllib.request.Request(
-            self.tags_url,
-            headers=self._build_headers(),
-            method="GET",
-        )
-        try:
-            ssl_context = self._build_ssl_context()
-            with urllib.request.urlopen(request, timeout=self.timeout, context=ssl_context) as response:
-                response_text = response.read().decode("utf-8")
-            payload = json.loads(response_text)
-        except urllib.error.URLError as e:
-            raise RuntimeError(f"无法连接到本地 Ollama 服务: {e}") from e
-        except json.JSONDecodeError as e:
-            raise RuntimeError(f"Ollama 模型列表返回了无法解析的 JSON: {e}") from e
-
-        models = payload.get("models") or []
-        names: list[str] = []
-        for item in models:
-            if isinstance(item, dict) and isinstance(item.get("name"), str):
-                names.append(item["name"])
-        return names
-
-    def _ensure_model_available(self) -> Optional[str]:
-        names = self._get_model_tags()
-        if self.model_name in names:
-            return None
-        return (
-            f"本地 Ollama 模型不存在: {self.model_name}。"
-            f"请先执行 `ollama pull {self.model_name}`。"
-        )
-
-    def _build_user_prompt(self, raw_text: str) -> str:
-        if self.prefix_prompt and not raw_text.startswith(self.prefix_prompt):
-            return f"{self.prefix_prompt}{raw_text}\n纠错后："
-        return raw_text
-
-    def _generation_max_tokens(self, raw_text: str) -> int:
-        text_len = len((raw_text or "").strip())
-        if text_len <= 0:
-            return 1
-        dynamic_limit = max(24, int(text_len * 1.4) + 8)
-        return max(8, min(self.num_predict, dynamic_limit))
-
-    @staticmethod
-    def _clean_correction_output(text: str, raw_text: str) -> str:
-        cleaned = (text or "").strip()
-        if not cleaned:
-            return cleaned
-
-        raw_text = (raw_text or "").strip()
-        max_len = max(len(raw_text) * 2 + 20, 80) if raw_text else 120
-        banned = (
-            "输入", "输出", "答案", "故答案", "所以", "根据", "请", "只输出",
-            "不要其他内容", "修改是", "改为", "判断对错",
-        )
-
-        candidates: list[str] = []
-        for line in cleaned.replace("\r", "\n").split("\n"):
-            line = line.strip(" \t-：:，,")
-            if not line or any(mark in line for mark in banned):
-                continue
-            candidates.append(line)
-            for mark in ("。", "！", "？", ".", "!", "?"):
-                if mark in line:
-                    first = line.split(mark, 1)[0].strip()
-                    if first:
-                        candidates.append(first + mark)
-                    break
-
-        if not candidates:
-            candidates = [cleaned.split("\n", 1)[0].strip()]
-
-        raw_chars = set(raw_text)
-
-        def score(candidate: str) -> float:
-            candidate = candidate.strip()
-            if not candidate:
-                return -1e9
-            overlap = sum(1 for ch in candidate if ch in raw_chars)
-            length_penalty = abs(len(candidate) - len(raw_text)) * 0.35
-            instruction_penalty = 20 if any(mark in candidate for mark in banned) else 0
-            long_penalty = max(0, len(candidate) - max_len) * 0.5
-            return overlap - length_penalty - instruction_penalty - long_penalty
-
-        best = max(candidates, key=score).strip()
-        if len(best) > max_len:
-            best = best[:max_len].strip()
-        return best
-
-    def test_local_llama(self) -> Optional[str]:
-        """测试本地 Llama 接口是否可用。成功返回 `None`，失败返回错误信息。"""
-        try:
-            model_error = self._ensure_model_available()
-            if model_error is not None:
-                return model_error
-
-            if self.prefix_prompt:
-                messages = [
-                    {"role": "system", "content": self.system_prompt},
-                    {"role": "user", "content": self._build_user_prompt("少先队员因该为老人让坐。")},
-                ]
-            else:
-                messages = [
-                    {"role": "system", "content": "你是一个连接测试助手，请只返回 OK。"},
-                    {"role": "user", "content": "测试连接"},
-                ]
-
-            payload = self._post_chat_completion(messages, temperature=0)
-            content = self._extract_message_content(payload)
-            if self.prefix_prompt:
-                content = self._clean_correction_output(content, "少先队员因该为老人让坐。")
-            print(f"本地 Llama 测试响应: {content}")
-            if self.prefix_prompt and content:
-                return None
-            if "ok" in content.lower():
-                return None
-            return f"模型返回非预期内容: {content}"
-        except Exception as e:
-            return str(e)
-
-    def rewrite(self, raw_text: str) -> str:
-        """使用本地 Llama 对文本进行一次改写。"""
-        if not raw_text.strip():
+        if provider not in LOCAL_LLAMA_CPP_PROVIDERS:
+            print(f"⚠️ 未知文本改写 provider: {provider}，直接返回原文")
             return raw_text
-
-        payload = self._post_chat_completion(
-            [
-                {"role": "system", "content": self.system_prompt},
-                {"role": "user", "content": self._build_user_prompt(raw_text)},
-            ],
-            num_predict=self._generation_max_tokens(raw_text),
-        )
-        content = self._extract_message_content(payload)
-        if self.prefix_prompt:
-            return self._clean_correction_output(content, raw_text)
-        return content
-
-
-def main() -> int:
-    """命令行测试入口：验证本地 Llama 接口连通性并输出改写结果。"""
-    parser = argparse.ArgumentParser(description="测试本地 Llama 文本改写接口")
-    parser.add_argument(
-        "--text",
-        default="今天下午的需求评审内容很多 我先记一下 晚点整理成正式纪要发给你",
-        help="需要发送给本地 Llama 改写的原始文本",
-    )
-    parser.add_argument(
-        "--base-url",
-        default=os.getenv("LOCAL_LLAMA_BASE_URL"),
-        help="本地 Llama 服务地址，例如 http://127.0.0.1:8000 或 http://127.0.0.1:11434/v1",
-    )
-    parser.add_argument(
-        "--model",
-        default=os.getenv("LOCAL_LLAMA_MODEL"),
-        help="本地 Llama 模型名称，例如 llama-3.1-8b-instruct 或 qwen3:8b",
-    )
-    parser.add_argument(
-        "--api-key",
-        default=os.getenv("LOCAL_LLAMA_API_KEY"),
-        help="OpenAI 兼容接口的鉴权信息；多数本地服务可留空",
-    )
-    parser.add_argument(
-        "--timeout",
-        type=int,
-        default=30,
-        help="请求超时时间（秒）",
-    )
-    parser.add_argument(
-        "--insecure",
-        action="store_true",
-        help="关闭 HTTPS 证书校验，适合本地自签名证书服务",
-    )
-    args = parser.parse_args()
-
-    rewriter = LocalLlamaRewrite(
-        base_url=args.base_url,
-        model_name=args.model,
-        api_key=args.api_key,
-        timeout=args.timeout,
-        verify_ssl=False if args.insecure else None,
-    )
-
-    error = rewriter.test_local_llama()
-    if error is not None:
-        print(f"❌ 本地 Llama 连接测试失败: {error}")
-        return 1
-
-    rewritten_text = rewriter.rewrite(args.text)
-
-    print("\n===== 本地 Llama 文本改写测试 =====")
-    print(f"接口地址: {rewriter.chat_completion_url}")
-    print(f"模型名称: {rewriter.model_name}")
-    print(f"原始文本: {args.text}")
-    print(f"改写结果: {rewritten_text}")
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
+        try:
+            if self.local_llama_cpp_client is None or not isinstance(
+                self.local_llama_cpp_client, LocalLlamaCppRewrite
+            ):
+                self.local_llama_cpp_client = LocalLlamaCppRewrite()
+            return self.local_llama_cpp_client.rewrite(raw_text)
+        except Exception as e:
+            print(f"⚠️ 本地 llama.cpp 文本改写失败（将降级返回原文）: {e}")
+            return raw_text
 
 
 # ---------------------------------------------------------------------------
 # LocalLlamaCppRewrite: 直接通过 llama-cpp-python 加载本地 GGUF 模型做文本改写/纠错。
 #
 # 设计目标：
-# - 不依赖 ollama HTTP daemon，进程内直接 mmap GGUF 权重做推理。
-# - 模型权重默认取自 data/models/<name> 目录下的 *.gguf；也兼容直接指定文件、
-#   打包 .app 内置目录与（历史）ollama manifest blob。
+# - 不依赖外部本地服务，进程内直接 mmap GGUF 权重做推理。
+# - 模型权重默认取自 data/models/<name> 目录下的 *.gguf；也兼容直接指定文件。
 # - 与现有 Rewrite 分发解耦：通过 `llm_text_provider="llama_cpp"` 选用。
 # - 重型加载放到首次调用时懒执行，启动期不阻塞。
 # ---------------------------------------------------------------------------
@@ -783,28 +380,21 @@ class LocalLlamaCppRewrite:
     def __init__(
         self,
         model_path: Optional[str] = None,
-        ollama_model_tag: Optional[str] = None,
         n_ctx: Optional[int] = None,
         n_threads: Optional[int] = None,
         main_prompt: Optional[str] = None,
     ):
         self.config = get_config_manager()
-        self.system_prompt = (
+        self.system_prompt = _resolve_system_prompt(
             main_prompt
             or self.config.main_prompt
-            or systemPrompt
         )
 
-        # 优先级：显式传参 > 配置 llama_cpp_model_path > 环境变量 > ollama 模型 tag
+        # 优先级：显式传参 > 配置 llama_cpp_model_path > 环境变量
         self.model_path: Optional[str] = (
             model_path
             or self.config.get("llama_cpp_model_path")
             or os.getenv("LLAMA_CPP_MODEL_PATH")
-        )
-        self.ollama_model_tag: Optional[str] = (
-            ollama_model_tag
-            or self.config.get("llama_cpp_ollama_tag")
-            or os.getenv("LLAMA_CPP_OLLAMA_TAG")
         )
         self.model_id = (
             self.config.get("llama_cpp_model_id")
@@ -829,13 +419,6 @@ class LocalLlamaCppRewrite:
         self.top_p = _to_float(self.config.get("llama_cpp_top_p"), 1.0)
         self.top_k = _to_int(self.config.get("llama_cpp_top_k"), 0)
         self.verbose = bool(self.config.get("llama_cpp_verbose"))
-
-        # 文本纠错前缀提示词；与历史本地纠错模型保持一致的 "文本纠错：\n…\n纠错后：" 结构。
-        self.prefix_prompt = str(
-            self.config.get("llama_cpp_prefix_prompt")
-            or self.config.get("ollama_prefix_prompt")
-            or systemPrompt
-        )
 
         # Metal GPU 加速：默认 -1 表示尽可能多的层放到 Metal 上；
         # 0 表示纯 CPU；正整数表示放在 GPU 上的层数。
@@ -910,64 +493,12 @@ class LocalLlamaCppRewrite:
         except Exception:
             return None
 
-    @staticmethod
-    def _parse_ollama_tag(tag: str) -> tuple[str, str]:
-        """`name:variant` -> (`name`, `variant`)，缺省 variant 视为 `latest`。"""
-        if ":" in tag:
-            name, variant = tag.split(":", 1)
-            return name.strip(), variant.strip() or "latest"
-        return tag.strip(), "latest"
-
-    def _resolve_gguf_from_ollama(self, tag: str) -> str:
-        """
-        从 ollama 本地 manifest 中找到 GGUF blob 路径（历史兼容路径）。
-
-        目录约定：~/.ollama/models/manifests/registry.ollama.ai/library/<name>/<variant>
-        manifest 内 layers 中 mediaType 为 application/vnd.ollama.image.model 的层即模型文件。
-        """
-        name, variant = self._parse_ollama_tag(tag)
-
-        ollama_root = Path(os.getenv("OLLAMA_MODELS") or (Path.home() / ".ollama" / "models"))
-        manifest = (
-            ollama_root
-            / "manifests"
-            / "registry.ollama.ai"
-            / "library"
-            / name
-            / variant
-        )
-        if not manifest.exists():
-            raise FileNotFoundError(
-                f"未找到 ollama manifest: {manifest}（tag={tag}）"
-            )
-
-        with manifest.open("r", encoding="utf-8") as fp:
-            manifest_data = json.load(fp)
-
-        layers = manifest_data.get("layers") or []
-        model_layer = next(
-            (l for l in layers if l.get("mediaType") == "application/vnd.ollama.image.model"),
-            None,
-        )
-        if not model_layer:
-            raise RuntimeError(f"manifest 中没有 model 层: {manifest}")
-
-        digest = model_layer.get("digest") or ""
-        if not digest.startswith("sha256:"):
-            raise RuntimeError(f"无法识别的 digest: {digest}")
-
-        blob_path = ollama_root / "blobs" / digest.replace(":", "-")
-        if not blob_path.exists():
-            raise FileNotFoundError(f"GGUF blob 不存在: {blob_path}")
-        return str(blob_path)
-
     def _resolve_model_path(self) -> str:
         """定位本地 GGUF 权重文件。
 
         查找顺序：
         1. 配置/传参 model_path：可直接是 .gguf 文件，或是包含 .gguf 的目录。
         2. 将相对 data/models/* 路径解析到开发/打包目录后再按文件或目录处理。
-        3. （历史兼容）从 ollama manifest 解析 blob。
         """
         if self.model_path:
             raw = Path(self.model_path).expanduser()
@@ -986,10 +517,6 @@ class LocalLlamaCppRewrite:
             found = self._find_gguf_in_dir(resolved, str(self.model_file or ""))
             if found is not None:
                 return str(found)
-
-        # 3. 历史兼容：从 ollama manifest 解析
-        if self.ollama_model_tag:
-            return self._resolve_gguf_from_ollama(self.ollama_model_tag)
 
         raise FileNotFoundError(
             f"未找到 GGUF 模型文件：请将 *.gguf 放入 {self.model_path or 'data/models/<模型目录>'}"
@@ -1121,11 +648,8 @@ class LocalLlamaCppRewrite:
     # ---------- 业务方法 ----------
 
     def _build_user_prompt(self, raw_text: str) -> str:
-        """构造文本纠错的用户输入（前缀提示词 + 原文 + 纠错引导）。"""
-        query = f"{self.prefix_prompt}{raw_text}"
-        if "纠错后" not in query:
-            query = f"{query}\n纠错后："
-        return query
+        """构造与 MyVoiceTyping-1.5B 训练样本一致的 ASR 后处理输入。"""
+        return _build_asr_post_user_prompt(raw_text)
 
     def _generation_max_tokens(self, raw_text: str) -> int:
         text_len = len((raw_text or "").strip())
@@ -1185,6 +709,7 @@ class LocalLlamaCppRewrite:
         max_tokens = self._generation_max_tokens(raw_text)
         out = self._llm.create_chat_completion(
             messages=[
+                {"role": "system", "content": self.system_prompt},
                 {"role": "user", "content": self._build_user_prompt(raw_text)},
             ],
             temperature=self.temperature,

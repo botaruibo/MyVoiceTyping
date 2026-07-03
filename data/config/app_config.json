@@ -5,27 +5,12 @@
   "stt_provider": "funasr",
   "format_text": true,
   "llm_text_provider": "llama_cpp",
-  "funasr_hotwords": [
-    "client",
-    "python",
-    "http",
-    "ollama",
-    "main",
-    "函数",
-    "终端",
-    "日志",
-    "log"
+  "funasr_hotword_dictionaries": [
+    "config/hotwords/custom_hotwords.txt"
   ],
   "preload_stt_on_startup": true,
   "stt_warmup_on_startup": true,
   "preload_llama_cpp_on_startup": true,
-  "llama_cpp_n_gpu_layers": -1,
-  "llama_cpp_n_batch": 512,
-  "audio_dir": "data/audio",
-  "transcripts_dir": "data/transcripts",
-  "models_dir": "data/models",
-  "mute_speaker": true,
-  "min_audio_duration_ms": 400,
   "llama_cpp_model_path": "data/models/MyVoiceTyping-1.5b-q4",
   "llama_cpp_model_id": "botaruibo/MyVoiceTyping-1.5b-q4",
   "llama_cpp_model_revision": "master",
@@ -36,6 +21,12 @@
   "llama_cpp_max_tokens": 96,
   "llama_cpp_top_p": 1.0,
   "llama_cpp_top_k": 0,
-  "llama_cpp_prefix_prompt": "文本纠错：\n",
-  "llama_cpp_verbose": false
+  "llama_cpp_n_gpu_layers": -1,
+  "llama_cpp_n_batch": 512,
+  "llama_cpp_verbose": false,
+  "audio_dir": "data/audio",
+  "transcripts_dir": "data/transcripts",
+  "models_dir": "data/models",
+  "mute_speaker": true,
+  "min_audio_duration_ms": 400
 }

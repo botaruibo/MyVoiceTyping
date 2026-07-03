@@ -325,12 +325,6 @@ class FlashInputApp:
             if (
                 self.config_manager is not None
                 and bool(self.config_manager.get("FORMAT_TEXT"))
-                and provider == "cloud_llm"
-            ):
-                self.rewriter.init_remote_llm_async(reason="lazy_get")
-            if (
-                self.config_manager is not None
-                and bool(self.config_manager.get("FORMAT_TEXT"))
                 and provider in {"llama_cpp", "local_llama_cpp", "gguf"}
                 and bool(self.config_manager.get("preload_llama_cpp_on_startup", True))
             ):

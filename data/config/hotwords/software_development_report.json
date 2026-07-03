@@ -1,0 +1,32 @@
+{
+  "output": "data/config/hotwords/software_development.txt",
+  "max_len": 0,
+  "source_files": [
+    {
+      "file": "data/config/开发大神专用词库【官方推荐】.scel",
+      "raw_count": 430,
+      "kept_count": 430,
+      "duplicate_removed_count": 0,
+      "empty_removed_count": 0,
+      "too_long_removed_count": 0,
+      "too_long_removed_samples": []
+    },
+    {
+      "file": "data/config/程序猿词库.scel",
+      "raw_count": 558,
+      "kept_count": 558,
+      "duplicate_removed_count": 0,
+      "empty_removed_count": 0,
+      "too_long_removed_count": 0,
+      "too_long_removed_samples": []
+    }
+  ],
+  "merged": {
+    "raw_count": 988,
+    "kept_count": 898,
+    "duplicate_removed_count": 90,
+    "empty_removed_count": 0,
+    "too_long_removed_count": 0,
+    "too_long_removed_samples": []
+  }
+}
