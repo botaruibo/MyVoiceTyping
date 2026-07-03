@@ -6,6 +6,10 @@ MyVoiceTyping 的目标很简单：让你在写文档、记需求、回消息、
 
 它也可以作为 Typless 的本地化平替工具使用。默认能力全部在本机完成，不依赖云端模型，不上传音频和文本，更适合重视个人数据保护、隐私安全和合规要求的工作场景。
 
+MyVoiceTyping is a local-first voice typing app for macOS. It helps you write documents, capture ideas, reply to messages, and produce longer text with less typing. In many everyday scenarios, speaking is faster than typing and closer to the natural flow of thought.
+
+It can also be used as a local alternative to Typless. By default, speech recognition, punctuation restoration, and lightweight text polishing all run on your Mac. Your audio and text are not sent to cloud models, making it better suited for privacy-conscious personal and workplace use.
+
 ![MyVoiceTyping dashboard](docs/img/myvoicetyping-dashboard.png)
 
 ## Downloads / Releases
