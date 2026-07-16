@@ -41,7 +41,7 @@
 - ASR 后纠错数据集：[MyVoiceTyping-Dataset](https://github.com/botaruibo/MyVoiceTyping-Dataset)
 
 
-如果它解决了你的中文输入问题，欢迎先实际体验，再通过 Star 关注后续版本；安装问题请提交可复现的 [Issue](https://github.com/botaruibo/MyVoiceTyping/issues)。
+如果它解决了你的中文输入问题，欢迎先实际体验，再通过 Star 关注后续版本；安装问题请提交可复现的 [Issue](https://github.com/botaruibo/MyVoiceTyping/issues)。想参与反馈、文档或代码改进，请查看 [Contributing](CONTRIBUTING.md)。
 
 
 ![MyVoiceTyping dashboard](docs/img/myvoicetyping-dashboard.png)
