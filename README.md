@@ -20,7 +20,9 @@
 🧭 Support: https://github.com/botaruibo/MyVoiceTyping/blob/main/SUPPORT.md  
 🔒 Privacy: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/PRIVACY.md  
 🧠 Self-evaluation: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/SELF_EVALUATION.md  
-🛡️ Security: https://github.com/botaruibo/MyVoiceTyping/blob/main/SECURITY.md
+🛡️ Security: https://github.com/botaruibo/MyVoiceTyping/blob/main/SECURITY.md  
+🪪 License status: https://github.com/botaruibo/MyVoiceTyping/issues/7  
+🎥 Demo/GIF status: https://github.com/botaruibo/MyVoiceTyping/issues/8
 
 <p align="center">
   <img
