@@ -32,6 +32,17 @@
 适合：写文档、回消息、记录需求、整理想法、AI Coding 需求描述，以及重视本地隐私的中文输入场景。
 
 
+## 30 秒判断是否值得 Star
+
+如果你是从 Typeless、闪电说、OpenTypeless、VoiceSnap 或其他语音输入工具对比里点进来的，可以先用这个最短路径判断是否适合：
+
+1. 打开 [Trial tasks / 30 秒试用任务](docs/TRIAL_TASKS.zh-CN.md)，任选一条虚构任务；
+2. 看它是否解决你的核心场景：中文 / 中英混合、AI Coding prompt、工作消息、Bug 复现或隐私敏感输入；
+3. 如果方向对你有用，欢迎点一个 Star 关注后续版本；如果暂时不适合，也欢迎在 [Use case feedback](https://github.com/botaruibo/MyVoiceTyping/issues/new/choose) 里告诉我卡在哪里。
+
+Star 对这个早期开源项目很重要：它会帮助更多 macOS 中文用户发现一个本地优先、0 费用、App / 模型 / 数据集公开的语音输入选择。
+
+
 ## 为什么做这个项目
 
 
