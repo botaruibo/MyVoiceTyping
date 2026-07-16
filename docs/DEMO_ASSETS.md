@@ -4,6 +4,8 @@
 
 > Copy safety: 不展示真实公司代码、客户名、私聊、邮箱、Token、内部文档或未脱敏日志。对外传播时建议使用下面的示例文本或自己重新造一段无敏感信息的口述内容。
 
+如果是在 Typeless / 闪电说 / Typeoff / 隐私语音输入等具体讨论下回复，请优先使用更克制的 [Community sharing / 社区讨论回复素材](./COMMUNITY_SHARING.md)，避免把社区评论写成硬广。
+
 ## One-line pitch
 
 中文：
