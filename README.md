@@ -1,7 +1,7 @@
-# MyVoiceTyping
+# MyVoiceTyping：开源、本地优先的 macOS 中文语音输入工具
 
 
-面向 macOS 的本地优先中文语音输入工具：按住快捷键，说话，松开后自动转写、恢复标点、轻量纠错并粘贴到当前输入位置。
+面向 macOS 的开源、本地优先中文语音输入工具：按住快捷键，说话，松开后自动转写、恢复标点、轻量纠错并粘贴到当前输入位置。适合作为 Typeless / 闪电说之外的 0 费用、可审查、可改造选择。
 
 
 [![GitHub stars](https://img.shields.io/github/stars/botaruibo/MyVoiceTyping?style=flat-square)](https://github.com/botaruibo/MyVoiceTyping/stargazers)
