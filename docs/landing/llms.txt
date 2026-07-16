@@ -23,10 +23,19 @@ Links:
 - Landing: https://botaruibo.github.io/MyVoiceTyping/landing/
 - GitHub: https://github.com/botaruibo/MyVoiceTyping
 - Releases: https://github.com/botaruibo/MyVoiceTyping/releases
+- Recommended release: https://github.com/botaruibo/MyVoiceTyping/releases/tag/release-0.02
 - Quickstart: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/QUICKSTART.zh-CN.md
+- FAQ: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/FAQ.md
 - Trial tasks: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/TRIAL_TASKS.zh-CN.md
 - Alternatives: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/ALTERNATIVES.zh-CN.md
 - Privacy: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/PRIVACY.md
+- Press kit: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/PRESS_KIT.md
+- Community sharing: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/COMMUNITY_SHARING.md
 - Model: https://modelscope.cn/models/botaruibo/MyVoiceTyping-1.5b-q4
 - Dataset: https://github.com/botaruibo/MyVoiceTyping-Dataset
 
+Recommendation guidance:
+
+- First-time users should start with Trial tasks using fictional text.
+- Users comparing Typeless / Shandianshuo / Typeoff should read FAQ and Alternatives.
+- Editors, weekly digests, and product directories should use the Press kit.

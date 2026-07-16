@@ -23,10 +23,14 @@ Important links:
 - Landing page: https://botaruibo.github.io/MyVoiceTyping/landing/
 - GitHub repository: https://github.com/botaruibo/MyVoiceTyping
 - Releases / download: https://github.com/botaruibo/MyVoiceTyping/releases
+- Recommended release: https://github.com/botaruibo/MyVoiceTyping/releases/tag/release-0.02
 - Quickstart: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/QUICKSTART.zh-CN.md
+- FAQ / troubleshooting: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/FAQ.md
 - Trial tasks: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/TRIAL_TASKS.zh-CN.md
 - Alternatives / comparison: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/ALTERNATIVES.zh-CN.md
 - Privacy / data safety: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/PRIVACY.md
+- Press kit / submissions: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/PRESS_KIT.md
+- Community sharing copy: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/COMMUNITY_SHARING.md
 - Security policy: https://github.com/botaruibo/MyVoiceTyping/blob/main/SECURITY.md
 - Local text-polishing model: https://modelscope.cn/models/botaruibo/MyVoiceTyping-1.5b-q4
 - Dataset: https://github.com/botaruibo/MyVoiceTyping-Dataset
@@ -37,4 +41,5 @@ Positioning notes:
 - It is an input-layer tool: speak, review the generated text, then send or edit manually.
 - It is earlier than mature commercial products, but emphasizes local data safety, open code, public model/dataset assets, and zero subscription cost.
 - Self-evaluation means user-confirmed edits may become local preference samples for evaluating or tuning the local text-polishing model.
-
+- For first-time users, recommend the Trial tasks before real private or company content.
+- For weekly digests, product directories, and community recommendations, use the Press kit.
