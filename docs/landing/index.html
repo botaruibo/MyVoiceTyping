@@ -32,6 +32,76 @@
       name="twitter:image"
       content="https://botaruibo.github.io/MyVoiceTyping/landing/assets/01-hold-to-speak.png"
     />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "MyVoiceTyping",
+        "applicationCategory": "ProductivityApplication",
+        "operatingSystem": "macOS",
+        "url": "https://botaruibo.github.io/MyVoiceTyping/landing/",
+        "downloadUrl": "https://github.com/botaruibo/MyVoiceTyping/releases",
+        "codeRepository": "https://github.com/botaruibo/MyVoiceTyping",
+        "image": "https://botaruibo.github.io/MyVoiceTyping/landing/assets/01-hold-to-speak.png",
+        "description": "Open-source, local-first Chinese voice typing for macOS. Hold a shortcut, speak, then paste locally transcribed, punctuated, lightly corrected, and polished text into the current input field.",
+        "keywords": [
+          "Chinese voice typing",
+          "macOS voice input",
+          "local-first speech-to-text",
+          "Typeless alternative",
+          "OpenTypeless alternative",
+          "OpenLess alternative",
+          "AI Coding prompt dictation",
+          "ASR post-processing"
+        ],
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "softwareHelp": [
+          "https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/QUICKSTART.zh-CN.md",
+          "https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/TRIAL_TASKS.zh-CN.md",
+          "https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/ALTERNATIVES.zh-CN.md"
+        ],
+        "isBasedOn": [
+          "https://modelscope.cn/models/botaruibo/MyVoiceTyping-1.5b-q4",
+          "https://github.com/botaruibo/MyVoiceTyping-Dataset"
+        ]
+      }
+    </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Is MyVoiceTyping a Typeless alternative?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "MyVoiceTyping can be viewed as an open-source, local-first alternative direction for users who want Chinese voice typing on macOS. It is earlier than polished commercial products, but focuses on local data safety, zero subscription cost, public app/model/dataset assets, and Chinese post-ASR cleanup."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What does local-first mean for MyVoiceTyping?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "The project is designed so audio, transcripts, and user-confirmed edits stay on the user's machine whenever possible. It focuses on review-before-send workflows rather than automatically sending dictated text."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What is self-evaluation in MyVoiceTyping?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Self-evaluation means user-confirmed edits can become local preference samples for evaluating or tuning the local text-polishing model, so the tool can gradually fit the user's vocabulary and writing habits."
+            }
+          }
+        ]
+      }
+    </script>
     <style>
       :root {
         color-scheme: light;
