@@ -16,7 +16,7 @@ https://botaruibo.github.io/MyVoiceTyping/landing/
 
 If the URL returns `404`, GitHub Pages has not been enabled yet.
 
-## Enable GitHub Pages
+## Option A: enable GitHub Pages from Settings
 
 Open:
 
@@ -38,6 +38,24 @@ GitHub usually needs a short time to publish the site. After deployment, verify:
 
 ```text
 https://botaruibo.github.io/MyVoiceTyping/landing/
+```
+
+## Option B: deploy with GitHub Actions
+
+This repository also includes:
+
+```text
+.github/workflows/pages.yml
+```
+
+It deploys the `docs/` directory to GitHub Pages on every push to `main` that changes `docs/**` or the workflow itself.
+
+If GitHub Pages is not yet enabled from Settings, the workflow may still create a Pages deployment when Actions has permission to deploy Pages for the repository.
+
+You can also run it manually:
+
+```text
+Actions → Deploy GitHub Pages → Run workflow
 ```
 
 ## After Pages is live
