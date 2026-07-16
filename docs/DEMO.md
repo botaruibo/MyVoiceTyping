@@ -4,7 +4,7 @@
 
 > 说明：下面是示例文本，用于展示目标体验。真实输出会受麦克风、环境噪音、语速、模型版本和本地配置影响。
 
-如果你想录制或转发一个 30–60 秒演示视频，可以参考：[60 秒 Demo 录制脚本](./DEMO_VIDEO.md)。
+如果你想录制或转发一个 30–60 秒演示视频，可以参考：[60 秒 Demo 录制脚本](./DEMO_VIDEO.md)。当前 Demo/GIF 制作和回填进展追踪见：[Issue #8](https://github.com/botaruibo/MyVoiceTyping/issues/8)。
 
 ## 核心体验
 

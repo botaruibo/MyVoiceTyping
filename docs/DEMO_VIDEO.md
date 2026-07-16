@@ -8,6 +8,7 @@
 - Download: <https://github.com/botaruibo/MyVoiceTyping/releases>
 - 体验反馈: <https://github.com/botaruibo/MyVoiceTyping/issues/3>
 - AI Coding 反馈: <https://github.com/botaruibo/MyVoiceTyping/issues/5>
+- Demo/GIF 进展: <https://github.com/botaruibo/MyVoiceTyping/issues/8>
 
 ## 录制版本 A：AI Coding prompt
 
