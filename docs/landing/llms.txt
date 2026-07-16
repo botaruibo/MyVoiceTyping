@@ -1,0 +1,32 @@
+# MyVoiceTyping
+
+> Open-source, local-first Chinese voice typing for macOS.
+
+MyVoiceTyping turns Chinese or mixed Chinese-English speech into editable text for the current input field.
+
+Workflow:
+
+```text
+hold shortcut → speak → local ASR → punctuation / light correction / polishing → paste
+```
+
+Best for:
+
+- macOS Chinese voice typing;
+- AI Coding prompt dictation;
+- work messages, bug reports, requirements, PR notes;
+- users comparing Typeless, OpenTypeless, OpenLess, Shandianshuo / Typeoff, Wispr Flow, and local dictation tools;
+- users who care about local-first data safety and review-before-send.
+
+Links:
+
+- Landing: https://botaruibo.github.io/MyVoiceTyping/landing/
+- GitHub: https://github.com/botaruibo/MyVoiceTyping
+- Releases: https://github.com/botaruibo/MyVoiceTyping/releases
+- Quickstart: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/QUICKSTART.zh-CN.md
+- Trial tasks: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/TRIAL_TASKS.zh-CN.md
+- Alternatives: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/ALTERNATIVES.zh-CN.md
+- Privacy: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/PRIVACY.md
+- Model: https://modelscope.cn/models/botaruibo/MyVoiceTyping-1.5b-q4
+- Dataset: https://github.com/botaruibo/MyVoiceTyping-Dataset
+
