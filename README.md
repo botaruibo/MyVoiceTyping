@@ -40,7 +40,7 @@
 2. 看它是否解决你的核心场景：中文 / 中英混合、AI Coding prompt、工作消息、Bug 复现或隐私敏感输入；
 3. 如果方向对你有用，欢迎点一个 Star 关注后续版本；如果暂时不适合，也欢迎在 [Use case feedback](https://github.com/botaruibo/MyVoiceTyping/issues/new/choose) 里告诉我卡在哪里。
 
-Star 对这个早期开源项目很重要：它会帮助更多 macOS 中文用户发现一个本地优先、0 费用、App / 模型 / 数据集公开的语音输入选择。
+Star 对这个早期开源项目很重要：它会帮助更多 macOS 中文用户发现一个本地优先、0 费用、App / 模型 / 数据集公开的语音输入选择，也会帮助判断 [Roadmap](ROADMAP.md) 里 0→50、50→200、200→1000 stars 阶段哪些能力最值得继续投入。
 
 
 ## 为什么做这个项目
