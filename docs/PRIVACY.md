@@ -1,0 +1,103 @@
+# Privacy / Data Safety
+
+MyVoiceTyping 的核心设计目标之一是“本地优先”：尽量让语音识别、标点恢复和轻量文本润写在用户自己的 Mac 上完成，降低音频和文本离开本机的风险。
+
+这份文档说明 MyVoiceTyping 当前的数据处理边界，方便用户在隐私敏感、公司办公或个人资料场景中判断是否适合使用。
+
+## 默认处理方式
+
+默认链路：
+
+```text
+语音 → 本地 ASR → 标点恢复 → 本地 GGUF 文本纠错/轻量润写 → 粘贴到当前输入位置
+```
+
+在默认设计下：
+
+- 录音音频用于本机语音识别；
+- 转写文本用于本机标点恢复和轻量纠错/润写；
+- 结果粘贴到当前输入位置；
+- 音频和文本默认不发送给云端大模型；
+- 应用、润写模型和调优数据集公开，便于用户审查和二次开发。
+
+## 什么时候会访问网络？
+
+MyVoiceTyping 可能在以下场景访问网络：
+
+1. 首次启动或模型缺失时，按需下载语音识别、标点恢复或文本润写模型；
+2. 用户手动打开 GitHub、ModelScope、Release、FAQ、Issue 等外部链接；
+3. 未来如果新增可选的云端模型能力，应明确标注并提供用户开关。
+
+当前宣传中的“本地优先”指默认语音处理链路尽量在本机完成，不代表应用永远不会进行任何网络请求。模型下载本身需要联网。
+
+## 模型文件如何处理？
+
+模型文件不会提交到 Git 仓库，也不会直接打包进应用安装包。应用会在首次启动或模型缺失时检查并下载所需模型。
+
+常见模型类型包括：
+
+- 语音识别模型；
+- 标点恢复模型；
+- 本地 GGUF 文本润写 / ASR 后处理模型。
+
+具体模型信息请以 README、Release notes 和配置为准。
+
+## 本地文本润写模型
+
+MyVoiceTyping 当前使用的文本润写 / ASR 后处理模型是：
+
+- [MyVoiceTyping-1.5b-q4](https://modelscope.cn/models/botaruibo/MyVoiceTyping-1.5b-q4)
+
+它主要用于：
+
+- 修正常见 ASR 错词；
+- 补足基础标点和断句；
+- 清理少量口语重复；
+- 做保守的轻量润写；
+- 尽量保留用户原意。
+
+如果你发现润写过度、删除重要细节或改变原意，请提交可公开样例帮助改进。
+
+## 数据集与反馈
+
+调优数据集：
+
+- [MyVoiceTyping-Dataset](https://github.com/botaruibo/MyVoiceTyping-Dataset)
+
+提交 issue 或 discussion 时，请不要上传包含以下内容的样例：
+
+- 公司机密；
+- 个人身份信息；
+- 密码、Token、密钥；
+- 医疗、财务、法律等敏感内容；
+- 未经授权的他人音频或文本。
+
+如果需要反馈转写或润写质量，请尽量构造一段可公开的测试文本。
+
+## 和云端语音输入工具的区别
+
+Typeless、闪电说、Typeoff 等商业工具通常更成熟，可能提供更完整的云端 AI 编辑、跨平台同步和高级功能。
+
+MyVoiceTyping 的取向不同：
+
+- 更偏开源；
+- 更偏本地优先；
+- 更偏 macOS 中文输入；
+- 更重视用户对模型、数据和处理链路的可审查性；
+- 更适合对音频和文本外发有顾虑的用户试用和二次开发。
+
+## 用户自查建议
+
+如果你打算在隐私敏感场景中使用 MyVoiceTyping，建议：
+
+1. 先在无敏感内容的文本上测试；
+2. 确认模型下载来源和本机模型目录；
+3. 检查应用权限，仅授予必要权限；
+4. 不在 issue、discussion 或截图中泄露敏感文本；
+5. 如果需要公司内使用，先按内部安全规范评估。
+
+## 反馈入口
+
+- [Bug report / 故障报告](https://github.com/botaruibo/MyVoiceTyping/issues/new/choose)
+- [体验反馈 / User feedback](https://github.com/botaruibo/MyVoiceTyping/issues/new/choose)
+- [Discussions 体验招募帖](https://github.com/botaruibo/MyVoiceTyping/discussions/2)
