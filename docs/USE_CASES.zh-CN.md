@@ -158,7 +158,7 @@ MyVoiceTyping 可能不适合这些场景：
 
 1. 先看 [Quickstart / macOS 试用指南](./QUICKSTART.zh-CN.md)；
 2. 下载最新 [Release](https://github.com/botaruibo/MyVoiceTyping/releases)；
-3. 用一个不含敏感信息的句子试 30 秒；
+3. 用 [30 秒试用任务 / Trial tasks](./TRIAL_TASKS.zh-CN.md) 里的虚构句子测试；
 4. 如果适合，再试 AI Coding prompt 或工作消息；
 5. 如果遇到问题，使用 [Issue templates](https://github.com/botaruibo/MyVoiceTyping/issues/new/choose) 反馈；
 6. 如果你只是想反馈“这个工具是否适合我的场景”，可以选择 `使用场景反馈 / Use case feedback` 模板。

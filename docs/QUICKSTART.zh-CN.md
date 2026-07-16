@@ -68,7 +68,7 @@ MyVoiceTyping 通常需要这些权限：
 - 润写有没有改变原意；
 - 中英文或技术词是否被破坏。
 
-更多示例见：[Demo / 使用效果示例](./DEMO.md)。
+更多示例见：[Demo / 使用效果示例](./DEMO.md) 和 [30 秒试用任务 / Trial tasks](./TRIAL_TASKS.zh-CN.md)。
 
 ## 5. AI Coding 试用任务
 
