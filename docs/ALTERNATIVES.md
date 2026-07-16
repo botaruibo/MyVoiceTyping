@@ -32,6 +32,7 @@ Current project assets:
 |---|---|---|---|
 | MyVoiceTyping | macOS Chinese / mixed Chinese-English input, AI Coding prompts, privacy-sensitive users, open-source tinkerers | Open source, local-first, zero-cost; public app/model/dataset; post-ASR punctuation, correction, light rewriting; local self-evaluation direction | Early-stage project; app license is still being finalized; currently macOS-focused |
 | Typeless | Users who want a polished commercial product with less setup | Mature product experience and smoother onboarding | Pricing, data flow, and customization depend on the vendor; not the same as an inspectable open-source stack |
+| OpenTypeless | Users who want a cross-platform, open-source Typeless alternative with configurable STT / LLM providers | Open source, free, Windows / macOS / Linux; multi-provider STT and LLM setup; app-aware writing direction | More of a general desktop AI voice input framework; Chinese / mixed Chinese-English optimization and public local polishing model + dataset are not its main differentiators |
 | Shandianshuo / Typeoff | Users who want a complete voice input product with commercial support and product polish | More complete product experience, potentially broader platform/cloud features | For sensitive input, users should check each product's data handling boundary |
 | VoiceSnap / local dictation tools | Users who mainly need offline speech-to-text | Fully offline, lightweight, local dictation focus | Often closer to raw transcription; may not cover Chinese post-ASR polishing, self-evaluation, or the full input loop |
 | Wispr Flow / English-first commercial dictation | English-first or cross-platform dictation users | Stronger commercial dictation polish and general writing UX | Chinese / mixed Chinese-English and local open-source inspectability may not be the main focus |
@@ -50,6 +51,20 @@ MyVoiceTyping is different:
 - It is exploring self-evaluation: user-confirmed edits can become local preference data for future local model tuning.
 
 If you want the most mature product today, Typeless may be more suitable. If you want an open, local-first, Chinese-focused voice typing stack that you can inspect, modify, and improve, MyVoiceTyping may be a better fit.
+
+## Compared with OpenTypeless
+
+OpenTypeless is a strong open-source Typeless alternative direction. Its advantages are cross-platform support, free/open-source availability, and configurable STT / LLM providers such as Whisper-style STT, GLM-ASR, OpenAI, Claude, Qwen, Ollama, and other provider options.
+
+MyVoiceTyping is intentionally narrower:
+
+- It focuses on macOS Chinese / mixed Chinese-English voice typing.
+- It publishes not only the app, but also the local text-polishing model and dataset.
+- It is optimized around Chinese post-ASR punctuation, common recognition error correction, technical term preservation, and light rewriting.
+- It is designed for AI Coding prompts, Chinese work messages, requirements, bug reports, PR descriptions, and other input-layer workflows.
+- Its self-evaluation direction is to turn user-confirmed edits into local preference samples, so the local model can gradually fit the user's own vocabulary and style.
+
+If you want cross-platform support and a configurable multi-provider desktop AI voice input framework, OpenTypeless may be a better fit. If you mainly need macOS Chinese / mixed Chinese-English input with public app/model/dataset assets and local personalization, MyVoiceTyping is more directly targeted at that use case.
 
 ## Compared with Wispr Flow
 
