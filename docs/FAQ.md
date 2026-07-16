@@ -2,6 +2,25 @@
 
 这份文档用于帮助新用户快速排查 MyVoiceTyping 的常见问题。它也方便从社区文章、知乎/掘金评论、GitHub Discussions 进入项目的新用户判断：这个工具是否适合自己的使用场景。
 
+## 如果你是从 Typeless / 闪电说 / Typeoff 讨论过来的
+
+可以先用下面 5 个问题快速判断 MyVoiceTyping 是否值得继续看：
+
+1. 你主要在 macOS 上输入中文或中英混合内容吗？
+2. 你想要 Typeless / 闪电说 / Typeoff 之外的开源、本地优先、0 费用选择吗？
+3. 你会把语音输入用于 AI Coding prompt、工作消息、PR / Issue、需求描述或笔记吗？
+4. 你是否在意公司内容、代码 prompt、会议纪要或私人消息尽量不要默认进入第三方云端链路？
+5. 你是否愿意接受一个早期项目，并通过 Issue / Star 帮它把 Demo、License、稳定性和中文后处理继续补齐？
+
+如果上面有 2–3 个问题命中，建议按这个顺序看：
+
+- 先看 [30 秒试用任务](./TRIAL_TASKS.zh-CN.md)，用虚构文本测试 AI Coding、工作消息、中英混合和隐私输入；
+- 再看 [同类工具对比 / 选型建议](./ALTERNATIVES.zh-CN.md)，了解它和 Typeless、OpenTypeless、OpenLess、闪电说、Typeoff、Wispr Flow 等工具的边界；
+- 如果你准备安装，按 [快速上手 / macOS 试用指南](./QUICKSTART.zh-CN.md) 走；
+- 如果方向对你有用，欢迎给 [主仓库](https://github.com/botaruibo/MyVoiceTyping) 一个 Star，或在 [体验反馈入口](https://github.com/botaruibo/MyVoiceTyping/issues/new/choose) 里告诉我你最关心的缺口。
+
+如果你只是想要最成熟、最少折腾的商业产品体验，也可以继续使用 Typeless、闪电说、Typeoff 或其他商业语音输入工具。MyVoiceTyping 当前更适合愿意关注开源、本地优先、可审查和中文 / 中英混合输入的人。
+
 ## MyVoiceTyping 适合什么场景？
 
 MyVoiceTyping 更适合 macOS 上的中文语音输入，例如：
