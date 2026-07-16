@@ -9,6 +9,7 @@
 
 🌐 Website: https://botaruibo.github.io/MyVoiceTyping/landing/  
 ⬇️ Download: https://github.com/botaruibo/MyVoiceTyping/releases  
+📚 Docs index: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/INDEX.zh-CN.md  
 🎬 Demo assets: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/DEMO_ASSETS.md  
 📣 Community sharing: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/COMMUNITY_SHARING.md  
 🧰 Press kit: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/PRESS_KIT.md  
