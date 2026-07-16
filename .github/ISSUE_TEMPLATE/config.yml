@@ -9,6 +9,9 @@ contact_links:
   - name: AI Coding prompt 测试任务
     url: https://github.com/botaruibo/MyVoiceTyping/issues/5
     about: 如果你主要想测试给 Codex、Claude Code、Cursor、OpenCode 等工具口述 prompt，可以先看这个任务说明。
+  - name: 使用场景 / Use cases
+    url: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/USE_CASES.zh-CN.md
+    about: 如果你不确定 MyVoiceTyping 是否适合自己的场景，可以先看 AI Coding、工作消息、隐私输入和自进化说明。
   - name: Discussions 体验招募帖
     url: https://github.com/botaruibo/MyVoiceTyping/discussions/2
     about: 如果不确定是否算 bug，或者想先聊使用场景，可以先在讨论区反馈。

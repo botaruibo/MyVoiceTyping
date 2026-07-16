@@ -160,5 +160,5 @@ MyVoiceTyping 可能不适合这些场景：
 2. 下载最新 [Release](https://github.com/botaruibo/MyVoiceTyping/releases)；
 3. 用一个不含敏感信息的句子试 30 秒；
 4. 如果适合，再试 AI Coding prompt 或工作消息；
-5. 如果遇到问题，使用 [Issue templates](https://github.com/botaruibo/MyVoiceTyping/issues/new/choose) 反馈。
-
+5. 如果遇到问题，使用 [Issue templates](https://github.com/botaruibo/MyVoiceTyping/issues/new/choose) 反馈；
+6. 如果你只是想反馈“这个工具是否适合我的场景”，可以选择 `使用场景反馈 / Use case feedback` 模板。

@@ -184,6 +184,7 @@ macOS 对语音输入类工具限制比较严格。MyVoiceTyping 通常需要：
 
 - [Bug report / 故障报告](https://github.com/botaruibo/MyVoiceTyping/issues/new/choose)：应用启动、权限、模型下载、录音、粘贴等故障；
 - [体验反馈 / User feedback](https://github.com/botaruibo/MyVoiceTyping/issues/new/choose)：转写质量、润写质量、使用场景和改进建议；
+- [使用场景反馈 / Use case feedback](https://github.com/botaruibo/MyVoiceTyping/issues/new/choose)：如果你不确定它是否适合 AI Coding、工作消息、隐私输入、中文长文本或本地自进化场景，可以从这里反馈；
 - [Discussions 体验招募帖](https://github.com/botaruibo/MyVoiceTyping/discussions/2)：不确定是否算 bug 时，可以先在讨论区反馈。
 
 请不要上传包含隐私、公司机密或敏感信息的音频/文本。
