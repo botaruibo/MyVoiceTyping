@@ -26,6 +26,16 @@ Current project assets:
 - Local text polishing model: [MyVoiceTyping-1.5b-q4](https://modelscope.cn/models/botaruibo/MyVoiceTyping-1.5b-q4)
 - Dataset: [MyVoiceTyping-Dataset](https://github.com/botaruibo/MyVoiceTyping-Dataset)
 
+## Quick comparison table
+
+| Tool / direction | Best fit | Strengths | Caveats |
+|---|---|---|---|
+| MyVoiceTyping | macOS Chinese / mixed Chinese-English input, AI Coding prompts, privacy-sensitive users, open-source tinkerers | Open source, local-first, zero-cost; public app/model/dataset; post-ASR punctuation, correction, light rewriting; local self-evaluation direction | Early-stage project; app license is still being finalized; currently macOS-focused |
+| Typeless | Users who want a polished commercial product with less setup | Mature product experience and smoother onboarding | Pricing, data flow, and customization depend on the vendor; not the same as an inspectable open-source stack |
+| Shandianshuo / Typeoff | Users who want a complete voice input product with commercial support and product polish | More complete product experience, potentially broader platform/cloud features | For sensitive input, users should check each product's data handling boundary |
+| VoiceSnap / local dictation tools | Users who mainly need offline speech-to-text | Fully offline, lightweight, local dictation focus | Often closer to raw transcription; may not cover Chinese post-ASR polishing, self-evaluation, or the full input loop |
+| Wispr Flow / English-first commercial dictation | English-first or cross-platform dictation users | Stronger commercial dictation polish and general writing UX | Chinese / mixed Chinese-English and local open-source inspectability may not be the main focus |
+
 ## Compared with Typeless
 
 Typeless is a polished commercial AI voice input product. It is usually a better choice if you want a mature product experience, broad platform support, and strong cloud AI editing out of the box.
