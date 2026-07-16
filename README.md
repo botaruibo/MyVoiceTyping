@@ -89,7 +89,7 @@ License / 使用边界：应用代码许可证仍在确认中，见 [Issue #7](h
 模型在应用中的作用、Ollama / llama.cpp 使用方式和数据边界见 [Model usage / 模型使用说明](docs/MODEL.md)。
 
 
-如果它解决了你的中文输入问题，欢迎先实际体验，再通过 Star 关注后续版本；安装问题请提交可复现的 [Issue](https://github.com/botaruibo/MyVoiceTyping/issues)。想参与反馈、文档或代码改进，请查看 [Contributing](CONTRIBUTING.md)。
+如果它解决了你的中文输入问题，欢迎先实际体验，再通过 Star 关注后续版本；安装、权限、转写、润写或 AI Coding prompt 问题可以通过 [Issue templates](https://github.com/botaruibo/MyVoiceTyping/issues/new/choose) 提交结构化反馈。想参与反馈、文档或代码改进，请查看 [Contributing](CONTRIBUTING.md)。
 
 
 ![MyVoiceTyping dashboard](docs/img/myvoicetyping-dashboard.png)
