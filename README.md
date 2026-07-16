@@ -19,7 +19,7 @@
 
 默认音频和文本不上传云端。当前主要目标平台为 macOS。
 
-隐私与数据安全边界见 [Privacy / Data Safety](docs/PRIVACY.md)。
+隐私与数据安全边界见 [Privacy / Data Safety](docs/PRIVACY.md)。后续计划见 [Roadmap](ROADMAP.md)。
 
 
 ## 3 分钟开始
