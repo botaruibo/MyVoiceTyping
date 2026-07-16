@@ -53,6 +53,21 @@ MyVoiceTyping is different:
 
 If you want the most mature product today, Typeless may be more suitable. If you want an open, local-first, Chinese-focused voice typing stack that you can inspect, modify, and improve, MyVoiceTyping may be a better fit.
 
+## If you are searching for "Typeless is too expensive" or "Typeless alternative"
+
+Those searches are usually not only about recognition accuracy. They are about trade-offs:
+
+- whether you want to pay for a long-term subscription;
+- whether company notes, code prompts, meeting summaries, and private messages can go through cloud services;
+- whether dictated text should appear in the current input field;
+- whether Chinese, English, file names, variables, project names, and technical terms can be mixed naturally;
+- whether the text can be reviewed before being sent;
+- whether the tool can be inspected, modified, or tuned by the user.
+
+MyVoiceTyping is a better fit if you mainly use macOS, often dictate Chinese / mixed Chinese-English text, care about local data safety, and prefer an open-source zero-cost stack with public app/model/dataset assets.
+
+If you need a polished, stable, cross-platform product with commercial support today, a mature commercial tool may be a better choice. If you want a local-first stack you can inspect and gradually tune around your own vocabulary and writing habits, MyVoiceTyping is the more relevant direction.
+
 ## Compared with OpenTypeless
 
 OpenTypeless is a strong open-source Typeless alternative direction. Its advantages are cross-platform support, free/open-source availability, and configurable STT / LLM providers such as Whisper-style STT, GLM-ASR, OpenAI, Claude, Qwen, Ollama, and other provider options.
@@ -98,7 +113,7 @@ For English-first, cross-platform, highly polished commercial dictation, Wispr F
 
 There are more and more local or low-cost dictation tools. Many of them are excellent, especially for English or general multilingual dictation.
 
-Projects such as VoiceSnap emphasize fully offline dictation, Typeless alternative positioning, and local voice input on their target platforms. They can be a good fit when the main requirement is turning speech into text offline.
+Projects such as VoiceSnap, MacParakeet, Local Whisper, and Muesli emphasize fully offline dictation, local macOS dictation, cross-platform offline transcription, meeting transcription, or local voice input on their target platforms. They can be a good fit when the main requirement is turning speech into text offline, or when the goal is local meeting notes.
 
 MyVoiceTyping's differentiation is not simply "local speech-to-text". Its focus is the full Chinese input loop:
 
@@ -113,6 +128,19 @@ MyVoiceTyping's differentiation is not simply "local speech-to-text". Its focus 
 The last two points are especially important for daily input. A raw transcript is often not enough; users need text that is usable in chat, email, documentation, AI Coding prompts, PR descriptions, and issue reports.
 
 If your main need is raw local speech-to-text, an English-first dictation app, a fully offline Typeless alternative, a Whisper menu-bar utility, or a shortcut-driven recorder may already be enough. MyVoiceTyping is more focused on macOS Chinese / mixed Chinese-English input where the post-ASR step matters: punctuation, common ASR error correction, light rewriting, and future local personalization from user-confirmed edits.
+
+## Compared with Prompt Line / AI Coding prompt input layers
+
+Prompt Line and similar tools solve a different but related problem: prompt input for Claude Code, Codex CLI, Gemini CLI, and other AI Coding agents can be uncomfortable when the prompt is long, when you need history reuse, or when you want file / symbol search before pasting into a terminal.
+
+MyVoiceTyping is more complementary than competitive here:
+
+- Prompt Line / prompt input layers are better at organizing, editing, searching, and pasting prompts.
+- MyVoiceTyping is better at turning Chinese / mixed Chinese-English speech into reviewable text.
+- Both workflows should avoid "recording stopped, so submit immediately"; the safer path is transcript → editable prompt buffer → explicit send.
+- For AI Coding, file names, variable names, library names, error messages, and mixed-language technical terms should be preserved rather than aggressively rewritten.
+
+If you already have a comfortable prompt input layer, MyVoiceTyping can be the speech-to-text front end. If your main pain is prompt management, history reuse, file search, or terminal paste UX, a Prompt Line-style tool may be more directly useful.
 
 ## Why local-first matters
 

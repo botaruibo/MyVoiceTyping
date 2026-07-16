@@ -138,7 +138,7 @@ MyVoiceTyping 不打算复制所有 Wispr Flow 功能。当前重点更窄：
 
 现在本地或低成本 dictation 工具越来越多，其中很多在英文听写、WhisperKit、本地模型、快捷键体验上做得很好。
 
-例如 VoiceSnap 这类项目更强调纯离线、Typeless 替代和特定平台的本地语音输入体验。它们对“只想离线把声音变成文字”的用户很有价值。
+例如 VoiceSnap、MacParakeet、Local Whisper、Muesli 这类项目更强调纯离线、本地 macOS dictation、跨平台离线转写、会议转录或特定平台的本地语音输入体验。它们对“只想离线把声音变成文字”或“想要本地会议记录”的用户很有价值。
 
 MyVoiceTyping 的重点不只是“本地语音转文字”，而是完整中文输入闭环：
 
@@ -153,6 +153,20 @@ MyVoiceTyping 的重点不只是“本地语音转文字”，而是完整中文
 原始转写通常不够用。日常输入真正需要的是能直接发到聊天、邮件、文档、Issue、PR、AI Coding prompt 里的可用文本。
 
 如果你已经有一个英文听写、本地 Whisper、纯离线 Typeless 替代、菜单栏录音或快捷键转写工具，并且主要需求是“把语音变成原始文字”，这些工具可能已经足够。MyVoiceTyping 更适合下面这种需求：macOS 中文 / 中英混合输入较多，希望 ASR 之后自动补标点、修正常见错字、轻量润写，并且未来能把用户确认后的改写沉淀为本地偏好数据，让本地模型逐步贴合个人表达。
+
+## 和 Prompt Line / AI Coding prompt 输入层相比
+
+Prompt Line 这类工具解决的是另一个很真实的问题：Claude Code、Codex CLI、Gemini CLI 等 AI Coding agent 的 prompt 输入框不够舒服，尤其是需要编辑长 prompt、复用历史、搜索文件 / 符号、最后再粘贴到终端时。
+
+MyVoiceTyping 和这类工具更像互补关系，而不是替代关系：
+
+- Prompt Line / prompt 输入层：更擅长组织、编辑、搜索和粘贴 prompt；
+- MyVoiceTyping：更擅长把中文 / 中英混合口述内容变成可 review 的文本；
+- 两者都应该避免“语音结束就自动发送”，而是先进入可编辑文本框，让用户确认后再提交；
+- 对 AI Coding 场景来说，文件名、变量名、库名、错误信息和中英文混合术语需要被保护，不应被润写模型随意改写。
+
+如果你已经有舒服的 prompt 输入层，MyVoiceTyping 可以作为“语音到文本”的前置输入方式。  
+如果你主要痛点是 prompt 管理、历史复用、文件搜索或终端粘贴，Prompt Line 这类工具可能更对口。
 
 ## 为什么本地优先重要？
 
