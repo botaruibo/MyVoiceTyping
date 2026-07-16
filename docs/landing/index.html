@@ -158,6 +158,12 @@
         box-shadow: 0 14px 34px rgba(37, 99, 235, 0.26);
       }
 
+      .button.star {
+        border-color: rgba(8, 116, 67, 0.2);
+        color: var(--good);
+        background: rgba(236, 253, 245, 0.92);
+      }
+
       .hero-card {
         position: relative;
         padding: 22px;
@@ -354,6 +360,23 @@
         font-size: 14px;
       }
 
+      .star-panel {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 18px;
+        align-items: center;
+        margin: 0 0 22px;
+        padding: 20px;
+        border: 1px solid rgba(8, 116, 67, 0.18);
+        border-radius: 22px;
+        background: linear-gradient(135deg, rgba(236, 253, 245, 0.94), rgba(255, 255, 255, 0.92));
+      }
+
+      .star-panel p {
+        margin: 4px 0 0;
+        color: var(--muted);
+      }
+
       .footer {
         padding: 36px 0 60px;
         color: var(--muted);
@@ -373,6 +396,10 @@
         }
 
         .flow {
+          grid-template-columns: 1fr;
+        }
+
+        .star-panel {
           grid-template-columns: 1fr;
         }
 
@@ -405,7 +432,7 @@
             </p>
             <div class="cta-row">
               <a class="button primary" href="https://github.com/botaruibo/MyVoiceTyping/releases">下载最新版</a>
-              <a class="button" href="https://github.com/botaruibo/MyVoiceTyping">查看 GitHub</a>
+              <a class="button star" href="https://github.com/botaruibo/MyVoiceTyping">Star 关注项目</a>
               <a class="button" href="https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/DEMO.md">查看 Demo</a>
             </div>
           </div>
@@ -529,6 +556,13 @@
         </section>
 
         <section>
+          <div class="star-panel">
+            <div>
+              <strong>如果它解决了你的中文输入问题，欢迎在 GitHub 点一个 Star。</strong>
+              <p>Star 会帮助更多 macOS 中文用户发现这个本地优先、0 费用、开源可审查的语音输入项目。</p>
+            </div>
+            <a class="button star" href="https://github.com/botaruibo/MyVoiceTyping">Star on GitHub</a>
+          </div>
           <div class="section-title">
             <h2>项目还早期，欢迎真实反馈</h2>
             <p>比起空泛夸奖，更需要可复现的安装、权限、识别、润写和粘贴反馈。</p>
