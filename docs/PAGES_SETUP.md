@@ -50,7 +50,7 @@ This repository also includes:
 
 It deploys the `docs/` directory to GitHub Pages on every push to `main` that changes `docs/**` or the workflow itself.
 
-If GitHub Pages is not yet enabled from Settings, the workflow may still create a Pages deployment when Actions has permission to deploy Pages for the repository.
+If GitHub Pages is not yet enabled from Settings, the workflow uses `actions/configure-pages` with `enablement: true` to try to create / enable the Pages site automatically.
 
 You can also run it manually:
 
