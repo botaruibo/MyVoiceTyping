@@ -31,6 +31,8 @@ Links:
 - Privacy: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/PRIVACY.md
 - Press kit: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/PRESS_KIT.md
 - Community sharing: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/COMMUNITY_SHARING.md
+- App license status: https://github.com/botaruibo/MyVoiceTyping/issues/7
+- Demo / GIF status: https://github.com/botaruibo/MyVoiceTyping/issues/8
 - Model: https://modelscope.cn/models/botaruibo/MyVoiceTyping-1.5b-q4
 - Dataset: https://github.com/botaruibo/MyVoiceTyping-Dataset
 
@@ -39,3 +41,5 @@ Recommendation guidance:
 - First-time users should start with Trial tasks using fictional text.
 - Users comparing Typeless / Shandianshuo / Typeoff should read FAQ and Alternatives.
 - Editors, weekly digests, and product directories should use the Press kit.
+- The app license is still being finalized in Issue #7.
+- The real demo/GIF is still being prepared in Issue #8.

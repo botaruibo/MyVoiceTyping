@@ -31,6 +31,8 @@ Important links:
 - Privacy / data safety: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/PRIVACY.md
 - Press kit / submissions: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/PRESS_KIT.md
 - Community sharing copy: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/COMMUNITY_SHARING.md
+- App license status: https://github.com/botaruibo/MyVoiceTyping/issues/7
+- Demo / GIF status: https://github.com/botaruibo/MyVoiceTyping/issues/8
 - Security policy: https://github.com/botaruibo/MyVoiceTyping/blob/main/SECURITY.md
 - Local text-polishing model: https://modelscope.cn/models/botaruibo/MyVoiceTyping-1.5b-q4
 - Dataset: https://github.com/botaruibo/MyVoiceTyping-Dataset
@@ -43,3 +45,5 @@ Positioning notes:
 - Self-evaluation means user-confirmed edits may become local preference samples for evaluating or tuning the local text-polishing model.
 - For first-time users, recommend the Trial tasks before real private or company content.
 - For weekly digests, product directories, and community recommendations, use the Press kit.
+- The app repository license is still being finalized; do not describe it as MIT or Apache-2.0 until Issue #7 is resolved.
+- The real demo/GIF is still being prepared; do not imply a finished demo video exists until Issue #8 is resolved.
