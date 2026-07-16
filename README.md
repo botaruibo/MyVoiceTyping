@@ -132,9 +132,11 @@ License / 使用边界：应用代码许可证仍在确认中，见 [Issue #7](h
 ## Downloads / Releases
 
 
+- [release-0.02](https://github.com/botaruibo/MyVoiceTyping/releases/tag/release-0.02) 是当前推荐下载版本。下载页已经补充 30 秒试用任务、Typeless / 闪电说 / Typeoff 选型入口、Press kit 和 Star 决策说明。
+- 如果你只是想判断是否适合自己，建议先看 [Trial tasks](docs/TRIAL_TASKS.zh-CN.md)，用虚构内容测试 AI Coding prompt、工作消息、中英混合技术词和隐私敏感输入，不要一上来输入真实公司内容。
+- 如果你准备推荐、投稿或转发项目，可以直接使用 [Press kit / 投稿包](docs/PRESS_KIT.md)。
 
 
-- [release-0.02](https://github.com/botaruibo/MyVoiceTyping/releases/tag/release-0.02)
 - [release-0.01](https://github.com/botaruibo/MyVoiceTyping/releases/tag/release-0.01)
 
 
