@@ -10,6 +10,57 @@
 - AI Coding 反馈: <https://github.com/botaruibo/MyVoiceTyping/issues/5>
 - Demo/GIF 进展: <https://github.com/botaruibo/MyVoiceTyping/issues/8>
 
+## 今天就能录的最小版本
+
+如果只想先补齐信任缺口，不追求精致剪辑，建议先录一个 15–30 秒版本。它足够用于 README、landing、GitHub Issue #8、微博 / 掘金 / 知乎想法、开源中国和社区评论回投。
+
+### 推荐规格
+
+- 文件名：
+  - `myvoicetyping-ai-coding-demo-30s.mp4`
+  - `myvoicetyping-ai-coding-demo-15s.gif`
+- 画面比例：16:9 或 4:3 均可；
+- 分辨率：至少 1280px 宽；
+- 字体：输入框字号调到 18–24px；
+- 声音：可不录旁白，只保留字幕和实际输入过程；
+- 内容：只用下面的虚构示例，不展示真实代码、公司内容、邮箱、Token、客户名或内部文档；
+- 结尾：必须出现 GitHub 仓库或 landing URL。
+
+### 最小画面流程
+
+1. 打开一个空白输入框，例如备忘录、浏览器文本框、Cursor / Codex / Claude Code 的 prompt box；
+2. 按住 MyVoiceTyping 快捷键；
+3. 口述下面这句：
+
+   ```text
+   帮我检查一下登录页面，用户点击发送验证码以后按钮应该进入倒计时，如果接口报错需要恢复按钮并显示错误信息。
+   ```
+
+4. 松开快捷键，等待文本粘贴到当前输入框；
+5. 画面停留 2 秒，让观众看清输出；
+6. 切到项目 landing 或 README 顶部，停留 2 秒。
+
+### 最小字幕
+
+```text
+按住说话
+本地识别 + 标点恢复 + 轻量润写
+粘贴到当前输入框，先 review 再发送
+开源 / 本地优先 / 0 费用
+GitHub: botaruibo/MyVoiceTyping
+```
+
+### 录完后回填位置
+
+录完第一个可公开 Demo 后，按这个顺序回填：
+
+1. 上传到 GitHub Release asset、GitHub Issue #8 评论，或仓库文档可访问位置；
+2. 更新 README 顶部，加入 Demo 链接；
+3. 更新 landing 首屏或资源区，加入 Demo 链接；
+4. 更新 `docs/DEMO_ASSETS.md` 和 `docs/PRESS_KIT.md`；
+5. 回投已发布过的渠道：GitHub Discussion #2、HelloGitHub issue、阮一峰周刊 issue、GitHubDaily issue、掘金 / SegmentFault / OSChina / Watcha 已触达内容；
+6. 再启动 Product Hunt、Appinn / 小众软件、awesome list 和目录站投稿。
+
 ## 录制版本 A：AI Coding prompt
 
 适合发到开发者社区、AI Coding 讨论、掘金、GitHub issue / discussion、Product Hunt 补充材料。

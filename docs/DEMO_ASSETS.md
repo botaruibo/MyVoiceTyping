@@ -45,6 +45,27 @@ MyVoiceTyping is a local-first Chinese voice typing tool for macOS: hold a hotke
 
 完整脚本见：[60 秒 Demo 录制脚本](./DEMO_VIDEO.md)。
 
+如果还没有精剪视频，先录一个 15–30 秒最小版本也可以。优先补齐“真实可见的按住说话 → 本地处理 → 粘贴”链路，比等待完整剪辑更重要。
+
+最小版本建议：
+
+- `myvoicetyping-ai-coding-demo-30s.mp4`
+- `myvoicetyping-ai-coding-demo-15s.gif`
+
+推荐口述：
+
+```text
+帮我检查一下登录页面，用户点击发送验证码以后按钮应该进入倒计时，如果接口报错需要恢复按钮并显示错误信息。
+```
+
+推荐输出：
+
+```text
+帮我检查一下登录页面：用户点击“发送验证码”以后，按钮应该进入倒计时；如果接口报错，需要恢复按钮并显示错误信息。
+```
+
+录完后优先回填 README、landing、Issue #8、Press kit，再回投已经触达过的周刊 / 社区 / 产品目录。
+
 ### 0–5 秒：痛点
 
 ```text
