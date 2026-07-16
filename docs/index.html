@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MyVoiceTyping - Typeless 平替，本地优先的中文语音输入项目</title>
+    <meta
+      name="description"
+      content="MyVoiceTyping 是一个面向 macOS 的开源中文语音输入项目，可作为 Typeless / 闪电说之外的本地优先、0 费用选择，强调数据安全、中文润写和可自进化的本地模型工作流。"
+    />
+    <link rel="canonical" href="https://botaruibo.github.io/MyVoiceTyping/" />
+    <link rel="alternate" type="text/plain" title="llms.txt" href="https://botaruibo.github.io/MyVoiceTyping/llms.txt" />
+    <meta property="og:title" content="MyVoiceTyping - 本地优先的开源中文语音输入" />
+    <meta
+      property="og:description"
+      content="Typeless / 闪电说之外的开源选择：按住说话，松开后完成中文识别、标点、纠错/润写，并粘贴到当前输入框。"
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://botaruibo.github.io/MyVoiceTyping/" />
+    <meta property="og:site_name" content="MyVoiceTyping" />
+    <meta property="og:image" content="https://botaruibo.github.io/MyVoiceTyping/assets/social-preview.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="MyVoiceTyping - Typeless 平替，本地优先的中文语音输入项目" />
+    <meta
+      name="twitter:description"
+      content="开源、本地优先、0 费用，面向 macOS 中文长文本输入和 AI Coding prompt。"
+    />
+    <meta name="twitter:image" content="https://botaruibo.github.io/MyVoiceTyping/assets/social-preview.png" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "MyVoiceTyping",
+        "applicationCategory": "ProductivityApplication",
+        "operatingSystem": "macOS",
+        "url": "https://botaruibo.github.io/MyVoiceTyping/",
+        "downloadUrl": "https://github.com/botaruibo/MyVoiceTyping/releases/tag/release-0.02",
+        "codeRepository": "https://github.com/botaruibo/MyVoiceTyping",
+        "image": "https://botaruibo.github.io/MyVoiceTyping/assets/social-preview.png",
+        "description": "Open-source, local-first Chinese voice typing for macOS, positioned as a zero-cost local-first Typeless alternative direction.",
+        "keywords": [
+          "Typeless 平替",
+          "闪电说 替代",
+          "中文语音输入",
+          "macOS 语音输入",
+          "本地语音识别",
+          "本地优先",
+          "数据安全",
+          "AI Coding prompt dictation"
+        ],
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "softwareHelp": [
+          "https://botaruibo.github.io/MyVoiceTyping/INDEX.zh-CN.md",
+          "https://botaruibo.github.io/MyVoiceTyping/QUICKSTART.zh-CN.md",
+          "https://botaruibo.github.io/MyVoiceTyping/TRIAL_TASKS.zh-CN.md",
+          "https://botaruibo.github.io/MyVoiceTyping/ALTERNATIVES.zh-CN.md"
+        ],
+        "isBasedOn": [
+          "https://modelscope.cn/models/botaruibo/MyVoiceTyping-1.5b-q4",
+          "https://github.com/botaruibo/MyVoiceTyping-Dataset"
+        ]
+      }
+    </script>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f6f7fb;
+        --card: #ffffff;
+        --text: #101828;
+        --muted: #667085;
+        --line: #e4e7ec;
+        --accent: #2563eb;
+        --accent-dark: #1d4ed8;
+        --green: #067647;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(circle at 12% 12%, rgba(37, 99, 235, 0.12), transparent 32rem),
+          radial-gradient(circle at 88% 20%, rgba(124, 58, 237, 0.10), transparent 30rem),
+          var(--bg);
+      }
+      main {
+        width: min(960px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 72px 0 56px;
+      }
+      .hero {
+        padding: 44px;
+        border: 1px solid var(--line);
+        border-radius: 28px;
+        background: rgba(255, 255, 255, 0.88);
+        box-shadow: 0 24px 80px rgba(16, 24, 40, 0.10);
+      }
+      .eyebrow {
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+        padding: 8px 12px;
+        border-radius: 999px;
+        color: var(--green);
+        background: #ecfdf3;
+        font-size: 14px;
+        font-weight: 700;
+      }
+      h1 {
+        margin: 20px 0 16px;
+        font-size: clamp(34px, 6vw, 64px);
+        line-height: 1.04;
+        letter-spacing: -0.04em;
+      }
+      .lead {
+        max-width: 760px;
+        color: var(--muted);
+        font-size: 20px;
+        line-height: 1.75;
+      }
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 30px;
+      }
+      a.button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 48px;
+        padding: 0 18px;
+        border-radius: 14px;
+        text-decoration: none;
+        font-weight: 800;
+      }
+      .primary {
+        color: #fff;
+        background: var(--accent);
+      }
+      .primary:hover { background: var(--accent-dark); }
+      .secondary {
+        color: var(--text);
+        border: 1px solid var(--line);
+        background: #fff;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 14px;
+        margin-top: 18px;
+      }
+      .card {
+        padding: 20px;
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        background: var(--card);
+      }
+      .card h2 {
+        margin: 0 0 8px;
+        font-size: 18px;
+      }
+      .card p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.65;
+      }
+      .links {
+        display: grid;
+        gap: 10px;
+        margin-top: 18px;
+      }
+      .links a {
+        color: var(--accent);
+        font-weight: 700;
+        text-decoration: none;
+      }
+      footer {
+        margin-top: 28px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+      @media (max-width: 780px) {
+        main { padding-top: 36px; }
+        .hero { padding: 28px; }
+        .grid { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="hero">
+        <div class="eyebrow">开源 · 本地优先 · 0 费用</div>
+        <h1>MyVoiceTyping：Typeless 平替方向的中文语音输入项目</h1>
+        <p class="lead">
+          面向 macOS 的开源中文语音输入工具：按住快捷键说话，松开后完成识别、标点恢复、轻量纠错/润写，并粘贴到当前输入框。适合长文本输入、AI Coding prompt、笔记和日常中文写作。
+        </p>
+        <div class="actions">
+          <a class="button primary" href="https://github.com/botaruibo/MyVoiceTyping">GitHub 项目 / Star</a>
+          <a class="button secondary" href="https://github.com/botaruibo/MyVoiceTyping/releases/tag/release-0.02">下载 DMG</a>
+          <a class="button secondary" href="https://botaruibo.github.io/MyVoiceTyping/landing/">查看完整介绍</a>
+        </div>
+      </section>
+
+      <section class="grid" aria-label="项目卖点">
+        <article class="card">
+          <h2>本地数据安全</h2>
+          <p>优先让音频、转写文本和用户确认后的改写留在本机，更适合对隐私、会议纪要、内部 prompt 有顾虑的场景。</p>
+        </article>
+        <article class="card">
+          <h2>中文润写模型</h2>
+          <p>配套开源/公开的中文输入文本润写模型，关注口语到书面语、标点恢复和轻量纠错。</p>
+        </article>
+        <article class="card">
+          <h2>可自进化</h2>
+          <p>用户确认后的修改可以作为本地偏好样本，用于后续评估和调优，让模型逐渐贴合个人表达习惯。</p>
+        </article>
+      </section>
+
+      <section class="card links" aria-label="快速入口">
+        <h2>快速入口</h2>
+        <a href="https://botaruibo.github.io/MyVoiceTyping/INDEX.zh-CN.md">从这里开始：文档导航</a>
+        <a href="https://botaruibo.github.io/MyVoiceTyping/QUICKSTART.zh-CN.md">快速上手</a>
+        <a href="https://botaruibo.github.io/MyVoiceTyping/ALTERNATIVES.zh-CN.md">和 Typeless / 闪电说等方向的差异</a>
+        <a href="https://modelscope.cn/models/botaruibo/MyVoiceTyping-1.5b-q4">ModelScope：MyVoiceTyping-1.5b-q4</a>
+        <a href="https://github.com/botaruibo/MyVoiceTyping-Dataset">训练数据集：MyVoiceTyping-Dataset</a>
+      </section>
+
+      <footer>
+        当前项目仍在早期迭代中。如果你希望中文语音输入有一个开源、本地优先、可自行调优的选择，欢迎在 GitHub 上试用、提 issue 或点 star。
+      </footer>
+    </main>
+  </body>
+</html>
