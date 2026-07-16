@@ -1,38 +1,86 @@
 ---
-name: Bug report
-about: Create a report to help us improve
-title: ''
-labels: ''
-assignees: ''
-
+name: Bug report / 故障报告
+about: 报告 MyVoiceTyping 在安装、权限、录音、转写、润写或粘贴过程中的问题
+title: "[Bug] "
+labels: bug
+assignees: ""
 ---
 
-**Describe the bug**
-A clear and concise description of what the bug is.
+感谢反馈问题！请尽量填写下面的信息，能帮助我们更快复现和修复。
 
-**To Reproduce**
-Steps to reproduce the behavior:
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+## 问题概述
 
-**Expected behavior**
-A clear and concise description of what you expected to happen.
+请用一句话描述问题：
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
+## 复现步骤
 
-**Desktop (please complete the following information):**
- - OS: [e.g. iOS]
- - Browser [e.g. chrome, safari]
- - Version [e.g. 22]
+请写出尽量具体的步骤：
 
-**Smartphone (please complete the following information):**
- - Device: [e.g. iPhone6]
- - OS: [e.g. iOS8.1]
- - Browser [e.g. stock browser, safari]
- - Version [e.g. 22]
+1. 打开 MyVoiceTyping
+2. 执行：例如按住快捷键录音 / 打开设置页 / 下载模型 / 粘贴到某个应用
+3. 观察到：
+4. 期望结果：
 
-**Additional context**
-Add any other context about the problem here.
+## 使用环境
+
+- macOS 版本：
+- Mac 型号 / 芯片：例如 MacBook Air M2、Mac mini M4
+- MyVoiceTyping 版本 / Release：
+- 安装方式：Release dmg / 源码运行 / 其他
+- 是否首次安装：是 / 否
+
+## 权限状态
+
+请确认下面权限是否已开启：
+
+- [ ] 麦克风
+- [ ] 辅助功能
+- [ ] 输入监控
+- [ ] 通知 / 状态栏显示正常
+
+## 模型与网络
+
+- 首次模型下载是否完成：是 / 否
+- 失败的模型：ASR / 标点 / 文本润写 GGUF / 不确定
+- 是否使用代理或公司网络：是 / 否
+- 错误提示或日志片段：
+
+```text
+
+```
+
+## 问题类型
+
+- [ ] 应用无法启动
+- [ ] 权限无法授予或授权后仍不可用
+- [ ] 按快捷键无法录音
+- [ ] 录音后没有转写结果
+- [ ] 转写错字明显
+- [ ] 标点异常
+- [ ] 文本润写过度或改变原意
+- [ ] 结果没有粘贴到当前输入框
+- [ ] 模型下载失败
+- [ ] CPU / 内存占用异常
+- [ ] 其他：
+
+## 可公开的测试样例
+
+如果方便，请贴一段不包含隐私的原始口述大意和实际输出结果。
+
+原始口述大意：
+
+```text
+
+```
+
+实际输出：
+
+```text
+
+```
+
+## 截图 / 录屏 / 日志
+
+可以拖拽截图、录屏或日志文件到这里。请不要上传包含个人隐私、公司机密或敏感数据的音频/文本。
+
+日志位置如果应用内有入口，请优先通过应用入口打开并复制相关片段。
