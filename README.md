@@ -7,6 +7,18 @@
 [![GitHub stars](https://img.shields.io/github/stars/botaruibo/MyVoiceTyping?style=flat-square)](https://github.com/botaruibo/MyVoiceTyping/stargazers)
 [![Latest release](https://img.shields.io/github/v/release/botaruibo/MyVoiceTyping?style=flat-square)](https://github.com/botaruibo/MyVoiceTyping/releases)
 
+🌐 Website: https://botaruibo.github.io/MyVoiceTyping/landing/  
+⬇️ Download: https://github.com/botaruibo/MyVoiceTyping/releases  
+🔒 Privacy: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/PRIVACY.md
+
+<p align="center">
+  <img
+    src="docs/assets/launch/01-hold-to-speak.png"
+    alt="MyVoiceTyping - Hold to speak. Release to paste."
+    width="100%"
+  />
+</p>
+
 
 适合：写文档、回消息、记录需求、整理想法、AI Coding 需求描述，以及重视本地隐私的中文输入场景。
 
