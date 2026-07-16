@@ -17,6 +17,8 @@
 
 如果某个任务对你特别重要，可以把脱敏后的结果提交到 [使用场景反馈 / Use case feedback](https://github.com/botaruibo/MyVoiceTyping/issues/new/choose)。
 
+如果你愿意贡献可公开、已脱敏的“ASR / 润写输出 → 期望文本”对照样例，也可以提交到 Dataset 的 [样例征集 Issue](https://github.com/botaruibo/MyVoiceTyping-Dataset/issues/1)。这个入口更适合沉淀错词、技术词误改、中英混合丢词、标点断句和润写过度等训练 / 评测样例。
+
 ## 任务 1：AI Coding prompt
 
 适合：Codex、Claude Code、Cursor、Copilot、Qwen Code 用户。
@@ -177,5 +179,5 @@
 
 - [使用场景反馈 / Use case feedback](https://github.com/botaruibo/MyVoiceTyping/issues/new/choose)
 - [AI Coding prompt 反馈](https://github.com/botaruibo/MyVoiceTyping/issues/5)
+- [Dataset ASR 后处理样例征集](https://github.com/botaruibo/MyVoiceTyping-Dataset/issues/1)
 - [FAQ / Troubleshooting](./FAQ.md)
-

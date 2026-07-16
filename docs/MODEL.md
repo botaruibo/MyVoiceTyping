@@ -135,6 +135,7 @@ This should remain user-controlled. User-confirmed edits may contain sensitive w
 Training data is maintained here:
 
 - [MyVoiceTyping-Dataset](https://github.com/botaruibo/MyVoiceTyping-Dataset)
+- [Dataset sample collection issue](https://github.com/botaruibo/MyVoiceTyping-Dataset/issues/1)
 
 The dataset focuses on Chinese ASR post-processing:
 
