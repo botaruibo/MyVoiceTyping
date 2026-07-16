@@ -33,6 +33,7 @@ Current project assets:
 | MyVoiceTyping | macOS Chinese / mixed Chinese-English input, AI Coding prompts, privacy-sensitive users, open-source tinkerers | Open source, local-first, zero-cost; public app/model/dataset; post-ASR punctuation, correction, light rewriting; local self-evaluation direction | Early-stage project; app license is still being finalized; currently macOS-focused |
 | Typeless | Users who want a polished commercial product with less setup | Mature product experience and smoother onboarding | Pricing, data flow, and customization depend on the vendor; not the same as an inspectable open-source stack |
 | OpenTypeless | Users who want a cross-platform, open-source Typeless alternative with configurable STT / LLM providers | Open source, free, Windows / macOS / Linux; multi-provider STT and LLM setup; app-aware writing direction | More of a general desktop AI voice input framework; Chinese / mixed Chinese-English optimization and public local polishing model + dataset are not its main differentiators |
+| OpenLess | Users who want an open-source, local-first voice input tool centered on AI prompt workflows | Emphasizes user-owned code/data/credentials, global input boxes, prompt-oriented output, MIT/open-source positioning, and multi-platform direction | More of an open Typeless / prompt input tool; MyVoiceTyping is narrower around macOS Chinese / mixed Chinese-English post-ASR cleanup with a public local polishing model and dataset |
 | Shandianshuo / Typeoff | Users who want a complete voice input product with commercial support and product polish | More complete product experience, potentially broader platform/cloud features | For sensitive input, users should check each product's data handling boundary |
 | VoiceSnap / local dictation tools | Users who mainly need offline speech-to-text | Fully offline, lightweight, local dictation focus | Often closer to raw transcription; may not cover Chinese post-ASR polishing, self-evaluation, or the full input loop |
 | Wispr Flow / English-first commercial dictation | English-first or cross-platform dictation users | Stronger commercial dictation polish and general writing UX | Chinese / mixed Chinese-English and local open-source inspectability may not be the main focus |
@@ -65,6 +66,19 @@ MyVoiceTyping is intentionally narrower:
 - Its self-evaluation direction is to turn user-confirmed edits into local preference samples, so the local model can gradually fit the user's own vocabulary and style.
 
 If you want cross-platform support and a configurable multi-provider desktop AI voice input framework, OpenTypeless may be a better fit. If you mainly need macOS Chinese / mixed Chinese-English input with public app/model/dataset assets and local personalization, MyVoiceTyping is more directly targeted at that use case.
+
+## Compared with OpenLess
+
+OpenLess is another very close open-source direction. It emphasizes local-first ownership, user-owned code/data/credentials, and turning voice into polished AI prompts in any focused input box.
+
+MyVoiceTyping differs mainly in scope:
+
+- It is currently more explicitly focused on macOS Chinese / mixed Chinese-English input.
+- It publishes the app, local text-polishing model, and dataset as a connected open stack.
+- Its core work is Chinese post-ASR cleanup: punctuation restoration, common ASR error correction, technical term preservation, and light rewriting.
+- Its self-evaluation direction is to turn user-confirmed edits into local preference samples, so the local model can gradually fit the user's vocabulary and style.
+
+If you want a more general open-source prompt dictation tool, OpenLess is worth comparing. If you care more about Chinese voice input, Chinese ASR post-processing, public model/dataset assets, and future local personalization, MyVoiceTyping is the more targeted option.
 
 ## Compared with Wispr Flow
 
