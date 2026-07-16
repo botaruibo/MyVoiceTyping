@@ -7,7 +7,7 @@
 [![GitHub stars](https://img.shields.io/github/stars/botaruibo/MyVoiceTyping?style=flat-square)](https://github.com/botaruibo/MyVoiceTyping/stargazers)
 [![Latest release](https://img.shields.io/github/v/release/botaruibo/MyVoiceTyping?style=flat-square)](https://github.com/botaruibo/MyVoiceTyping/releases)
 
-🌐 Website: https://botaruibo.github.io/MyVoiceTyping/landing/  
+🌐 Landing page source: [docs/landing](docs/landing)（GitHub Pages 待启用，见 [PAGES_SETUP](docs/PAGES_SETUP.md)）  
 ⬇️ Download: https://github.com/botaruibo/MyVoiceTyping/releases  
 🔒 Privacy: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/PRIVACY.md
 
