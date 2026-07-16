@@ -55,9 +55,11 @@ MyVoiceTyping is not trying to clone every Wispr Flow feature. Its current focus
 
 For English-first, cross-platform, highly polished commercial dictation, Wispr Flow may be a better fit. For Chinese developers and macOS users who want an open-source local-first stack, MyVoiceTyping is the more relevant direction.
 
-## Compared with Handy / MacParakeet / OpenQuack / VocaMac / Turbo Whisper / OmniDictate / other local dictation tools
+## Compared with VoiceSnap / Handy / MacParakeet / OpenQuack / VocaMac / Turbo Whisper / OmniDictate / other local dictation tools
 
 There are more and more local or low-cost dictation tools. Many of them are excellent, especially for English or general multilingual dictation.
+
+Projects such as VoiceSnap emphasize fully offline dictation, Typeless alternative positioning, and local voice input on their target platforms. They can be a good fit when the main requirement is turning speech into text offline.
 
 MyVoiceTyping's differentiation is not simply "local speech-to-text". Its focus is the full Chinese input loop:
 
@@ -71,7 +73,7 @@ MyVoiceTyping's differentiation is not simply "local speech-to-text". Its focus 
 
 The last two points are especially important for daily input. A raw transcript is often not enough; users need text that is usable in chat, email, documentation, AI Coding prompts, PR descriptions, and issue reports.
 
-If your main need is raw local speech-to-text, an English-first dictation app, a Whisper menu-bar utility, or a shortcut-driven recorder may already be enough. MyVoiceTyping is more focused on Chinese / mixed Chinese-English input where the post-ASR step matters: punctuation, common ASR error correction, light rewriting, and future local personalization from user-confirmed edits.
+If your main need is raw local speech-to-text, an English-first dictation app, a fully offline Typeless alternative, a Whisper menu-bar utility, or a shortcut-driven recorder may already be enough. MyVoiceTyping is more focused on macOS Chinese / mixed Chinese-English input where the post-ASR step matters: punctuation, common ASR error correction, light rewriting, and future local personalization from user-confirmed edits.
 
 ## Why local-first matters
 

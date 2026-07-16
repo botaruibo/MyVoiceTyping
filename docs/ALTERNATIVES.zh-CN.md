@@ -1,6 +1,6 @@
 # 同类工具对比 / 选型建议
 
-这页用来说明 MyVoiceTyping 和 Typeless、闪电说、Typeoff、Wispr Flow、Handy、MacParakeet、OpenQuack、VocaMac、Turbo Whisper、OmniDictate 等语音输入 / AI 听写工具的定位差异。
+这页用来说明 MyVoiceTyping 和 Typeless、闪电说、Typeoff、Wispr Flow、VoiceSnap、Handy、MacParakeet、OpenQuack、VocaMac、Turbo Whisper、OmniDictate 等语音输入 / AI 听写工具的定位差异。
 
 它不是为了证明“谁一定更好”。这类工具本来就有不同取舍：商业成熟度、云端能力、本地隐私、中文体验、跨平台、订阅费用、是否开源、是否能自己改。
 
@@ -71,9 +71,11 @@ MyVoiceTyping 不打算复制所有 Wispr Flow 功能。当前重点更窄：
 英文长文和跨平台商业体验，Wispr Flow 可能更适合。  
 中文开发者和 macOS 用户想要开源本地优先路线，可以看 MyVoiceTyping。
 
-## 和 Handy / MacParakeet / OpenQuack / VocaMac / Turbo Whisper / OmniDictate 等本地听写工具相比
+## 和 VoiceSnap / Handy / MacParakeet / OpenQuack / VocaMac / Turbo Whisper / OmniDictate 等本地听写工具相比
 
 现在本地或低成本 dictation 工具越来越多，其中很多在英文听写、WhisperKit、本地模型、快捷键体验上做得很好。
+
+例如 VoiceSnap 这类项目更强调纯离线、Typeless 替代和特定平台的本地语音输入体验。它们对“只想离线把声音变成文字”的用户很有价值。
 
 MyVoiceTyping 的重点不只是“本地语音转文字”，而是完整中文输入闭环：
 
@@ -87,7 +89,7 @@ MyVoiceTyping 的重点不只是“本地语音转文字”，而是完整中文
 
 原始转写通常不够用。日常输入真正需要的是能直接发到聊天、邮件、文档、Issue、PR、AI Coding prompt 里的可用文本。
 
-如果你已经有一个英文听写、本地 Whisper、菜单栏录音或快捷键转写工具，并且主要需求是“把语音变成原始文字”，这些工具可能已经足够。MyVoiceTyping 更适合下面这种需求：中文 / 中英混合输入较多，希望 ASR 之后自动补标点、修正常见错字、轻量润写，并且未来能把用户确认后的改写沉淀为本地偏好数据，让本地模型逐步贴合个人表达。
+如果你已经有一个英文听写、本地 Whisper、纯离线 Typeless 替代、菜单栏录音或快捷键转写工具，并且主要需求是“把语音变成原始文字”，这些工具可能已经足够。MyVoiceTyping 更适合下面这种需求：macOS 中文 / 中英混合输入较多，希望 ASR 之后自动补标点、修正常见错字、轻量润写，并且未来能把用户确认后的改写沉淀为本地偏好数据，让本地模型逐步贴合个人表达。
 
 ## 为什么本地优先重要？
 
