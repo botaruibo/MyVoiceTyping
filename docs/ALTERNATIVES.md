@@ -4,6 +4,8 @@ This page explains how MyVoiceTyping is positioned compared with other voice typ
 
 It is not meant to say that one tool is always better than another. Voice typing tools have different trade-offs: cloud vs local, commercial polish vs open source control, global multilingual support vs Chinese-first optimization, and subscription convenience vs self-hosted zero-cost usage.
 
+中文版：[同类工具对比 / 选型建议](./ALTERNATIVES.zh-CN.md)
+
 ## Quick positioning
 
 MyVoiceTyping is a local-first, open-source Chinese voice typing project for macOS.
