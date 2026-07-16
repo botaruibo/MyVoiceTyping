@@ -6,6 +6,8 @@
 
 如果是在 Typeless / 闪电说 / Typeoff / 隐私语音输入等具体讨论下回复，请优先使用更克制的 [Community sharing / 社区讨论回复素材](./COMMUNITY_SHARING.md)，避免把社区评论写成硬广。
 
+如果是投递周刊、产品目录、Appinn / 小众软件、Product Hunt、AlternativeTo 或 ModelScope 社区，请优先使用 [Press kit / 投稿包](./PRESS_KIT.md)，里面有 30 字标题、100 字 / 300 字简介、推荐标签、限制说明和中英文投稿文案。
+
 ## One-line pitch
 
 中文：
