@@ -1,0 +1,14 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 先看普通用户落地页 / Landing page
+    url: https://botaruibo.github.io/MyVoiceTyping/landing/
+    about: 如果你还不确定 MyVoiceTyping 是否适合自己，可以先看功能介绍、下载入口和反馈入口。
+  - name: 普通 30 秒试用任务 / 30-second user feedback
+    url: https://github.com/botaruibo/MyVoiceTyping/issues/3
+    about: 如果只是想快速试用并反馈安装、权限、转写、润写和粘贴体验，可以从这里开始。
+  - name: AI Coding prompt 测试任务
+    url: https://github.com/botaruibo/MyVoiceTyping/issues/5
+    about: 如果你主要想测试给 Codex、Claude Code、Cursor、OpenCode 等工具口述 prompt，可以先看这个任务说明。
+  - name: Discussions 体验招募帖
+    url: https://github.com/botaruibo/MyVoiceTyping/discussions/2
+    about: 如果不确定是否算 bug，或者想先聊使用场景，可以先在讨论区反馈。
