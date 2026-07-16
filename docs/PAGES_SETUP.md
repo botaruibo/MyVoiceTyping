@@ -40,7 +40,7 @@ GitHub usually needs a short time to publish the site. After deployment, verify:
 https://botaruibo.github.io/MyVoiceTyping/landing/
 ```
 
-## Option B: deploy with GitHub Actions
+## Option B: deploy with GitHub Actions after Pages is enabled
 
 This repository also includes:
 
@@ -48,9 +48,9 @@ This repository also includes:
 .github/workflows/pages.yml
 ```
 
-It deploys the `docs/` directory to GitHub Pages on every push to `main` that changes `docs/**` or the workflow itself.
+It deploys the `docs/` directory to GitHub Pages after Pages has been enabled once from Settings.
 
-If GitHub Pages is not yet enabled from Settings, the workflow uses `actions/configure-pages` with `enablement: true` to try to create / enable the Pages site automatically.
+GitHub Actions cannot create the Pages site for this repository with the default token until Pages is enabled. If Pages is not enabled yet, the workflow will fail with `Resource not accessible by integration`.
 
 You can also run it manually:
 

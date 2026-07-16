@@ -1,12 +1,6 @@
 name: Deploy GitHub Pages
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "docs/**"
-      - ".github/workflows/pages.yml"
   workflow_dispatch:
 
 permissions:
@@ -30,8 +24,6 @@ jobs:
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
-        with:
-          enablement: true
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
