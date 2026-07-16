@@ -16,6 +16,7 @@
 🧪 Trial tasks: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/TRIAL_TASKS.zh-CN.md  
 🧭 Alternatives: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/ALTERNATIVES.zh-CN.md  
 💬 Feedback: https://github.com/botaruibo/MyVoiceTyping/issues/new/choose  
+🧭 Support: https://github.com/botaruibo/MyVoiceTyping/blob/main/SUPPORT.md  
 🔒 Privacy: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/PRIVACY.md  
 🧠 Self-evaluation: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/SELF_EVALUATION.md  
 🛡️ Security: https://github.com/botaruibo/MyVoiceTyping/blob/main/SECURITY.md
@@ -121,7 +122,7 @@ License / 使用边界：应用代码许可证仍在确认中，见 [Issue #7](h
 模型在应用中的作用、Ollama / llama.cpp 使用方式和数据边界见 [Model usage / 模型使用说明](docs/MODEL.md)。
 
 
-如果它解决了你的中文输入问题，欢迎先实际体验，再通过 Star 关注后续版本；安装、权限、转写、润写或 AI Coding prompt 问题可以通过 [Issue templates](https://github.com/botaruibo/MyVoiceTyping/issues/new/choose) 提交结构化反馈。想参与反馈、文档或代码改进，请查看 [Contributing](CONTRIBUTING.md)；如果发现日志、调试信息、模型下载或 self-evaluation 数据相关的安全 / 隐私问题，请先查看 [Security Policy](SECURITY.md)。
+如果它解决了你的中文输入问题，欢迎先实际体验，再通过 Star 关注后续版本；安装、权限、转写、润写或 AI Coding prompt 问题可以通过 [Issue templates](https://github.com/botaruibo/MyVoiceTyping/issues/new/choose) 提交结构化反馈。不确定该去哪里反馈时，请先看 [Support / 反馈与支持](SUPPORT.md)。想参与反馈、文档或代码改进，请查看 [Contributing](CONTRIBUTING.md)；如果发现日志、调试信息、模型下载或 self-evaluation 数据相关的安全 / 隐私问题，请先查看 [Security Policy](SECURITY.md)。
 
 
 ![MyVoiceTyping dashboard](docs/img/myvoicetyping-dashboard.png)
