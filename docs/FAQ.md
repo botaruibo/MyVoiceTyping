@@ -15,7 +15,7 @@
 如果上面有 2–3 个问题命中，建议按这个顺序看：
 
 - 先看 [30 秒试用任务](./TRIAL_TASKS.zh-CN.md)，用虚构文本测试 AI Coding、工作消息、中英混合和隐私输入；
-- 再看 [同类工具对比 / 选型建议](./ALTERNATIVES.zh-CN.md)，了解它和 Typeless、OpenTypeless、OpenLess、闪电说、Typeoff、Wispr Flow 等工具的边界；
+- 再看 [同类工具对比 / 选型建议](./ALTERNATIVES.zh-CN.md)，了解它和 Typeless、OpenTypeless、OpenLess、SayIt、闪电说、Typeoff、Wispr Flow 等工具的边界；
 - 如果你准备安装，按 [快速上手 / macOS 试用指南](./QUICKSTART.zh-CN.md) 走；
 - 如果方向对你有用，欢迎给 [主仓库](https://github.com/botaruibo/MyVoiceTyping) 一个 Star，或在 [体验反馈入口](https://github.com/botaruibo/MyVoiceTyping/issues/new/choose) 里告诉我你最关心的缺口。
 

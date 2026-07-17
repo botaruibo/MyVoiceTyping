@@ -15,7 +15,7 @@ Best for:
 - macOS Chinese voice typing;
 - AI Coding prompt dictation;
 - work messages, bug reports, requirements, PR notes;
-- users comparing Typeless, OpenTypeless, OpenLess, Shandianshuo / Typeoff, Wispr Flow, and local dictation tools;
+- users comparing Typeless, OpenTypeless, OpenLess, SayIt-like AI polishing dictation tools, Shandianshuo / Typeoff, Wispr Flow, and local dictation tools;
 - users who care about local-first data safety and review-before-send.
 
 Links:

@@ -2,7 +2,7 @@
 
 > Open-source, local-first Chinese voice typing for macOS.
 
-MyVoiceTyping is a macOS voice typing project focused on Chinese and mixed Chinese-English input. It is designed as a local-first, zero-cost, inspectable alternative direction to Typeless, OpenTypeless, OpenLess, Shandianshuo / Typeoff, and other AI dictation tools.
+MyVoiceTyping is a macOS voice typing project focused on Chinese and mixed Chinese-English input. It is designed as a local-first, zero-cost, inspectable alternative direction to Typeless, OpenTypeless, OpenLess, SayIt-like AI polishing dictation tools, Shandianshuo / Typeoff, and other AI dictation tools.
 
 Core workflow:
 
