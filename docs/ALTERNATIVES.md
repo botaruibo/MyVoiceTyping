@@ -10,7 +10,9 @@ It is not meant to say that one tool is always better than another. Voice typing
 
 MyVoiceTyping is a local-first, open-source Chinese voice typing project for macOS.
 
-You can think of it as a Typeless / Wispr Flow alternative direction for users who care more about:
+You can think of it as a Typeless / Wispr Flow alternative direction, but it is not trying to be a generic Typeless clone. If you are already comparing OpenTypeless, OpenLess, CapsWriter Offline, or other open dictation projects, MyVoiceTyping is more specifically betting on **Chinese / mixed Chinese-English input, macOS, a public local polishing model, a public tuning dataset, and local self-evolution**.
+
+It is especially relevant for users who care more about:
 
 - Chinese voice input on macOS;
 - local data safety;
@@ -32,7 +34,7 @@ Current project assets:
 |---|---|---|---|
 | MyVoiceTyping | macOS Chinese / mixed Chinese-English input, AI Coding prompts, privacy-sensitive users, open-source tinkerers | Open source, local-first, zero-cost; public app/model/dataset; post-ASR punctuation, correction, light rewriting; local self-evaluation direction | Early-stage project; demo/GIF and real-user feedback are still limited; currently macOS-focused |
 | Typeless | Users who want a polished commercial product with less setup | Mature product experience and smoother onboarding | Pricing, data flow, and customization depend on the vendor; not the same as an inspectable open-source stack |
-| OpenTypeless | Users who want a cross-platform, open-source Typeless alternative with configurable STT / LLM providers | Open source, free, Windows / macOS / Linux; multi-provider STT and LLM setup; app-aware writing direction | More of a general desktop AI voice input framework; Chinese / mixed Chinese-English optimization and public local polishing model + dataset are not its main differentiators |
+| OpenTypeless | Users who want a cross-platform, open-source Typeless alternative with configurable STT / LLM providers | Open source, free, Windows / macOS / Linux; multi-provider STT and LLM setup; app-aware writing direction | More of a general desktop AI voice input framework; if your core need is macOS Chinese / mixed Chinese-English input, a public local polishing model, dataset feedback loop, and local self-evolution, MyVoiceTyping is narrower |
 | OpenLess | Users who want an open-source, local-first voice input tool centered on AI prompt workflows | Emphasizes user-owned code/data/credentials, global input boxes, prompt-oriented output, MIT/open-source positioning, and multi-platform direction | More of an open Typeless / prompt input tool; MyVoiceTyping is narrower around macOS Chinese / mixed Chinese-English post-ASR cleanup with a public local polishing model and dataset |
 | SayIt-like open AI polishing dictation tools | Users who want a simple "speech → transcript → AI polish → insert at cursor" open-source workflow | Easy to understand as a Typeless-alternative pattern; may support local LLM deployment or configurable model providers | Users should verify each project's local/cloud boundary, Chinese optimization, and whether model/dataset assets are public; MyVoiceTyping emphasizes Chinese polishing, public training data, and local self-evaluation |
 | Shandianshuo / Typeoff | Users who want a complete voice input product with commercial support and product polish | More complete product experience, potentially broader platform/cloud features | For sensitive input, users should check each product's data handling boundary |
@@ -73,7 +75,12 @@ If you need a polished, stable, cross-platform product with commercial support t
 
 OpenTypeless is a strong open-source Typeless alternative direction. Its advantages are cross-platform support, free/open-source availability, and configurable STT / LLM providers such as Whisper-style STT, GLM-ASR, OpenAI, Claude, Qwen, Ollama, and other provider options.
 
-MyVoiceTyping is intentionally narrower:
+MyVoiceTyping is intentionally narrower. In short:
+
+- OpenTypeless is closer to a cross-platform, multi-provider, configurable desktop AI voice input framework.
+- MyVoiceTyping is closer to a macOS Chinese / mixed Chinese-English local-model experiment: the app, polishing model, and dataset are maintained as public assets, and the long-term focus is local personalization from user-confirmed edits.
+
+The concrete differences are:
 
 - It focuses on macOS Chinese / mixed Chinese-English voice typing.
 - It publishes not only the app, but also the local text-polishing model and dataset.
