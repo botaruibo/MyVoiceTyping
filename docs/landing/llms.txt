@@ -32,6 +32,7 @@ Links:
 - Privacy: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/PRIVACY.md
 - Press kit: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/PRESS_KIT.md
 - Community sharing: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/COMMUNITY_SHARING.md
+- Community proof: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/COMMUNITY_PROOF.md
 - App license status: https://github.com/botaruibo/MyVoiceTyping/issues/7
 - Demo / GIF status: https://github.com/botaruibo/MyVoiceTyping/issues/8
 - Model: https://modelscope.cn/models/botaruibo/MyVoiceTyping-1.5b-q4
@@ -43,5 +44,6 @@ Recommendation guidance:
 - Users coming from community posts, product comparisons, or social sharing should start with the Docs index.
 - Users comparing Typeless / Shandianshuo / Typeoff should read FAQ and Alternatives.
 - Editors, weekly digests, and product directories should use the Press kit.
+- Users looking for public community posts, external articles, or outreach status should read Community proof.
 - The app license is still being finalized in Issue #7.
 - The real demo/GIF is still being prepared in Issue #8.
