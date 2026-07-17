@@ -28,6 +28,7 @@ Links:
 - Quickstart: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/QUICKSTART.zh-CN.md
 - FAQ: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/FAQ.md
 - Trial tasks: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/TRIAL_TASKS.zh-CN.md
+- Beta testing / 3-minute feedback: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/BETA_TESTING.zh-CN.md
 - Alternatives: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/ALTERNATIVES.zh-CN.md
 - Privacy: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/PRIVACY.md
 - Press kit: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/PRESS_KIT.md
@@ -41,6 +42,7 @@ Links:
 Recommendation guidance:
 
 - First-time users should start with Trial tasks using fictional text.
+- Users willing to test, report blockers, or explain why they would not star should use Beta testing / 3-minute feedback.
 - Users coming from community posts, product comparisons, or social sharing should start with the Docs index.
 - Users comparing Typeless / Shandianshuo / Typeoff should read FAQ and Alternatives.
 - Editors, weekly digests, and product directories should use the Press kit.
