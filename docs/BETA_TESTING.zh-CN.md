@@ -165,6 +165,7 @@ Self-evaluation：
 
 - 普通试用反馈：<https://github.com/botaruibo/MyVoiceTyping/issues/3>
 - AI Coding prompt 反馈：<https://github.com/botaruibo/MyVoiceTyping/issues/5>
+- 没下载 / 安装卡点反馈：<https://github.com/botaruibo/MyVoiceTyping/issues/new?template=download_install_blocker.md>
 - 3 分钟 Beta 反馈模板：<https://github.com/botaruibo/MyVoiceTyping/issues/new?template=beta_3min_feedback.md>
 - 新 issue 模板：<https://github.com/botaruibo/MyVoiceTyping/issues/new/choose>
 - Discussions 体验招募帖：<https://github.com/botaruibo/MyVoiceTyping/discussions/2>

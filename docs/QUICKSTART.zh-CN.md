@@ -57,7 +57,7 @@ https://github.com/botaruibo/MyVoiceTyping/releases
 - 请只从 [release-0.02](https://github.com/botaruibo/MyVoiceTyping/releases/tag/release-0.02) 或 [DMG 直链](https://github.com/botaruibo/MyVoiceTyping/releases/download/release-0.02/MyVoiceTyping_Installer.dmg) 下载；
 - 首次试用请用虚构内容，先不要输入公司机密、客户信息、Token、内部代码或私人聊天；
 - 模型下载需要联网，但默认语音识别、标点恢复和文本润写链路尽量在本机完成；
-- 如果你因为这些步骤放弃下载，也欢迎直接提交 [3 分钟 Beta 反馈](https://github.com/botaruibo/MyVoiceTyping/issues/new?template=beta_3min_feedback.md)，只写“不下载的原因”也可以。
+- 如果你因为这些步骤放弃下载，也欢迎直接提交 [没下载 / 安装卡点反馈](https://github.com/botaruibo/MyVoiceTyping/issues/new?template=download_install_blocker.md) 或 [3 分钟 Beta 反馈](https://github.com/botaruibo/MyVoiceTyping/issues/new?template=beta_3min_feedback.md)，只写“不下载的原因”也可以。
 
 ## 2. 首次启动需要的权限
 

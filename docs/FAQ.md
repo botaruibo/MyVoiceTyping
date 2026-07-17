@@ -139,7 +139,7 @@ macOS 对语音输入类工具限制比较严格。MyVoiceTyping 通常需要：
 
 如果权限没有授予完整，常见表现是：能启动但不能录音、录音后不能粘贴、快捷键没有反应。
 
-如果你还没下载，只是想判断这些权限是否值得授予，可以先看 [Quickstart 的权限 / 模型下载检查表](./QUICKSTART.zh-CN.md#下载前先看会要哪些权限--会下载什么)。如果你因为权限而放弃下载，也欢迎直接提交 [3 分钟 Beta 反馈](https://github.com/botaruibo/MyVoiceTyping/issues/new?template=beta_3min_feedback.md)，只写阻碍原因即可。
+如果你还没下载，只是想判断这些权限是否值得授予，可以先看 [Quickstart 的权限 / 模型下载检查表](./QUICKSTART.zh-CN.md#下载前先看会要哪些权限--会下载什么)。如果你因为权限而放弃下载，也欢迎直接提交 [没下载 / 安装卡点反馈](https://github.com/botaruibo/MyVoiceTyping/issues/new?template=download_install_blocker.md) 或 [3 分钟 Beta 反馈](https://github.com/botaruibo/MyVoiceTyping/issues/new?template=beta_3min_feedback.md)，只写阻碍原因即可。
 
 ## 模型为什么要首次下载？
 
