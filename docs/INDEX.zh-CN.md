@@ -77,6 +77,7 @@ App 代码已明确使用 MIT License；但在 Issue #8 关闭前，不要把项
 
 反馈入口：
 
+- 3 分钟 Beta 反馈：<https://github.com/botaruibo/MyVoiceTyping/issues/new?template=beta_3min_feedback.md>
 - 普通试用反馈：<https://github.com/botaruibo/MyVoiceTyping/issues/3>
 - AI Coding prompt 反馈：<https://github.com/botaruibo/MyVoiceTyping/issues/5>
 - 新 issue 模板：<https://github.com/botaruibo/MyVoiceTyping/issues/new/choose>

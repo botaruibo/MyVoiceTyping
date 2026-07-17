@@ -26,6 +26,7 @@ MyVoiceTyping is a local-first voice typing app for macOS. It helps you write do
 | 比较 Typeless / 闪电说 / 豆包 | [同类工具对比](docs/ALTERNATIVES.zh-CN.md) |
 | 想看公开社区讨论和外部文章 | [Community proof / 社区讨论](docs/COMMUNITY_PROOF.md) |
 | 愿意帮忙试用 3 分钟 / 挑毛病 | [Beta testing / 3 分钟反馈](docs/BETA_TESTING.zh-CN.md) |
+| 已经试过，想直接提交短反馈 | [3 分钟 Beta 反馈模板](https://github.com/botaruibo/MyVoiceTyping/issues/new?template=beta_3min_feedback.md) |
 | 反馈安装、权限或识别问题 | [Issue templates](https://github.com/botaruibo/MyVoiceTyping/issues/new/choose) |
 
 首次试用建议只用虚构内容，不要直接输入公司机密、客户信息、Token、内部代码或私人聊天。
