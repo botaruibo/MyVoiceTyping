@@ -6,6 +6,8 @@ MyVoiceTyping 面向写文档、回消息、记录需求、整理想法、AI Cod
 
 它也可以作为 Typeless / 闪电说之外的本地化平替选择：默认语音识别、标点恢复和文本改写都在本机完成，不上传音频和文本，更适合重视个人数据保护、隐私安全和合规要求的工作场景。
 
+如果你已经在比较 OpenTypeless、OpenLess、CapsWriter Offline 等开源语音输入方案，MyVoiceTyping 的定位会更窄一些：**中文 / 中英混合、macOS、本地文本润写模型、公开调优数据集，以及 Self-Evolution / 本地自进化**。它不是泛用版 Typeless 克隆，而是希望把 App、模型和数据集组成一个可审查、可改造、能逐步贴合个人表达习惯的本地输入栈。
+
 MyVoiceTyping is a local-first voice typing app for macOS. It helps you write documents, capture ideas, reply to messages, and produce longer Chinese or mixed Chinese-English text with less typing. By default, speech recognition, punctuation restoration, and lightweight text polishing run locally on your Mac. Your audio and text are not sent to cloud models.
 
 [![GitHub stars](https://img.shields.io/github/stars/botaruibo/MyVoiceTyping?style=flat-square)](https://github.com/botaruibo/MyVoiceTyping/stargazers)
@@ -49,7 +51,7 @@ MyVoiceTyping is a local-first voice typing app for macOS. It helps you write do
 | 30 秒判断是否适合自己 | [Trial tasks / 30 秒试用任务](docs/TRIAL_TASKS.zh-CN.md) |
 | 想理解 AI Coding 语音输入场景 | [为什么 AI Coding 时代，语音输入会变成新的 Prompt 入口？](https://juejin.cn/post/7663165474498740262) |
 | 担心权限、隐私或模型下载 | [Privacy / Data Safety](docs/PRIVACY.md) · [FAQ](docs/FAQ.md) |
-| 比较 Typeless / 闪电说 / 豆包 | [同类工具对比](docs/ALTERNATIVES.zh-CN.md) |
+| 比较 Typeless / OpenTypeless / 闪电说 / 豆包 | [同类工具对比](docs/ALTERNATIVES.zh-CN.md) |
 | 想看公开社区讨论和外部文章 | [Community proof / 社区讨论](docs/COMMUNITY_PROOF.md) |
 | 愿意帮忙试用 3 分钟 / 挑毛病 | [Beta testing / 3 分钟反馈](docs/BETA_TESTING.zh-CN.md) |
 | 看完但不想下载 / 安装卡住 | [没下载 / 安装卡点反馈](https://github.com/botaruibo/MyVoiceTyping/issues/new?template=download_install_blocker.md) |
@@ -98,7 +100,7 @@ MyVoiceTyping is a local-first voice typing app for macOS. It helps you write do
 ## Highlights
 
 - **输入更快**：用语音完成长句、段落和想法记录，减少键盘输入负担。
-- **Typeless 本地平替方向**：面向 macOS 常驻使用，按住快捷键即可在任意输入位置说话输入。
+- **不是泛用版 Typeless 克隆**：更聚焦 macOS 中文 / 中英混合输入，以及本地润写模型、公开数据集和本地自进化。
 - **个人数据更安全**：默认全本地处理，音频和文本不上传云端，更适合敏感内容和办公场景。
 - **越用越顺手**：计划中的本地自进化能力会利用你自己的输入历史优化本地模型，让纠错和润色逐步贴近你的表达习惯。
 - **自动整理文本**：转写后会做标点恢复、轻量纠错和简单润色，尽量保留原意。
