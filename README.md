@@ -8,6 +8,18 @@
 [![Latest release](https://img.shields.io/github/v/release/botaruibo/MyVoiceTyping?style=flat-square)](https://github.com/botaruibo/MyVoiceTyping/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 
+## 你现在可以怎么试
+
+| 你想做什么 | 入口 |
+|---|---|
+| 30 秒判断是否适合自己 | [Trial tasks / 30 秒试用任务](docs/TRIAL_TASKS.zh-CN.md) |
+| 直接下载 macOS 安装包 | [Latest Release](https://github.com/botaruibo/MyVoiceTyping/releases) |
+| 担心权限、隐私或模型下载 | [Privacy / Data Safety](docs/PRIVACY.md) · [FAQ](docs/FAQ.md) |
+| 比较 Typeless / 闪电说 / 豆包 | [同类工具对比](docs/ALTERNATIVES.zh-CN.md) |
+| 不想下载但愿意帮忙 | [告诉我你为什么不 Star / 不下载](https://github.com/botaruibo/MyVoiceTyping/issues/new/choose) |
+
+首次试用建议只用虚构内容，不要直接输入公司机密、客户信息、Token、内部代码或私人聊天。当前 Demo/GIF 仍在制作中，如果你只是想先观察项目方向，Star 关注也很有帮助。
+
 🌐 Website: https://botaruibo.github.io/MyVoiceTyping/  
 ⬇️ Download: https://github.com/botaruibo/MyVoiceTyping/releases  
 📚 Docs index: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/INDEX.zh-CN.md  
