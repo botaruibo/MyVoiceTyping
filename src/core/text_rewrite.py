@@ -182,10 +182,11 @@ def _focused_or_frontmost_app_identity() -> tuple[str, str]:
     return _frontmost_app_identity()
 
 
-def _infer_asr_post_scene() -> str:
+def infer_asr_post_scene_context() -> dict[str, str]:
+    """Infer the current ASR post-processing scene from focused/frontmost app."""
     app_name, bundle_id = _focused_or_frontmost_app_identity()
 
-    def _log_scene(scene: str, source: str) -> str:
+    def _result(scene: str, source: str) -> dict[str, str]:
         logging.info(
             "ASR 后处理场景识别: scene=%s, bundle_id=%s, app_name=%s, source=%s",
             scene,
@@ -193,14 +194,19 @@ def _infer_asr_post_scene() -> str:
             app_name or "<empty>",
             source,
         )
-        return scene
+        return {
+            "scene": scene,
+            "bundle_id": bundle_id or "",
+            "app_name": app_name or "",
+            "source": source,
+        }
 
     if bundle_id == "com.myvoicetyping.desktop" or app_name == "MyVoiceTyping":
-        return _log_scene(DEFAULT_ASR_POST_SCENE, "self_app")
+        return _result(DEFAULT_ASR_POST_SCENE, "self_app")
 
     scene = APP_SCENE_BY_BUNDLE_ID.get(bundle_id)
     if scene:
-        return _log_scene(scene, "bundle_id")
+        return _result(scene, "bundle_id")
 
     normalized = f"{app_name} {bundle_id}".lower()
     keyword_scenes = (
@@ -216,15 +222,23 @@ def _infer_asr_post_scene() -> str:
     )
     for scene_name, keywords in keyword_scenes:
         if any(keyword in normalized for keyword in keywords):
-            return _log_scene(scene_name, "keyword")
-    return _log_scene(DEFAULT_ASR_POST_SCENE, "default")
+            return _result(scene_name, "keyword")
+    return _result(DEFAULT_ASR_POST_SCENE, "default")
 
 
-def _build_asr_post_user_prompt(raw_text: str, scene: Optional[str] = None) -> str:
-    scene = (scene or _infer_asr_post_scene() or DEFAULT_ASR_POST_SCENE).strip()
+def infer_asr_post_scene() -> str:
+    return infer_asr_post_scene_context().get("scene") or DEFAULT_ASR_POST_SCENE
+
+
+def build_asr_post_user_prompt(raw_text: str, scene: Optional[str] = None) -> str:
+    scene = (scene or infer_asr_post_scene() or DEFAULT_ASR_POST_SCENE).strip()
     if scene:
         logging.info("ASR 后处理最终 prompt 场景: scene=%s", scene)
     return f"{ASR_POST_TAGS}\n场景：{scene}\n原文：{(raw_text or '').strip()}"
+
+
+def _build_asr_post_user_prompt(raw_text: str, scene: Optional[str] = None) -> str:
+    return build_asr_post_user_prompt(raw_text, scene=scene)
 
 
 def _to_int(value: Any, default: int) -> int:
@@ -327,7 +341,7 @@ class Rewrite:
         except Exception as e:
             return str(e)
 
-    def rewrite(self, raw_text: str) -> str:
+    def rewrite(self, raw_text: str, scene: Optional[str] = None) -> str:
         """
         /**
          * 结构化改写文本。
@@ -353,7 +367,7 @@ class Rewrite:
                 self.local_llama_cpp_client, LocalLlamaCppRewrite
             ):
                 self.local_llama_cpp_client = LocalLlamaCppRewrite()
-            return self.local_llama_cpp_client.rewrite(raw_text)
+            return self.local_llama_cpp_client.rewrite(raw_text, scene=scene)
         except Exception as e:
             print(f"⚠️ 本地 llama.cpp 文本改写失败（将降级返回原文）: {e}")
             return raw_text
@@ -637,7 +651,7 @@ class LocalLlamaCppRewrite:
             import time as _time
             _t0 = _time.perf_counter()
             self.ensure_loaded()
-            _ = self.rewrite("少先队员因该为老人让坐。")
+            _ = self.rewrite("少先队员因该为老人让坐。", scene=DEFAULT_ASR_POST_SCENE)
             self._warm_done = True
             print(
                 f"🔥 本地 GGUF 模型预热完成，耗时 {(_time.perf_counter() - _t0):.2f}s"
@@ -647,9 +661,9 @@ class LocalLlamaCppRewrite:
 
     # ---------- 业务方法 ----------
 
-    def _build_user_prompt(self, raw_text: str) -> str:
+    def _build_user_prompt(self, raw_text: str, scene: Optional[str] = None) -> str:
         """构造与 MyVoiceTyping-1.5B 训练样本一致的 ASR 后处理输入。"""
-        return _build_asr_post_user_prompt(raw_text)
+        return build_asr_post_user_prompt(raw_text, scene=scene)
 
     def _generation_max_tokens(self, raw_text: str) -> int:
         text_len = len((raw_text or "").strip())
@@ -700,7 +714,7 @@ class LocalLlamaCppRewrite:
         except Exception as e:
             return str(e)
 
-    def rewrite(self, raw_text: str) -> str:
+    def rewrite(self, raw_text: str, scene: Optional[str] = None) -> str:
         if not raw_text or not raw_text.strip():
             return raw_text
         import time as _time
@@ -710,7 +724,7 @@ class LocalLlamaCppRewrite:
         out = self._llm.create_chat_completion(
             messages=[
                 {"role": "system", "content": self.system_prompt},
-                {"role": "user", "content": self._build_user_prompt(raw_text)},
+                {"role": "user", "content": self._build_user_prompt(raw_text, scene=scene)},
             ],
             temperature=self.temperature,
             top_p=self.top_p,

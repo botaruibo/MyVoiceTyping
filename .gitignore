@@ -26,6 +26,10 @@ test_data/
 data/models/
 data/audio/
 data/transcripts/
+data/train/
+data/tools/
+tools/llama.cpp/
+tools/bin/
 
 # Local/private configuration and credentials
 .env

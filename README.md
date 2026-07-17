@@ -10,14 +10,25 @@ MyVoiceTyping is a local-first voice typing app for macOS. It helps you write do
 
 It can also be used as a local alternative to Typless. By default, speech recognition, punctuation restoration, and lightweight text polishing all run on your Mac. Your audio and text are not sent to cloud models, making it better suited for privacy-conscious personal and workplace use.
 
-![MyVoiceTyping dashboard](docs/img/myvoicetyping-dashboard.png)
+![MyVoiceTyping dashboard](docs/img/myvoicetyping-dashboard0.02.png)
 
 ## Downloads / Releases
 
+- alpha-0.03: planning / in development
 - [release-0.02](https://github.com/botaruibo/MyVoiceTyping/releases/tag/release-0.02)
 - [release-0.01](https://github.com/botaruibo/MyVoiceTyping/releases/tag/release-0.01)
 
 ## Changelog
+
+### alpha-0.03 planned
+
+- 计划新增 **Self-Evolution / 本地自进化** 能力：基于用户自己的语音输入历史，在本机生成训练数据并调优本地文本改写模型。
+- 训练数据来自本机 `voice_history.jsonl` 中的原始转写、最终修正文本和输入场景；数据不会上传到云端，也不会外泄给第三方服务。
+- 新增首页“自动调优模型”入口，点击后实时检查当前样本量、磁盘空间、模型文件和续跑状态，再给出确认提示。
+- 自动调优过程支持可视化进度和滚动日志，展示模型下载、LoRA 训练、GGUF 转换、Q4 量化和模型替换过程。
+- 支持续点继续：训练完成但转换失败、磁盘空间不足或中途退出后，可继续未完成的模型升级流程，避免重复训练。
+- 增加模型完整性检查，避免磁盘不足导致的不完整 GGUF 文件被误替换为正式模型。
+- 将本地训练相关代码独立到 `src/model_train/`，与核心 ASR / 文本改写运行链路解耦，便于后续二开和维护。
 
 ### release-0.02
 
@@ -43,6 +54,7 @@ It can also be used as a local alternative to Typless. By default, speech recogn
 - **输入更快**：用语音完成长句、段落和想法记录，减少键盘输入负担。
 - **Typless 本地平替**：面向 macOS 常驻使用，按住快捷键即可在任意输入位置说话输入。
 - **个人数据更安全**：默认全本地处理，音频和文本不上传云端，更适合敏感内容和办公场景。
+- **越用越顺手**：计划中的本地自进化能力会利用你自己的输入历史优化本地模型，让纠错和润色逐步贴近你的表达习惯。
 - **自动整理文本**：转写后会做标点恢复、轻量纠错和简单润色，尽量保留原意。
 - **支持热词**：可维护常用技术词、项目词、人名，降低专有名词误识别。
 - **输入工作台**：查看历史输入、累计字数和节约时间，也可以手工修正最近一次输入。
@@ -53,6 +65,7 @@ It can also be used as a local alternative to Typless. By default, speech recogn
 - **全开源，可替换模型**：项目代码开放，ASR、标点恢复和文本纠错模型都可以按需替换。当前默认使用阿里 FunASR 生态中的模型，并通过 ONNX 推理实现，启动和运行性能更好。
 - **本地化瘦身改造**：对运行链路做了本地化和打包裁剪，减少不必要的大依赖，瘦身安装包。
 - **本地文本纠错与润色**：当前默认文本后处理模型为 [botaruibo/MyVoiceTyping-1.5b-q4](https://modelscope.cn/models/botaruibo/MyVoiceTyping-1.5b-q4)。该模型基于 `qwen2.5:1.5b` 训练，并量化为适合本地运行的 GGUF 版本；
+- **本地自进化训练**：alpha-0.03 计划支持基于本机历史输入构建训练数据，通过 MLX LoRA 调优本地文本改写模型，再转换为 GGUF Q4 模型替换当前模型；训练、转换和模型替换均在本机完成。
 - **专用模型计划**：正在整理针对语音转录纠错、口语重复消除和格式化改写的数据样本，后续版本会替换为更适合语音输入场景的专用纠错润色模型。
 
 ## How It Works
@@ -134,6 +147,14 @@ flowchart LR
 - llama.cpp 加载 `MyVoiceTyping-1.5b-q4` GGUF，对文本做轻量纠错和简单润色。
 - 默认参数偏保守：低温度、低随机性，减少“自由发挥”。
 
+### Self-Evolution / 本地自进化
+
+- 计划在 alpha-0.03 中提供“自动调优模型”入口，把用户自己的语音输入历史转成训练样本。
+- 使用越久，历史中的“原始转写”和“最终修正文本”越多，本地模型就越有机会学习你的常用表达、术语和修正习惯。
+- 调优过程在本机完成，训练数据、音频、文本和模型文件不会上传云端，也不会发送给第三方服务。
+- 训练前会实时检查当前样本量、磁盘空间和可续跑状态；训练中会显示进度与日志；训练完成后替换本地文本改写模型。
+- 该能力面向个人私有模型优化，不追求把数据集中到云端，而是让每台 Mac 上的模型逐渐更适合它自己的使用者。
+
 ### 历史与统计
 
 - 首页显示今日记录、今日字数、历史记录、累计字数和已节约时间。
@@ -148,6 +169,7 @@ flowchart LR
 ### 隐私与安全
 
 - 默认不使用云端 ASR，也不上传音频。
+- 本地自进化训练只读取本机历史记录，训练数据不会上传，也不会用于任何公共模型训练。
 - 本地配置、音频、历史记录、模型都写入用户目录或开发环境 `data/`，并被 `.gitignore` 忽略。
 - 打包时会清空配置中的 `api_key`、`token` 等敏感字段。
 - 如果启用云端 LLM 或第三方服务，请自行确认数据合规和密钥管理。

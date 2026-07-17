@@ -197,6 +197,8 @@ class ConfigManager:
             "audio_dir": audio_dir_default,
             "transcripts_dir": transcripts_dir_default,
             "models_dir": "data/models",
+            "train_dir": "data/train",
+            "tools_dir": "tools" if self._writable_root is None else "tools",
             "mute_speaker": True,
             "min_audio_duration_ms": 400,
         }
@@ -471,6 +473,18 @@ class ConfigManager:
 
         models_dir.mkdir(parents=True, exist_ok=True)
         return models_dir
+
+    def get_train_dir(self) -> Path:
+        train_dir = self._resolve_writable_path(self.config.get("train_dir"), "data/train")
+        train_dir.mkdir(parents=True, exist_ok=True)
+        return train_dir
+
+    def get_tools_dir(self) -> Path:
+        tools_dir = self._resolve_writable_path(self.config.get("tools_dir"), "tools")
+        if not tools_dir.is_absolute():
+            tools_dir = Path(__file__).resolve().parents[2] / tools_dir
+        tools_dir.mkdir(parents=True, exist_ok=True)
+        return tools_dir
 
     def get_hotword_dictionaries_dir(self) -> Path:
         if self._writable_root is not None:

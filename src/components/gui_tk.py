@@ -221,6 +221,7 @@ class VoiceInputGUI:
         self._recording_overlay_progress_last_ts = 0.0
         self._progress_overlay_requested = False
         self._progress_overlay_close_job = None
+        self._auto_tune_dialog: dict[str, Any] = {}
 
         self._nav_buttons: Dict[str, Dict[str, Any]] = {}
         self._nav_icons: Dict[str, ctk.CTkImage] = {}
@@ -678,11 +679,19 @@ class VoiceInputGUI:
 
         ctk.CTkButton(
             header,
+            text="自动调优模型",
+            width=116,
+            command=self._start_auto_tune_model,
+            **GUIStyles.get_weak_action_button_args(),
+        ).grid(row=0, column=1, rowspan=2, sticky="e", padx=(0, 8))
+
+        ctk.CTkButton(
+            header,
             text="刷新",
             width=76,
             command=lambda: self._refresh_home_dashboard(force=True),
             **GUIStyles.get_secondary_button_args(),
-        ).grid(row=0, column=1, rowspan=2, sticky="e")
+        ).grid(row=0, column=2, rowspan=2, sticky="e")
 
         stats = ctk.CTkFrame(page, fg_color="transparent")
         stats.grid(row=1, column=0, sticky="ew", padx=28, pady=(6, 18))
@@ -1019,6 +1028,319 @@ class VoiceInputGUI:
 
         final_text = self._history_output_text(record)
         self._set_home_textbox_text(final_text)
+
+    def _start_auto_tune_model(self) -> None:
+        try:
+            starter = getattr(self.app, "start_auto_tune_async", None)
+            if callable(starter):
+                preview_getter = getattr(self.app, "get_auto_tune_preview", None)
+                preview = preview_getter() if callable(preview_getter) else {}
+                self._show_auto_tune_confirm_dialog(preview, starter)
+            else:
+                self.update_status_error("当前应用实例不支持自动调优")
+        except Exception as e:
+            self.update_status_error(f"自动调优启动失败：{e}")
+
+    def _show_auto_tune_confirm_dialog(self, preview: dict[str, Any], starter) -> None:
+        dialog = ctk.CTkToplevel(self.root)
+        try:
+            dialog.withdraw()
+        except Exception:
+            pass
+        dialog.title("确认自动调优模型")
+        dialog.resizable(False, False)
+        dialog.transient(self.root)
+        dialog.grab_set()
+        dialog.configure(fg_color=GUIStyles.COLOR_WINDOW_BG)
+
+        width, height = 560, 520
+        try:
+            self.root.update_idletasks()
+            x = self.root.winfo_x() + max(0, (self.root.winfo_width() - width) // 2)
+            y = self.root.winfo_y() + max(0, (self.root.winfo_height() - height) // 2)
+            dialog.geometry(f"{width}x{height}+{x}+{y}")
+        except Exception:
+            dialog.geometry(f"{width}x{height}")
+
+        container = ctk.CTkFrame(dialog, fg_color="transparent")
+        container.pack(fill="both", expand=True, padx=26, pady=24)
+        container.grid_columnconfigure(0, weight=1)
+        container.grid_rowconfigure(2, weight=1)
+
+        title_label = ctk.CTkLabel(
+            container,
+            text="自动调优本地纠错模型",
+            font=GUIStyles.get_section_title_font(),
+            text_color=GUIStyles.COLOR_TEXT_PRIMARY,
+            anchor="w",
+        )
+        title_label.grid(row=0, column=0, sticky="ew")
+
+        record_count = int(preview.get("record_count") or 0)
+        min_record_count = int(preview.get("min_record_count") or 50)
+        pending_upgrade_run = str(preview.get("pending_upgrade_run") or "")
+        too_few_records = bool(preview.get("too_few_records")) and not pending_upgrade_run
+        estimated = str(preview.get("estimated_minutes_text") or "10-60 分钟")
+        required_space = str(preview.get("required_disk_space_text") or "约 10 GB")
+        available_space = str(preview.get("available_disk_space_text") or "未知")
+        required_space_bytes = int(preview.get("required_disk_space_bytes") or 0)
+        available_space_bytes = int(preview.get("available_disk_space_bytes") or 0)
+        low_space_note = ""
+        if required_space_bytes and available_space_bytes and available_space_bytes < required_space_bytes:
+            low_space_note = "\n\n当前可用磁盘空间不足，建议先清理空间后再开始。"
+        download_note = str(preview.get("download_note") or "如本地缺少基线模型，将先下载较大的模型文件。")
+        upgrade_note = (
+            "已检测到 GGUF 转换工具，训练完成后会自动替换本地纠错模型。"
+            if bool(preview.get("can_upgrade_gguf"))
+            else "未检测到 llama.cpp 的 GGUF 转换/量化工具；确认后会自动下载并构建所需工具，然后继续训练和升级模型。"
+        )
+        params = preview.get("params") or {}
+        iters = params.get("iters", "-")
+
+        if pending_upgrade_run:
+            body = (
+                "以下信息为实时检查得到。\n\n"
+                "检测到上一次 LoRA 训练进行中，模型升级尚未完成。\n\n"
+                f"待继续任务：{Path(pending_upgrade_run).name}\n"
+                "本次将直接继续之前的训练，不会重新训练。\n\n"
+                f"最小需要空间：{required_space}\n"
+                f"当前可用空间：{available_space}\n\n"
+                f"{upgrade_note}"
+                f"{low_space_note}"
+            )
+        elif too_few_records:
+            body = (
+                "以下信息为点击按钮后实时检查得到。\n\n"
+                f"当前可用语音输入历史只有 {record_count} 条，少于建议的 {min_record_count} 条。\n\n"
+                "数据太少时自动调优容易过拟合，也很难稳定提升纠错效果。请继续正常使用语音输入，"
+                f"积累超过 {min_record_count} 条有效记录后再来优化模型。"
+            )
+        else:
+            body = (
+                "以下信息为实时检查得到。\n\n"
+                "确认后，应用会基于 Qwen2.5-1.5B 基线模型和本机历史语音输入数据 "
+                "中的语音输入历史进行 LoRA 调优。\n\n"
+                f"本次可用样本：{record_count} 条\n"
+                f"训练步数参考：{iters}\n"
+                f"预计耗时：{estimated}\n\n"
+                f"最小需要空间：{required_space}\n"
+                f"当前可用空间：{available_space}\n\n"
+                f"{download_note}\n"
+                f"{upgrade_note}\n"
+                "训练和模型转换会占用较多 CPU/GPU 与磁盘空间，期间请尽量保持应用运行。"
+                f"{low_space_note}"
+            )
+        body_label = ctk.CTkLabel(
+            container,
+            text=body,
+            font=GUIStyles.get_body_font(),
+            text_color=GUIStyles.COLOR_TEXT_SECONDARY,
+            justify="left",
+            anchor="w",
+            wraplength=500,
+        )
+        body_label.grid(row=1, column=0, sticky="ew", pady=(16, 18))
+
+        button_row = ctk.CTkFrame(container, fg_color="transparent")
+        button_row.grid(row=3, column=0, sticky="e", pady=(8, 0))
+        progress_frame = ctk.CTkFrame(container, fg_color="transparent")
+
+        def _cancel() -> None:
+            try:
+                dialog.grab_release()
+            except Exception:
+                pass
+            if self._auto_tune_dialog.get("dialog") is dialog:
+                self._auto_tune_dialog = {}
+            dialog.destroy()
+            self.update_status_info("已取消自动调优")
+
+        def _confirm() -> None:
+            title_label.configure(text="自动调优进行中")
+            body_label.grid_remove()
+            button_row.grid_remove()
+            progress_frame.grid(row=1, column=0, rowspan=3, sticky="nsew", pady=(16, 0))
+            progress_frame.grid_columnconfigure(0, weight=1)
+            progress_frame.grid_rowconfigure(3, weight=1)
+
+            status_label = ctk.CTkLabel(
+                progress_frame,
+                text="正在启动自动调优…",
+                font=GUIStyles.get_body_font(),
+                text_color=GUIStyles.COLOR_TEXT_SECONDARY,
+                anchor="w",
+                justify="left",
+                wraplength=500,
+            )
+            status_label.grid(row=0, column=0, sticky="ew", pady=(0, 10))
+            progress_bar = ctk.CTkProgressBar(progress_frame, height=10)
+            progress_bar.grid(row=1, column=0, sticky="ew", pady=(0, 10))
+            progress_bar.set(0)
+            log_label = ctk.CTkLabel(
+                progress_frame,
+                text="运行日志",
+                font=GUIStyles.get_note_font(),
+                text_color=GUIStyles.COLOR_TEXT_SECONDARY,
+                anchor="w",
+            )
+            log_label.grid(row=2, column=0, sticky="ew", pady=(0, 6))
+            log_textbox = ctk.CTkTextbox(
+                progress_frame,
+                height=260,
+                corner_radius=8,
+                border_width=1,
+                border_color=GUIStyles.COLOR_CARD_BORDER,
+                fg_color=GUIStyles.COLOR_CONTROL_BG,
+                text_color=GUIStyles.COLOR_TEXT_PRIMARY,
+                font=GUIStyles.get_note_font(),
+                wrap="word",
+            )
+            log_textbox.grid(row=3, column=0, sticky="nsew")
+            close_row = ctk.CTkFrame(progress_frame, fg_color="transparent")
+            close_row.grid(row=4, column=0, sticky="e", pady=(14, 0))
+            close_button = ctk.CTkButton(
+                close_row,
+                text="完成后关闭",
+                width=110,
+                state="disabled",
+                command=self._close_auto_tune_dialog,
+                **GUIStyles.get_secondary_button_args(),
+            )
+            close_button.pack(side="left")
+
+            self._auto_tune_dialog = {
+                "dialog": dialog,
+                "status_label": status_label,
+                "progress_bar": progress_bar,
+                "log_textbox": log_textbox,
+                "close_button": close_button,
+                "running": True,
+                "closed": False,
+            }
+            self._append_auto_tune_log("开始自动调优。")
+            self.update_status_info("正在启动自动调优模型…")
+            starter()
+
+        ctk.CTkButton(
+            button_row,
+            text="知道了" if too_few_records else "取消",
+            width=86,
+            command=_cancel,
+            **GUIStyles.get_secondary_button_args(),
+        ).pack(side="left", padx=(0, 10))
+        if not too_few_records:
+            ctk.CTkButton(
+                button_row,
+                text="继续升级" if pending_upgrade_run else "确认开始",
+                width=106,
+                command=_confirm,
+                fg_color=GUIStyles.COLOR_ACCENT,
+                hover_color=("#006AE6", "#4A96E8"),
+                text_color="#FFFFFF",
+                corner_radius=8,
+                height=30,
+                font=ctk.CTkFont(family=GUIStyles.FONT_FAMILY, size=12, weight="bold"),
+            ).pack(side="left")
+
+        def _on_close() -> None:
+            if self._auto_tune_dialog.get("dialog") is dialog and self._auto_tune_dialog.get("running"):
+                self.update_status_info("自动调优仍在运行，请等待完成后关闭窗口")
+                return
+            _cancel()
+
+        dialog.protocol("WM_DELETE_WINDOW", _on_close)
+        try:
+            dialog.deiconify()
+            dialog.lift()
+            dialog.focus_force()
+        except Exception:
+            pass
+
+    def _append_auto_tune_log(self, message: str) -> None:
+        state = getattr(self, "_auto_tune_dialog", {}) or {}
+        textbox = state.get("log_textbox")
+        if not textbox or not message:
+            return
+        try:
+            timestamp = time.strftime("%H:%M:%S")
+            textbox.configure(state="normal")
+            textbox.insert("end", f"[{timestamp}] {message}\n")
+            textbox.see("end")
+            textbox.configure(state="disabled")
+        except Exception:
+            pass
+
+    def _handle_auto_tune_progress_event(self, data: dict[str, Any]) -> bool:
+        state = getattr(self, "_auto_tune_dialog", {}) or {}
+        dialog = state.get("dialog")
+        if not dialog:
+            return False
+        try:
+            if not dialog.winfo_exists():
+                self._auto_tune_dialog = {}
+                return False
+        except Exception:
+            self._auto_tune_dialog = {}
+            return False
+
+        message = str(data.get("desc") or data.get("label") or "")
+        if message:
+            status_label = state.get("status_label")
+            if status_label:
+                try:
+                    status_label.configure(text=message)
+                except Exception:
+                    pass
+            self._append_auto_tune_log(message)
+
+        try:
+            progress = float(data.get("progress", -1))
+            progress_bar = state.get("progress_bar")
+            if progress_bar:
+                if progress < 0:
+                    progress_bar.start()
+                else:
+                    try:
+                        progress_bar.stop()
+                    except Exception:
+                        pass
+                    progress_bar.set(max(0.0, min(1.0, progress / 100.0)))
+        except Exception:
+            pass
+
+        phase = str(data.get("phase") or "")
+        event_action = str(data.get("event_action") or "")
+        done = event_action == "end" or phase in {"done", "error"}
+        if done:
+            state["running"] = False
+            close_button = state.get("close_button")
+            if close_button:
+                try:
+                    close_button.configure(
+                        text="关闭",
+                        state="normal",
+                        **GUIStyles.get_secondary_button_args(),
+                    )
+                except Exception:
+                    pass
+            try:
+                dialog.protocol("WM_DELETE_WINDOW", lambda: self._close_auto_tune_dialog())
+            except Exception:
+                pass
+        return True
+
+    def _close_auto_tune_dialog(self) -> None:
+        state = getattr(self, "_auto_tune_dialog", {}) or {}
+        dialog = state.get("dialog")
+        try:
+            if dialog:
+                try:
+                    dialog.grab_release()
+                except Exception:
+                    pass
+                dialog.destroy()
+        finally:
+            self._auto_tune_dialog = {}
 
     def _refresh_home_dashboard(self, force: bool = False) -> None:
         records = self._load_home_history(force=force)
@@ -2399,6 +2721,8 @@ class VoiceInputGUI:
 
     def _show_progress_window(self, data):
         """显示全屏进度条覆盖层"""
+        if isinstance(data, dict) and data.get("source") == "auto_tune" and self._handle_auto_tune_progress_event(data):
+            return
         self._progress_overlay_requested = True
         if self._progress_overlay_close_job is not None:
             try:
@@ -2445,6 +2769,8 @@ class VoiceInputGUI:
 
     def _update_progress_window(self, data):
         """更新进度条数值"""
+        if isinstance(data, dict) and data.get("source") == "auto_tune" and self._handle_auto_tune_progress_event(data):
+            return
         if not hasattr(self, 'progress_overlay') or not self.progress_overlay:
             return
 
@@ -2464,6 +2790,13 @@ class VoiceInputGUI:
 
     def _close_progress_window(self):
         """销毁进度条覆盖层"""
+        if self._handle_auto_tune_progress_event({
+            "source": "auto_tune",
+            "event_action": "end",
+            "phase": "done",
+            "desc": "自动调优流程已结束，可以关闭窗口。",
+        }):
+            return
         self._progress_overlay_requested = False
 
         def _do_close():

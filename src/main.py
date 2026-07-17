@@ -52,6 +52,9 @@ class FlashInputApp:
         self._model_bootstrap_started = False
         self._model_bootstrap_lock = threading.Lock()
 
+        self._auto_tune_lock = threading.Lock()
+        self._auto_tune_running = False
+
     def on_gui_ready(self) -> None:
         """/**
          * GUI 首次渲染完成后的回调（由 VoiceInputGUI 触发）。
@@ -231,6 +234,58 @@ class FlashInputApp:
         ):
             self.rewriter.init_local_llama_cpp_async(reason="model_bootstrap")
 
+    def start_auto_tune_async(self) -> None:
+        """Build a personal dataset from voice history and run MLX LoRA tuning."""
+        with self._auto_tune_lock:
+            if self._auto_tune_running:
+                self._set_status("自动调优已在运行中…")
+                return
+            self._auto_tune_running = True
+
+        def _worker() -> None:
+            try:
+                if self.config_manager is None:
+                    self.config_manager = get_config_manager()
+
+                self._set_status("正在准备自动调优数据集…")
+
+                def _progress(event) -> None:
+                    if isinstance(event, dict):
+                        self._set_auto_tune_progress(event)
+                    else:
+                        self._set_status(str(event))
+
+                from .model_train.auto_tune import run_mlx_lora_auto_tune
+
+                result = run_mlx_lora_auto_tune(progress=_progress)
+                self.rewriter = None
+                self._set_status(f"自动调优完成：{result.adapter_dir}")
+                print(f"✅ 自动调优完成: {result.adapter_dir}")
+                self._set_auto_tune_progress({
+                    "action": "update",
+                    "phase": "done",
+                    "title": "自动调优模型",
+                    "message": "自动调优完成，新模型已准备就绪。",
+                    "progress": 100,
+                })
+                time.sleep(2.5)
+                self._set_auto_tune_progress({"action": "end", "message": ""})
+            except Exception as e:
+                print(f"❌ 自动调优失败: {e}")
+                self._set_status(f"自动调优失败：{e}", is_error=True)
+                self._set_auto_tune_progress({
+                    "action": "update",
+                    "phase": "error",
+                    "title": "自动调优模型",
+                    "message": f"自动调优失败：{e}",
+                    "progress": 100,
+                })
+            finally:
+                with self._auto_tune_lock:
+                    self._auto_tune_running = False
+
+        threading.Thread(target=_worker, daemon=True).start()
+
     def init_stt_async(self) -> None:
         def _worker() -> None:
             with self._stt_init_lock:
@@ -299,6 +354,41 @@ class FlashInputApp:
             except Exception:
                 pass
 
+    def _set_auto_tune_progress(self, event: dict) -> None:
+        message = str(event.get("message") or "")
+        if message:
+            self._set_status(message)
+        try:
+            from .components.gui_tk import enqueue_action_progress
+
+            action = str(event.get("action") or "update")
+            progress_value = event.get("progress")
+            if progress_value is None:
+                progress_value = -1
+            payload = {
+                "title": str(event.get("title") or "自动调优模型"),
+                "label": str(event.get("message") or "正在准备自动调优…"),
+                "desc": str(event.get("message") or ""),
+                "progress": progress_value,
+                "phase": str(event.get("phase") or ""),
+                "event_action": action,
+                "source": "auto_tune",
+            }
+            if action == "start":
+                enqueue_action_progress("progress_start", None, payload)
+                enqueue_action_progress("progress_update", None, payload)
+            elif action == "end":
+                enqueue_action_progress("progress_end", None, payload)
+            else:
+                enqueue_action_progress("progress_update", None, payload)
+        except Exception as e:
+            print(f"⚠️ 自动调优进度更新失败: {e}")
+
+    def get_auto_tune_preview(self) -> dict:
+        from .model_train.auto_tune import preview_auto_tune_plan
+
+        return preview_auto_tune_plan()
+
     def _ensure_audio_recorder(self) -> None:
         """/**
          * 确保 AudioRecorder 已初始化（按需延迟创建）。
@@ -344,6 +434,7 @@ class FlashInputApp:
         audio_path: str | None,
         raw_text: str,
         final_text: str,
+        scene_context: dict | None = None,
     ) -> dict | None:
         if self.config_manager is None:
             self.config_manager = get_config_manager()
@@ -355,14 +446,22 @@ class FlashInputApp:
         record_id = now.strftime("%Y%m%d_%H%M%S_%f")
         history_path = transcripts_dir / "voice_history.jsonl"
         audio_file_name = Path(audio_path).name if audio_path else f"{record_id}.wav"
+        scene_context = scene_context or {}
+        scene = str(scene_context.get("scene") or "general")
 
         payload = {
             "id": record_id,
             "dataId": audio_file_name,
             "created_at": now.isoformat(timespec="seconds"),
             "audio_path": str(audio_path or ""),
+            "scene": scene,
+            "scene_bundle_id": str(scene_context.get("bundle_id") or ""),
+            "scene_app_name": str(scene_context.get("app_name") or ""),
+            "scene_source": str(scene_context.get("source") or ""),
             "raw_text": raw_text or "",
             "final_text": final_text or raw_text or "",
+            "input": raw_text or "",
+            "output": final_text or raw_text or "",
             "char_count": self._text_char_count(final_text or raw_text),
         }
 
@@ -845,6 +944,7 @@ class FlashInputApp:
             raw_text = self.stt_processor.transcribe(audio_data)
             final_text = raw_text
             audio_path = getattr(self.stt_processor, "last_audio_path", None)
+            scene_context = {"scene": "general"}
             print("语音转录结果:", raw_text)
             print(f"转录耗时 {time.time() - trans_time:.2f}s（从处理开始算起）")
 
@@ -856,13 +956,24 @@ class FlashInputApp:
                     if self.config_manager is None:
                         self.config_manager = get_config_manager()
 
+                    try:
+                        from .core.text_rewrite import infer_asr_post_scene_context
+
+                        scene_context = infer_asr_post_scene_context()
+                    except Exception as e:
+                        print(f"⚠️ 获取 ASR 后处理场景失败，使用 general: {e}")
+                        scene_context = {"scene": "general"}
+
                     if bool(self.config_manager.get("FORMAT_TEXT")):
                         rewriter = self._get_rewriter_safe()
                         if rewriter is None:
                             print("⚠️ rewriter 不可用，跳过改写")
                         else:
                             rewrite_time = time.time()
-                            final_text = rewriter.rewrite(raw_text)
+                            final_text = rewriter.rewrite(
+                                raw_text,
+                                scene=str(scene_context.get("scene") or "general"),
+                            )
                             print(f"文本改写耗时 {time.time() - rewrite_time:.2f}s")
                             print(f"✅ 格式化改写后的文本: {final_text}")
                     else:
@@ -872,7 +983,7 @@ class FlashInputApp:
                     final_text = raw_text
 
             if raw_text or final_text:
-                self._record_transcription_history(audio_path, raw_text, final_text)
+                self._record_transcription_history(audio_path, raw_text, final_text, scene_context)
 
             self._set_status("写入中…")
             # 隐藏掉录音提示框

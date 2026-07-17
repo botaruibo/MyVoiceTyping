@@ -112,6 +112,7 @@ datas = [
     (str(project_root / 'src'), 'src'),
     (str(project_root / 'requirements.txt'), '.'),
     (str(project_root / 'assets'), 'assets'),
+    (str(project_root / 'scripts' / 'install_llama_cpp_tools.sh'), 'scripts'),
     (str(package_config_dir), 'data/config'),
 ]
 
