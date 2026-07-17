@@ -14,6 +14,21 @@ MyVoiceTyping is a local-first voice typing app for macOS. It helps you write do
 
 ![MyVoiceTyping dashboard](docs/img/myvoicetyping-dashboard.png)
 
+## 30 秒静态 Walkthrough
+
+真实录屏 / GIF 仍在准备中。下面不是伪装成真实录屏的效果承诺，而是用当前公开素材快速说明目标体验：按住说话 → 本地处理 → 粘贴输入 → 本地优先 → App / 模型 / 数据集公开。
+
+| 按住说话 | 口语变成可用文本 | AI Coding prompt |
+| --- | --- | --- |
+| ![Hold to speak, release to paste](docs/landing/assets/01-hold-to-speak.png) | ![Spoken Chinese to polished text](docs/landing/assets/02-spoken-to-polished-text.png) | ![AI Coding prompts](docs/landing/assets/03-ai-coding-prompts.png) |
+
+| 本地优先 | App / 模型 / 数据集公开 |
+| --- | --- |
+| ![Local-first privacy](docs/landing/assets/04-local-first-privacy.png) | ![Open app, model, and dataset](docs/landing/assets/05-open-app-model-dataset.png) |
+
+如果你看完仍然不想下载，最有价值的反馈是直接告诉我原因：  
+[没下载 / 安装卡点反馈](https://github.com/botaruibo/MyVoiceTyping/issues/new?template=download_install_blocker.md)
+
 ## 10 分钟试用 / Download
 
 如果你只想快速判断 MyVoiceTyping 是否值得下载、试用或 Star，建议走这条最短路径：

@@ -126,6 +126,7 @@ alpha-0.03 开始，MyVoiceTyping 正在推进本地自进化方向：
 
 反馈入口：
 
+- [没下载 / 安装卡点反馈](https://github.com/botaruibo/MyVoiceTyping/issues/new?template=download_install_blocker.md)
+- [3 分钟 Beta 反馈模板](https://github.com/botaruibo/MyVoiceTyping/issues/new?template=beta_3min_feedback.md)
 - [体验反馈 / User feedback](https://github.com/botaruibo/MyVoiceTyping/issues/new/choose)
 - [Discussions 体验招募帖](https://github.com/botaruibo/MyVoiceTyping/discussions/2)
-
