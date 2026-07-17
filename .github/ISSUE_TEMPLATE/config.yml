@@ -1,7 +1,7 @@
 blank_issues_enabled: true
 contact_links:
   - name: 先看普通用户落地页 / Landing page
-    url: https://botaruibo.github.io/MyVoiceTyping/landing/
+    url: https://botaruibo.github.io/MyVoiceTyping/
     about: 如果你还不确定 MyVoiceTyping 是否适合自己，可以先看功能介绍、下载入口和反馈入口。
   - name: 30 秒试用任务 / Trial tasks
     url: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/TRIAL_TASKS.zh-CN.md
