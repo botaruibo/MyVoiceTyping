@@ -20,7 +20,8 @@ Primary use cases:
 
 Important links:
 
-- Landing page: https://botaruibo.github.io/MyVoiceTyping/landing/
+- Website: https://botaruibo.github.io/MyVoiceTyping/
+- Full landing page: https://botaruibo.github.io/MyVoiceTyping/landing/
 - GitHub repository: https://github.com/botaruibo/MyVoiceTyping
 - Releases / download: https://github.com/botaruibo/MyVoiceTyping/releases
 - Recommended release: https://github.com/botaruibo/MyVoiceTyping/releases/tag/release-0.02

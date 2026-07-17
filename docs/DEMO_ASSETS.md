@@ -113,7 +113,7 @@ MyVoiceTyping：本地优先的 macOS 中文语音输入。
 ### 55–60 秒：CTA
 
 ```text
-Landing: https://botaruibo.github.io/MyVoiceTyping/landing/
+Website: https://botaruibo.github.io/MyVoiceTyping/
 GitHub: https://github.com/botaruibo/MyVoiceTyping
 ```
 
@@ -129,7 +129,7 @@ GitHub: https://github.com/botaruibo/MyVoiceTyping
 更适合在意数据安全、0 费用、中文/中英混合输入、AI Coding prompt，以及希望代码、模型和数据集都可审查的人。
 
 项目：https://github.com/botaruibo/MyVoiceTyping
-Landing：https://botaruibo.github.io/MyVoiceTyping/landing/
+Website：https://botaruibo.github.io/MyVoiceTyping/
 ```
 
 ### AI Coding 场景
@@ -159,7 +159,7 @@ https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/ALTERNATIVES.zh-CN.md
 
 对普通用户：
 
-1. Landing: <https://botaruibo.github.io/MyVoiceTyping/landing/>
+1. Website: <https://botaruibo.github.io/MyVoiceTyping/>
 2. Releases: <https://github.com/botaruibo/MyVoiceTyping/releases>
 3. FAQ: <./FAQ.md>
 

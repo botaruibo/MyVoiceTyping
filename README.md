@@ -7,7 +7,7 @@
 [![GitHub stars](https://img.shields.io/github/stars/botaruibo/MyVoiceTyping?style=flat-square)](https://github.com/botaruibo/MyVoiceTyping/stargazers)
 [![Latest release](https://img.shields.io/github/v/release/botaruibo/MyVoiceTyping?style=flat-square)](https://github.com/botaruibo/MyVoiceTyping/releases)
 
-🌐 Website: https://botaruibo.github.io/MyVoiceTyping/landing/  
+🌐 Website: https://botaruibo.github.io/MyVoiceTyping/  
 ⬇️ Download: https://github.com/botaruibo/MyVoiceTyping/releases  
 📚 Docs index: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/INDEX.zh-CN.md  
 🎬 Demo assets: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/DEMO_ASSETS.md  

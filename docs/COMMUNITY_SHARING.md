@@ -101,7 +101,7 @@ https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/SELF_EVALUATION.md
 
 普通用户：
 
-1. Landing：https://botaruibo.github.io/MyVoiceTyping/landing/
+1. Website：https://botaruibo.github.io/MyVoiceTyping/
 2. Quickstart：https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/QUICKSTART.zh-CN.md
 3. Releases：https://github.com/botaruibo/MyVoiceTyping/releases
 
@@ -117,4 +117,3 @@ https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/SELF_EVALUATION.md
 1. 中文对比页：https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/ALTERNATIVES.zh-CN.md
 2. Privacy：https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/PRIVACY.md
 3. FAQ：https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/FAQ.md
-

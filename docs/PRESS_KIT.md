@@ -12,7 +12,7 @@
 | 一句话 | 开源、本地优先的 macOS 中文语音输入工具：按住快捷键说话，松开后转写、补标点、轻量纠错 / 润写，并粘贴到当前输入框。 |
 | 适合人群 | macOS 中文 / 中英混合输入用户、AI Coding 用户、隐私敏感用户、想要可审查语音输入链路的开发者 |
 | 项目主页 | <https://github.com/botaruibo/MyVoiceTyping> |
-| Landing | <https://botaruibo.github.io/MyVoiceTyping/landing/> |
+| Website | <https://botaruibo.github.io/MyVoiceTyping/> |
 | 下载 | <https://github.com/botaruibo/MyVoiceTyping/releases> |
 | 模型 | <https://modelscope.cn/models/botaruibo/MyVoiceTyping-1.5b-q4> |
 | 数据集 | <https://github.com/botaruibo/MyVoiceTyping-Dataset> |
@@ -97,7 +97,7 @@ macOS，语音输入，中文语音输入，本地优先，隐私，AI Coding，
 
 - Demo assets: <https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/DEMO_ASSETS.md>
 - Social preview: <https://botaruibo.github.io/MyVoiceTyping/assets/social-preview.png>
-- Landing: <https://botaruibo.github.io/MyVoiceTyping/landing/>
+- Website: <https://botaruibo.github.io/MyVoiceTyping/>
 
 ## 投稿短文案
 
@@ -109,7 +109,7 @@ macOS，语音输入，中文语音输入，本地优先，隐私，AI Coding，
 项目主打开源、本地优先、0 费用，应用、润写模型和数据集都公开。和 Typeless / 闪电说 / Typeoff 这类成熟商业产品相比，它更早期，但更适合在意可审查、可二开和本地数据安全的人。
 
 GitHub: https://github.com/botaruibo/MyVoiceTyping
-Landing: https://botaruibo.github.io/MyVoiceTyping/landing/
+Website: https://botaruibo.github.io/MyVoiceTyping/
 ```
 
 ## 英文短文案
@@ -120,7 +120,7 @@ MyVoiceTyping is an open-source, local-first Chinese voice typing tool for macOS
 It is designed for Chinese / mixed Chinese-English dictation, AI coding prompts, work messages, notes, and privacy-sensitive input. The app, local text-polishing model, and ASR post-processing dataset are public.
 
 GitHub: https://github.com/botaruibo/MyVoiceTyping
-Landing: https://botaruibo.github.io/MyVoiceTyping/landing/
+Website: https://botaruibo.github.io/MyVoiceTyping/
 ```
 
 ## 不建议的表达

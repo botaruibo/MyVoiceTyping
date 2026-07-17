@@ -4,7 +4,7 @@
 
 推荐先看普通用户落地页：
 
-- Website: <https://botaruibo.github.io/MyVoiceTyping/landing/>
+- Website: <https://botaruibo.github.io/MyVoiceTyping/>
 - Download: <https://github.com/botaruibo/MyVoiceTyping/releases>
 - 体验反馈: <https://github.com/botaruibo/MyVoiceTyping/issues/3>
 - AI Coding 反馈: <https://github.com/botaruibo/MyVoiceTyping/issues/5>
@@ -166,7 +166,7 @@ MyVoiceTyping：本地优先的 macOS 中文语音输入
 字幕：
 
 ```text
-Landing: botaruibo.github.io/MyVoiceTyping/landing/
+Website: botaruibo.github.io/MyVoiceTyping/
 GitHub: botaruibo/MyVoiceTyping
 ```
 
@@ -211,7 +211,7 @@ GitHub: botaruibo/MyVoiceTyping
 
 适合写 AI Coding prompt、需求、Bug 复现、工作 IM，也适合在意数据安全的中文输入场景。
 
-Landing：https://botaruibo.github.io/MyVoiceTyping/landing/
+Website：https://botaruibo.github.io/MyVoiceTyping/
 GitHub：https://github.com/botaruibo/MyVoiceTyping
 ```
 
