@@ -1,6 +1,6 @@
 # License decision / App 仓库许可证决策指南
 
-MyVoiceTyping 的 App 仓库当前还没有项目级 `LICENSE` 文件。这个状态会直接影响：
+MyVoiceTyping 的 App 仓库已选择 [MIT License](../LICENSE)。这个决定解决了早期推广中最容易劝退用户和收录渠道的许可证不确定性：
 
 - 周刊 / 产品目录 / awesome list 是否愿意收录；
 - 开发者是否敢于 fork、二次开发或贡献 PR；
@@ -16,11 +16,11 @@ MyVoiceTyping 不是单一资产，而是三部分：
 
 | 资产 | 当前位置 | 建议单独看待 |
 |---|---|---|
-| App 代码 | <https://github.com/botaruibo/MyVoiceTyping> | 需要项目级 `LICENSE` |
+| App 代码 | <https://github.com/botaruibo/MyVoiceTyping> | 已使用 MIT License |
 | 文本润写模型 | <https://modelscope.cn/models/botaruibo/MyVoiceTyping-1.5b-q4> | 当前模型页标注 Apache-2.0，但仍需遵守上游 Qwen / 量化 / 推理组件许可 |
 | 调优数据集 | <https://github.com/botaruibo/MyVoiceTyping-Dataset> | 需要遵守 Dataset 的 `DATA_LICENSE`、`SOURCES` 和各原始数据源许可 |
 
-因此 App 仓库即使选择 MIT 或 Apache-2.0，也不代表模型和数据集自动获得同样授权。README / Release / Press kit 里应继续保留这个边界。
+因此 App 仓库使用 MIT，并不代表模型和数据集自动获得同样授权。README / Release / Press kit 里应继续保留这个边界。
 
 ## 面向 1000 star 的默认建议
 

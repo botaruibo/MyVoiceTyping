@@ -137,6 +137,8 @@ Training data is maintained here:
 - [MyVoiceTyping-Dataset](https://github.com/botaruibo/MyVoiceTyping-Dataset)
 - [Dataset sample collection issue](https://github.com/botaruibo/MyVoiceTyping-Dataset/issues/1)
 
+The dataset is a separate asset from the MIT-licensed app code. It is assembled from multiple public sources, so before redistribution, commercial training, or publishing derivative models, check the dataset's `DATA_LICENSE`, `SOURCES`, and the original source licenses / citation requirements.
+
 The dataset focuses on Chinese ASR post-processing:
 
 - ASR word correction;
