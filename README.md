@@ -17,6 +17,7 @@
 🚀 Quickstart: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/QUICKSTART.zh-CN.md  
 🧩 Use cases: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/USE_CASES.zh-CN.md  
 🧪 Trial tasks: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/TRIAL_TASKS.zh-CN.md  
+🧑‍🔬 Beta testing: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/BETA_TESTING.zh-CN.md  
 🧭 Alternatives: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/ALTERNATIVES.zh-CN.md  
 💬 Feedback: https://github.com/botaruibo/MyVoiceTyping/issues/new/choose  
 🧭 Support: https://github.com/botaruibo/MyVoiceTyping/blob/main/SUPPORT.md  
@@ -48,6 +49,8 @@
 3. 如果方向对你有用，欢迎点一个 Star 关注后续版本；如果暂时不适合，也欢迎在 [Use case feedback](https://github.com/botaruibo/MyVoiceTyping/issues/new/choose) 里告诉我卡在哪里。
 
 Star 对这个早期开源项目很重要：它会帮助更多 macOS 中文用户发现一个本地优先、0 费用、App / 模型 / 数据集公开的语音输入选择，也会帮助判断 [Roadmap](ROADMAP.md) 里 0→50、50→200、200→1000 stars 阶段哪些能力最值得继续投入。
+
+如果你愿意帮这个早期项目挑毛病，可以看 [Beta 测试 / 3 分钟反馈](docs/BETA_TESTING.zh-CN.md)：重点反馈安装权限、模型下载、中文 / 中英混合、AI Coding prompt、隐私说明，以及你为什么愿意或不愿意 Star。
 
 如果你暂时没时间完整安装，也可以先这样判断是否值得 Star / 关注：
 
