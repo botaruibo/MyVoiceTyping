@@ -19,6 +19,7 @@
 | FAQ | <https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/FAQ.md> |
 | 同类工具对比 | <https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/ALTERNATIVES.zh-CN.md> |
 | 试用任务 | <https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/TRIAL_TASKS.zh-CN.md> |
+| Beta 测试 / 3 分钟反馈 | <https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/BETA_TESTING.zh-CN.md> |
 
 ## 30 字以内标题
 
@@ -90,6 +91,7 @@ macOS，语音输入，中文语音输入，本地优先，隐私，AI Coding，
 - 真实 Demo / GIF 仍在补齐中，进展见 <https://github.com/botaruibo/MyVoiceTyping/issues/8>；
 - App repo license 仍在确认中，进展见 <https://github.com/botaruibo/MyVoiceTyping/issues/7>；决策参考见 <https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/LICENSE_DECISION.zh-CN.md>；
 - 如果输入内容涉及公司、客户、隐私或内部代码，请不要把真实音频 / 文本提交到公开 issue 或评论区。
+- 如果编辑、作者或早期用户愿意帮忙判断项目是否值得继续推荐，建议先看 Beta 测试 / 3 分钟反馈页：<https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/BETA_TESTING.zh-CN.md>。最有价值的反馈是安装权限、模型下载、中文 / 中英混合、AI Coding prompt、隐私说明，以及为什么愿意或不愿意 Star。
 
 ## 推荐截图
 
@@ -110,6 +112,7 @@ macOS，语音输入，中文语音输入，本地优先，隐私，AI Coding，
 
 GitHub: https://github.com/botaruibo/MyVoiceTyping
 Website: https://botaruibo.github.io/MyVoiceTyping/
+Beta testing: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/BETA_TESTING.zh-CN.md
 ```
 
 ## 英文短文案
@@ -121,6 +124,7 @@ It is designed for Chinese / mixed Chinese-English dictation, AI coding prompts,
 
 GitHub: https://github.com/botaruibo/MyVoiceTyping
 Website: https://botaruibo.github.io/MyVoiceTyping/
+Beta testing: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/BETA_TESTING.zh-CN.md
 ```
 
 ## 不建议的表达
