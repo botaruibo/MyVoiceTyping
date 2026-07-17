@@ -11,6 +11,7 @@
 | 你想做什么 | 推荐入口 |
 |---|---|
 | 先判断是否适合自己 | [30 秒试用任务](docs/TRIAL_TASKS.zh-CN.md) |
+| 愿意花 3 分钟帮忙挑毛病 | [Beta 测试 / 3 分钟反馈](docs/BETA_TESTING.zh-CN.md) |
 | 安装、权限、模型下载、录音、粘贴出问题 | [Bug report / 故障报告](https://github.com/botaruibo/MyVoiceTyping/issues/new/choose) |
 | 反馈普通中文输入体验 | [体验反馈 / User feedback](https://github.com/botaruibo/MyVoiceTyping/issues/new/choose) |
 | 反馈 AI Coding prompt 场景 | [AI Coding prompt 反馈](https://github.com/botaruibo/MyVoiceTyping/issues/5) |
@@ -49,8 +50,9 @@ MyVoiceTyping 版本：
 如果你在找 Typeless / 闪电说之外的开源、本地优先中文语音输入方案，可以：
 
 1. 用 [30 秒试用任务](docs/TRIAL_TASKS.zh-CN.md) 快速判断是否适合；
-2. 如果方向对你有用，在 GitHub 点一个 Star；
-3. 把可公开、已脱敏的失败样例反馈回来；
-4. 如果你写过 Typeless、闪电说、Typeoff、AI Coding prompt 或本地语音输入相关内容，欢迎引用 [Community sharing](docs/COMMUNITY_SHARING.md) 里的克制版介绍。
+2. 如果愿意帮忙挑毛病，用 [Beta 测试 / 3 分钟反馈](docs/BETA_TESTING.zh-CN.md) 告诉我安装、权限、中文 / 中英混合、AI Coding prompt 或隐私说明哪里卡住；
+3. 如果方向对你有用，在 GitHub 点一个 Star；
+4. 把可公开、已脱敏的失败样例反馈回来；
+5. 如果你写过 Typeless、闪电说、Typeoff、AI Coding prompt 或本地语音输入相关内容，欢迎引用 [Community sharing](docs/COMMUNITY_SHARING.md) 里的克制版介绍。
 
 Star 对早期项目很重要：它会帮助更多 macOS 中文用户发现这个本地优先、0 费用、App / 模型 / 数据集公开的语音输入项目。
