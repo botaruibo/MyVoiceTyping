@@ -8,6 +8,7 @@
 |---|---|---|
 | 想先看 30 秒效果说明 | [30 秒 Demo walkthrough](./DEMO_30S.zh-CN.md) | 不等真实视频，先用一个 AI Coding 场景看懂按住说话、本地润写、粘贴和本地自进化路线 |
 | 只想判断是否值得 Star | [30 秒试用任务](./TRIAL_TASKS.zh-CN.md) | 用虚构内容测试中文 / 中英混合、AI Coding prompt、工作消息和隐私敏感输入 |
+| 想理解 AI Coding 语音输入为什么值得做 | [掘金长文：语音输入会变成新的 Prompt 入口](https://juejin.cn/post/7663165474498740262) | 从 prompt buffer、review-before-send、本地优先和 Self-Evolution 角度理解项目定位 |
 | 想马上安装试用 | [快速上手](./QUICKSTART.zh-CN.md) | 下载 release-0.02、处理 macOS 安全提示、授予麦克风 / 辅助功能 / 输入监控权限 |
 | 想看适用场景 | [使用场景](./USE_CASES.zh-CN.md) | 写 prompt、写消息、写 issue、写 PR note、整理想法 |
 | 愿意帮忙试用 / 挑毛病 | [Beta 测试 / 3 分钟反馈](./BETA_TESTING.zh-CN.md) | 反馈安装权限、模型下载、中文 / 中英混合、AI Coding prompt、隐私说明和不 Star 阻碍 |

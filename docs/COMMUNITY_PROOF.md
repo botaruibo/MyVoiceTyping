@@ -19,6 +19,7 @@
 |---|---|---|---|
 | CSDN | [Typeless 平替？我做了一个本地优先的中文语音输入开源项目 MyVoiceTyping](https://blog.csdn.net/Botaruibo/article/details/162958000?sharetype=blogdetail&sharerId=162958000&sharerefer=PC&sharesource=Botaruibo) | 已公开 | 面向搜索长尾，覆盖 Typeless 平替、本地优先、0 费用、数据安全、AI Coding prompt、模型和数据集公开、self-evaluation |
 | 开源中国 | [MyVoiceTyping：Typeless平替，一个本地优先的中文语音输入开源项目](https://my.oschina.net/u/9760871/blog/19722387) | 已公开 | 中文开源社区介绍，适合从开源中国站内搜索进入的用户 |
+| 掘金 | [为什么 AI Coding 时代，语音输入会变成新的 Prompt 入口？](https://juejin.cn/post/7663165474498740262) | 已公开 | 面向开发者，解释语音输入作为 AI Coding prompt buffer 的价值：先转成可 review 文本，再发给 Codex / Claude Code / Cursor |
 | GitHub Discussions | [MyVoiceTyping：开源、本地优先的中文语音输入工具](https://github.com/botaruibo/MyVoiceTyping/discussions/2) | 已公开 | GitHub 站内介绍和反馈入口 |
 
 ## 已参与的相关讨论
