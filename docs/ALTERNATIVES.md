@@ -34,6 +34,7 @@ Current project assets:
 | Typeless | Users who want a polished commercial product with less setup | Mature product experience and smoother onboarding | Pricing, data flow, and customization depend on the vendor; not the same as an inspectable open-source stack |
 | OpenTypeless | Users who want a cross-platform, open-source Typeless alternative with configurable STT / LLM providers | Open source, free, Windows / macOS / Linux; multi-provider STT and LLM setup; app-aware writing direction | More of a general desktop AI voice input framework; Chinese / mixed Chinese-English optimization and public local polishing model + dataset are not its main differentiators |
 | OpenLess | Users who want an open-source, local-first voice input tool centered on AI prompt workflows | Emphasizes user-owned code/data/credentials, global input boxes, prompt-oriented output, MIT/open-source positioning, and multi-platform direction | More of an open Typeless / prompt input tool; MyVoiceTyping is narrower around macOS Chinese / mixed Chinese-English post-ASR cleanup with a public local polishing model and dataset |
+| SayIt-like open AI polishing dictation tools | Users who want a simple "speech → transcript → AI polish → insert at cursor" open-source workflow | Easy to understand as a Typeless-alternative pattern; may support local LLM deployment or configurable model providers | Users should verify each project's local/cloud boundary, Chinese optimization, and whether model/dataset assets are public; MyVoiceTyping emphasizes Chinese polishing, public training data, and local self-evaluation |
 | Shandianshuo / Typeoff | Users who want a complete voice input product with commercial support and product polish | More complete product experience, potentially broader platform/cloud features | For sensitive input, users should check each product's data handling boundary |
 | VoiceSnap / local dictation tools | Users who mainly need offline speech-to-text | Fully offline, lightweight, local dictation focus | Often closer to raw transcription; may not cover Chinese post-ASR polishing, self-evaluation, or the full input loop |
 | Wispr Flow / English-first commercial dictation | English-first or cross-platform dictation users | Stronger commercial dictation polish and general writing UX | Chinese / mixed Chinese-English and local open-source inspectability may not be the main focus |
@@ -94,6 +95,22 @@ MyVoiceTyping differs mainly in scope:
 - Its self-evaluation direction is to turn user-confirmed edits into local preference samples, so the local model can gradually fit the user's vocabulary and style.
 
 If you want a more general open-source prompt dictation tool, OpenLess is worth comparing. If you care more about Chinese voice input, Chinese ASR post-processing, public model/dataset assets, and future local personalization, MyVoiceTyping is the more targeted option.
+
+## Compared with SayIt-like open AI polishing dictation tools
+
+Chinese communities have also started sharing SayIt-like projects described as Typeless alternatives, open-source voice input tools, or "speech recognition + AI polishing" apps that can use a local LLM or configurable model providers.
+
+That trend is useful: it shows that users no longer only want raw speech-to-text. They want spoken text to become usable writing that can be inserted into the current cursor position.
+
+MyVoiceTyping's narrower difference is:
+
+- it focuses on macOS Chinese / mixed Chinese-English input;
+- it publishes not only the app, but also the local text-polishing model and tuning dataset;
+- it emphasizes Chinese post-ASR cleanup: punctuation, sentence boundaries, common recognition errors, technical term preservation, and light rewriting;
+- its self-evaluation direction is not just "call an LLM to polish text", but to turn user-confirmed edits into local preference samples so the local model can gradually fit the user's own vocabulary and style;
+- it treats company notes, code prompts, meeting summaries, and private messages as sensitive inputs where local data boundaries matter.
+
+If you mainly want a configurable open-source voice input + AI polishing workflow, SayIt-like tools are worth comparing. If you care more about Chinese input details, public model/dataset assets, and future local personalization, MyVoiceTyping is more directly targeted at that use case.
 
 ## Compared with Wispr Flow
 
