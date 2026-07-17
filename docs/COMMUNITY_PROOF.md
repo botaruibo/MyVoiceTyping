@@ -21,6 +21,7 @@
 | 开源中国 | [MyVoiceTyping：Typeless平替，一个本地优先的中文语音输入开源项目](https://my.oschina.net/u/9760871/blog/19722387) | 已公开 | 中文开源社区介绍，适合从开源中国站内搜索进入的用户 |
 | 掘金 | [为什么 AI Coding 时代，语音输入会变成新的 Prompt 入口？](https://juejin.cn/post/7663165474498740262) | 已公开 | 面向开发者，解释语音输入作为 AI Coding prompt buffer 的价值：先转成可 review 文本，再发给 Codex / Claude Code / Cursor |
 | GitHub Discussions | [MyVoiceTyping：开源、本地优先的中文语音输入工具](https://github.com/botaruibo/MyVoiceTyping/discussions/2) | 已公开 | GitHub 站内介绍和反馈入口 |
+| FunASR Discussions | [MyVoiceTyping: local-first Chinese voice typing app using FunASR/SenseVoice on macOS](https://github.com/modelscope/FunASR/discussions/3241) | 已公开 | 面向 FunASR / SenseVoice 技术生态，说明本地 ASR、中文语音输入和 AI Coding prompt buffer 场景 |
 
 ## 已参与的相关讨论
 
@@ -35,6 +36,7 @@
 | 掘金 | <https://juejin.cn/post/7603653885602299954> | 闪电说 + ASR + 润色链路；补充本地优先和开源可复现方案 |
 | SegmentFault | <https://segmentfault.com/a/1190000047925561> | Mac 语音输入 / 输入工作台；区分 VoxFlow 与 MyVoiceTyping 的定位 |
 | 观猹 Watcha | <https://watcha.cn/products/shan-dian-shuo> | 闪电说产品页；补充开源、本地优先、0 费用方向 |
+| 开源中国动弹 | <https://www.oschina.net/osc-tweet/> | 开源中国最新流中发布 MyVoiceTyping 定位，补充本地数据安全、0 费用和 self-evaluation / 自进化方向 |
 
 ## 投稿 / 收录尝试
 
