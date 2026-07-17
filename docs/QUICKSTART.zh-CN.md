@@ -40,6 +40,25 @@ https://github.com/botaruibo/MyVoiceTyping/releases
 下载 DMG → 打开应用 → 授权麦克风 / 辅助功能 / 输入监控 → 打开备忘录 → 按住快捷键说一句虚构测试语 → 检查是否粘贴成功
 ```
 
+## 下载前先看：会要哪些权限 / 会下载什么？
+
+如果你只是因为“DMG、权限、模型下载”犹豫，可以先看这张表。MyVoiceTyping 是语音输入工具，所以这些步骤比较难完全绕开，但每一步都有明确用途。
+
+| 看到的步骤 | 为什么需要 | 如果没完成会怎样 | 卡住时怎么反馈 |
+|---|---|---|---|
+| 打开 DMG / macOS 安全提示 | 确认你打开的是 GitHub Release 里的安装包 | 应用可能被系统拦截，无法启动 | 反馈 macOS 版本和提示截图，不要上传私人内容 |
+| 麦克风权限 | 录制你按住快捷键时说的话 | 不能录音，或录到空音频 | 说明是否能看到录音浮窗 / 是否有音频文件 |
+| 辅助功能权限 | 把识别后的文本粘贴到当前输入框 | 有转写结果但不能自动粘贴 | 说明目标应用，例如备忘录、浏览器、Cursor |
+| 输入监控权限 | 监听全局快捷键 | 按快捷键没有反应 | 说明用的快捷键和键盘类型 |
+| 首次模型下载 | 下载本地 ASR、标点和润写模型，避免把大模型塞进 DMG | 下载慢、失败或首次启动等待较久 | 说明网络环境、是否公司网络、是否需要代理 |
+
+安全边界：
+
+- 请只从 [release-0.02](https://github.com/botaruibo/MyVoiceTyping/releases/tag/release-0.02) 或 [DMG 直链](https://github.com/botaruibo/MyVoiceTyping/releases/download/release-0.02/MyVoiceTyping_Installer.dmg) 下载；
+- 首次试用请用虚构内容，先不要输入公司机密、客户信息、Token、内部代码或私人聊天；
+- 模型下载需要联网，但默认语音识别、标点恢复和文本润写链路尽量在本机完成；
+- 如果你因为这些步骤放弃下载，也欢迎直接提交 [3 分钟 Beta 反馈](https://github.com/botaruibo/MyVoiceTyping/issues/new?template=beta_3min_feedback.md)，只写“不下载的原因”也可以。
+
 ## 2. 首次启动需要的权限
 
 MyVoiceTyping 通常需要这些权限：

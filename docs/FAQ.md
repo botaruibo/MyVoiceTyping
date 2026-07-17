@@ -139,6 +139,8 @@ macOS 对语音输入类工具限制比较严格。MyVoiceTyping 通常需要：
 
 如果权限没有授予完整，常见表现是：能启动但不能录音、录音后不能粘贴、快捷键没有反应。
 
+如果你还没下载，只是想判断这些权限是否值得授予，可以先看 [Quickstart 的权限 / 模型下载检查表](./QUICKSTART.zh-CN.md#下载前先看会要哪些权限--会下载什么)。如果你因为权限而放弃下载，也欢迎直接提交 [3 分钟 Beta 反馈](https://github.com/botaruibo/MyVoiceTyping/issues/new?template=beta_3min_feedback.md)，只写阻碍原因即可。
+
 ## 模型为什么要首次下载？
 
 为了保持安装包体积可控，语音识别、标点恢复和文本润写模型不会直接打包进应用，也不会提交到 Git 仓库。首次启动时应用会按需检查并下载模型。
@@ -151,6 +153,8 @@ macOS 对语音输入类工具限制比较严格。MyVoiceTyping 通常需要：
 - 是否有公司网络或安全软件拦截。
 
 如果仍然失败，请通过 [Bug report / 故障报告](https://github.com/botaruibo/MyVoiceTyping/issues/new/choose) 提交错误信息。
+
+需要提前说明：模型下载本身需要联网；“本地优先”指默认语音识别、标点恢复和文本润写链路尽量在本机完成，不等于应用永远不会访问网络。更完整的数据边界见 [Privacy / Data Safety](./PRIVACY.md)。
 
 ## 转写结果不理想怎么办？
 
