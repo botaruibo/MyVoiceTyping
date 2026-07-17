@@ -14,11 +14,22 @@ MyVoiceTyping is a local-first voice typing app for macOS. It helps you write do
 
 ![MyVoiceTyping dashboard](docs/img/myvoicetyping-dashboard.png)
 
+## 10 分钟试用 / Download
+
+如果你只想快速判断 MyVoiceTyping 是否值得下载、试用或 Star，建议走这条最短路径：
+
+1. 打开当前推荐版本：[release-0.02](https://github.com/botaruibo/MyVoiceTyping/releases/tag/release-0.02)。
+2. 在 Assets 里下载 [`MyVoiceTyping_Installer.dmg`](https://github.com/botaruibo/MyVoiceTyping/releases/download/release-0.02/MyVoiceTyping_Installer.dmg)。
+3. 按 [快速上手](docs/QUICKSTART.zh-CN.md) 授权麦克风、辅助功能和输入监控。
+4. 先用虚构内容试一句中文 / 中英混合文本，不要直接输入公司机密、客户信息、Token、内部代码或私人聊天。
+5. 如果卡在下载、权限、模型或粘贴，直接提交 [3 分钟 Beta 反馈](https://github.com/botaruibo/MyVoiceTyping/issues/new?template=beta_3min_feedback.md)；即使最后不 Star，“为什么不下载 / 为什么不 Star”也很有价值。
+
 ## Quick Links
 
 | 你想做什么 | 入口 |
 | --- | --- |
-| 直接下载 macOS 安装包 | [Latest Release](https://github.com/botaruibo/MyVoiceTyping/releases) |
+| 直接下载 macOS 安装包 | [release-0.02](https://github.com/botaruibo/MyVoiceTyping/releases/tag/release-0.02) · [DMG 直链](https://github.com/botaruibo/MyVoiceTyping/releases/download/release-0.02/MyVoiceTyping_Installer.dmg) |
+| 第一次安装怎么走 | [快速上手 / Quickstart](docs/QUICKSTART.zh-CN.md) |
 | 30 秒看懂项目效果 | [30 秒 Demo walkthrough](docs/DEMO_30S.zh-CN.md) |
 | 30 秒判断是否适合自己 | [Trial tasks / 30 秒试用任务](docs/TRIAL_TASKS.zh-CN.md) |
 | 想理解 AI Coding 语音输入场景 | [为什么 AI Coding 时代，语音输入会变成新的 Prompt 入口？](https://juejin.cn/post/7663165474498740262) |
