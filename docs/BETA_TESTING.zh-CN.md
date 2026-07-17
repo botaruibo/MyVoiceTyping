@@ -165,6 +165,7 @@ Self-evaluation：
 
 - 普通试用反馈：<https://github.com/botaruibo/MyVoiceTyping/issues/3>
 - AI Coding prompt 反馈：<https://github.com/botaruibo/MyVoiceTyping/issues/5>
+- 3 分钟 Beta 反馈模板：<https://github.com/botaruibo/MyVoiceTyping/issues/new?template=beta_3min_feedback.md>
 - 新 issue 模板：<https://github.com/botaruibo/MyVoiceTyping/issues/new/choose>
 - Discussions 体验招募帖：<https://github.com/botaruibo/MyVoiceTyping/discussions/2>
 
@@ -179,7 +180,7 @@ Star 对早期项目很重要：它会帮助我判断是否优先补 Demo/GIF、
 1. 打开 [Release](https://github.com/botaruibo/MyVoiceTyping/releases/tag/release-0.02)，尝试下载并启动；
 2. 如果卡在 macOS 权限、模型下载或安全提示，直接记录卡点，不需要硬折腾；
 3. 如果能启动，用 [30 秒试用任务](./TRIAL_TASKS.zh-CN.md) 里的虚构 AI Coding prompt 试一次；
-4. 到 [Issue templates](https://github.com/botaruibo/MyVoiceTyping/issues/new/choose) 提交脱敏反馈，或者在 [Discussion #2](https://github.com/botaruibo/MyVoiceTyping/discussions/2) 留言；
+4. 到 [3 分钟 Beta 反馈模板](https://github.com/botaruibo/MyVoiceTyping/issues/new?template=beta_3min_feedback.md) 提交脱敏反馈，或者在 [Discussion #2](https://github.com/botaruibo/MyVoiceTyping/discussions/2) 留言；
 5. 如果你觉得“开源、本地优先、0 费用的 Typeless / 闪电说之外选择”这个方向值得继续，欢迎给主仓库点 Star。
 
 即使你最后没有 Star，也欢迎直接说原因。对这个阶段来说，“为什么不 Star”往往比一句客气的支持更有帮助。
