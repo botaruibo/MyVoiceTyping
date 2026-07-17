@@ -99,7 +99,7 @@
             "name": "What is self-evaluation in MyVoiceTyping?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Self-evaluation means user-confirmed edits can become local preference samples for evaluating or tuning the local text-polishing model, so the tool can gradually fit the user's vocabulary and writing habits."
+              "text": "Self-evaluation / Self-Evolution means user-confirmed edits can be saved as local preference samples in voice_history.jsonl. In alpha-0.03, the project is moving toward user-confirmed local MLX LoRA tuning and GGUF Q4 replacement so the local model gradually fits the user's vocabulary and writing habits without default cloud upload."
             }
           }
         ]
@@ -611,7 +611,7 @@
             <div class="card wide">
               <h3>Self-evaluation / 自进化</h3>
               <p>
-                长期方向是将用户最终确认后的“原始转写 → 修改后文本”作为本地偏好数据，先用于本地评估、热词和规则优化；在用户明确授权后，再探索本地 LLM 轻量调优，让模型逐渐学会你的常用词、语气、项目术语和写作习惯。
+                alpha-0.03 开始推进本地自进化：用户最终确认后的“原始转写 → 修改后文本”会写入本机 voice_history.jsonl，先用于本地评估、热词和规则优化；在用户确认后，可参与本机 MLX LoRA 调优，并转换为 GGUF Q4 本地模型，让模型逐渐学会你的常用词、语气、项目术语和写作习惯。
               </p>
             </div>
             <div class="card">
@@ -710,11 +710,11 @@
             </a>
             <a class="link-card" href="https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/SELF_EVALUATION.md">
               <strong>Self-evaluation / 自进化</strong>
-              <span>查看本地偏好样本、用户控制和轻量调优边界</span>
+              <span>查看 voice_history.jsonl、本机 MLX LoRA、GGUF Q4 转换和数据边界</span>
             </a>
           </div>
           <p class="fine-print">
-            License / 使用边界：应用代码许可证仍在确认中；模型页当前标注 Apache-2.0，同时需遵守上游模型许可；数据集由多个公开来源整理，使用或再分发前请查看 Dataset 的
+            License / 使用边界：应用代码采用 MIT License；模型页当前标注 Apache-2.0，同时需遵守上游模型许可；数据集由多个公开来源整理，使用或再分发前请查看 Dataset 的
             <a href="https://github.com/botaruibo/MyVoiceTyping-Dataset/blob/main/DATA_LICENSE.md">DATA_LICENSE</a>
             和
             <a href="https://github.com/botaruibo/MyVoiceTyping-Dataset/blob/main/docs/SOURCES.md">SOURCES</a>。

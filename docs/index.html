@@ -217,7 +217,7 @@
         </article>
         <article class="card">
           <h2>可自进化</h2>
-          <p>用户确认后的修改可以作为本地偏好样本，用于后续评估和调优，让模型逐渐贴合个人表达习惯。</p>
+          <p>alpha-0.03 开始推进本地自进化：用户确认后的修改写入本机 voice_history.jsonl，经用户确认后可参与本机 MLX LoRA 调优，并转换为 GGUF Q4 本地模型。</p>
         </article>
       </section>
 
@@ -231,7 +231,7 @@
       </section>
 
       <footer>
-        当前项目仍在早期迭代中。如果你希望中文语音输入有一个开源、本地优先、可自行调优的选择，欢迎在 GitHub 上试用、提 issue 或点 star。
+        当前项目仍在早期迭代中。如果你希望中文语音输入有一个开源、本地优先、0 费用、可本地自进化的选择，欢迎在 GitHub 上试用、提 issue 或点 star。
       </footer>
     </main>
   </body>
