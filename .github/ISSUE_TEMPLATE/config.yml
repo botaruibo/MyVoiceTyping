@@ -1,0 +1,29 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 先看普通用户落地页 / Landing page
+    url: https://botaruibo.github.io/MyVoiceTyping/
+    about: 如果你还不确定 MyVoiceTyping 是否适合自己，可以先看功能介绍、下载入口和反馈入口。
+  - name: 30 秒试用任务 / Trial tasks
+    url: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/TRIAL_TASKS.zh-CN.md
+    about: 如果你刚从 Typeless、闪电说、Typeoff 或语音输入讨论里点进来，可以先用 6 个虚构任务快速判断是否适合自己。
+  - name: Beta 测试 / 3 分钟反馈
+    url: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/BETA_TESTING.zh-CN.md
+    about: 如果你愿意帮忙挑毛病，请先看 3 分钟反馈路径；最想知道安装、权限、模型下载、中文/中英混合、AI Coding prompt、隐私说明和不 Star 阻碍。
+  - name: 普通 30 秒试用任务 / 30-second user feedback
+    url: https://github.com/botaruibo/MyVoiceTyping/issues/3
+    about: 如果只是想快速试用并反馈安装、权限、转写、润写和粘贴体验，可以从这里开始。
+  - name: AI Coding prompt 测试任务
+    url: https://github.com/botaruibo/MyVoiceTyping/issues/5
+    about: 如果你主要想测试给 Codex、Claude Code、Cursor、OpenCode 等工具口述 prompt，可以先看这个任务说明。
+  - name: Dataset ASR 后处理样例征集
+    url: https://github.com/botaruibo/MyVoiceTyping-Dataset/issues/1
+    about: 如果你有可公开、已脱敏的错词、技术词误改、中英混合丢词、标点断句或润写过度样例，可以提交到数据集样例征集。
+  - name: Privacy / Data Safety
+    url: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/PRIVACY.md
+    about: 如果你关心音频、转写文本、日志、模型下载或 self-evaluation 数据边界，请先看隐私说明。
+  - name: 使用场景 / Use cases
+    url: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/USE_CASES.zh-CN.md
+    about: 如果你不确定 MyVoiceTyping 是否适合自己的场景，可以先看 AI Coding、工作消息、隐私输入和自进化说明。
+  - name: Discussions 体验招募帖
+    url: https://github.com/botaruibo/MyVoiceTyping/discussions/2
+    about: 如果不确定是否算 bug，或者想先聊使用场景，可以先在讨论区反馈。

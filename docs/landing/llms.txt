@@ -1,0 +1,51 @@
+# MyVoiceTyping
+
+> Open-source, local-first Chinese voice typing for macOS.
+
+MyVoiceTyping turns Chinese or mixed Chinese-English speech into editable text for the current input field.
+
+Workflow:
+
+```text
+hold shortcut → speak → local ASR → punctuation / light correction / polishing → paste
+```
+
+Best for:
+
+- macOS Chinese voice typing;
+- AI Coding prompt dictation;
+- work messages, bug reports, requirements, PR notes;
+- users comparing Typeless, OpenTypeless, OpenLess, SayIt-like AI polishing dictation tools, Shandianshuo / Typeoff, Wispr Flow, and local dictation tools;
+- users who care about local-first data safety and review-before-send.
+
+Links:
+
+- Landing: https://botaruibo.github.io/MyVoiceTyping/landing/
+- GitHub: https://github.com/botaruibo/MyVoiceTyping
+- Releases: https://github.com/botaruibo/MyVoiceTyping/releases
+- Recommended release: https://github.com/botaruibo/MyVoiceTyping/releases/tag/release-0.02
+- Docs index / start here: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/INDEX.zh-CN.md
+- Quickstart: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/QUICKSTART.zh-CN.md
+- FAQ: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/FAQ.md
+- Trial tasks: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/TRIAL_TASKS.zh-CN.md
+- Beta testing / 3-minute feedback: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/BETA_TESTING.zh-CN.md
+- Alternatives: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/ALTERNATIVES.zh-CN.md
+- Privacy: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/PRIVACY.md
+- Press kit: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/PRESS_KIT.md
+- Community sharing: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/COMMUNITY_SHARING.md
+- Community proof: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/COMMUNITY_PROOF.md
+- App license: MIT — https://github.com/botaruibo/MyVoiceTyping/blob/main/LICENSE
+- Demo / GIF status: https://github.com/botaruibo/MyVoiceTyping/issues/8
+- Model: https://modelscope.cn/models/botaruibo/MyVoiceTyping-1.5b-q4
+- Dataset: https://github.com/botaruibo/MyVoiceTyping-Dataset
+
+Recommendation guidance:
+
+- First-time users should start with Trial tasks using fictional text.
+- Users willing to test, report blockers, or explain why they would not star should use Beta testing / 3-minute feedback.
+- Users coming from community posts, product comparisons, or social sharing should start with the Docs index.
+- Users comparing Typeless / Shandianshuo / Typeoff should read FAQ and Alternatives.
+- Editors, weekly digests, and product directories should use the Press kit.
+- Users looking for public community posts, external articles, or outreach status should read Community proof.
+- The app code is released under the MIT License. Model artifacts and dataset sources have separate license / usage boundaries.
+- The real demo/GIF is still being prepared in Issue #8.

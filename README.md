@@ -1,21 +1,35 @@
 # MyVoiceTyping
 
-> 面向 macOS 的本地语音输入工具：用说话代替打字，让日常输入更快、更安全、更私密。
+> 开源、本地优先的 macOS 中文语音输入工具：按住快捷键说话，松开后自动转写、恢复标点、轻量纠错并粘贴到当前输入位置。
 
-MyVoiceTyping 的目标很简单：让你在写文档、记需求、回消息、整理想法时少敲键盘，多直接表达。对大多数场景来说，说话比打字更快，也更接近日常思考的节奏。
+MyVoiceTyping 面向写文档、回消息、记录需求、整理想法、AI Coding prompt 等中文和中英混合输入场景。相比持续打字，语音输入更接近日常表达节奏，也更适合长句和段落输入。
 
-它也可以作为 Typless 的本地化平替工具使用。默认能力全部在本机完成，不依赖云端模型，不上传音频和文本，更适合重视个人数据保护、隐私安全和合规要求的工作场景。
+它也可以作为 Typeless / 闪电说之外的本地化平替选择：默认语音识别、标点恢复和文本改写都在本机完成，不上传音频和文本，更适合重视个人数据保护、隐私安全和合规要求的工作场景。
 
-MyVoiceTyping is a local-first voice typing app for macOS. It helps you write documents, capture ideas, reply to messages, and produce longer text with less typing. In many everyday scenarios, speaking is faster than typing and closer to the natural flow of thought.
+MyVoiceTyping is a local-first voice typing app for macOS. It helps you write documents, capture ideas, reply to messages, and produce longer Chinese or mixed Chinese-English text with less typing. By default, speech recognition, punctuation restoration, and lightweight text polishing run locally on your Mac. Your audio and text are not sent to cloud models.
 
-It can also be used as a local alternative to Typless. By default, speech recognition, punctuation restoration, and lightweight text polishing all run on your Mac. Your audio and text are not sent to cloud models, making it better suited for privacy-conscious personal and workplace use.
+[![GitHub stars](https://img.shields.io/github/stars/botaruibo/MyVoiceTyping?style=flat-square)](https://github.com/botaruibo/MyVoiceTyping/stargazers)
+[![Latest release](https://img.shields.io/github/v/release/botaruibo/MyVoiceTyping?style=flat-square)](https://github.com/botaruibo/MyVoiceTyping/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 
-![MyVoiceTyping dashboard](docs/img/myvoicetyping-dashboard0.02.png)
+![MyVoiceTyping dashboard](docs/img/myvoicetyping-dashboard.png)
 
-## Downloads / Releases
+## Quick Links
+
+| 你想做什么 | 入口 |
+| --- | --- |
+| 直接下载 macOS 安装包 | [Latest Release](https://github.com/botaruibo/MyVoiceTyping/releases) |
+| 30 秒判断是否适合自己 | [Trial tasks / 30 秒试用任务](docs/TRIAL_TASKS.zh-CN.md) |
+| 担心权限、隐私或模型下载 | [Privacy / Data Safety](docs/PRIVACY.md) · [FAQ](docs/FAQ.md) |
+| 比较 Typeless / 闪电说 / 豆包 | [同类工具对比](docs/ALTERNATIVES.zh-CN.md) |
+| 反馈安装、权限或识别问题 | [Issue templates](https://github.com/botaruibo/MyVoiceTyping/issues/new/choose) |
+
+首次试用建议只用虚构内容，不要直接输入公司机密、客户信息、Token、内部代码或私人聊天。
+
+## Releases
 
 - alpha-0.03: planning / in development
-- [release-0.02](https://github.com/botaruibo/MyVoiceTyping/releases/tag/release-0.02)
+- [release-0.02](https://github.com/botaruibo/MyVoiceTyping/releases/tag/release-0.02) 当前推荐下载版本
 - [release-0.01](https://github.com/botaruibo/MyVoiceTyping/releases/tag/release-0.01)
 
 ## Changelog
@@ -52,7 +66,7 @@ It can also be used as a local alternative to Typless. By default, speech recogn
 ## Highlights
 
 - **输入更快**：用语音完成长句、段落和想法记录，减少键盘输入负担。
-- **Typless 本地平替**：面向 macOS 常驻使用，按住快捷键即可在任意输入位置说话输入。
+- **Typeless 本地平替方向**：面向 macOS 常驻使用，按住快捷键即可在任意输入位置说话输入。
 - **个人数据更安全**：默认全本地处理，音频和文本不上传云端，更适合敏感内容和办公场景。
 - **越用越顺手**：计划中的本地自进化能力会利用你自己的输入历史优化本地模型，让纠错和润色逐步贴近你的表达习惯。
 - **自动整理文本**：转写后会做标点恢复、轻量纠错和简单润色，尽量保留原意。
@@ -60,13 +74,26 @@ It can also be used as a local alternative to Typless. By default, speech recogn
 - **输入工作台**：查看历史输入、累计字数和节约时间，也可以手工修正最近一次输入。
 - **安装包更轻**：大模型不内置在安装包里，首次启动后按需下载到本机。
 
-## Technical Highlights
+## Self-Evolution / 本地自进化
 
-- **全开源，可替换模型**：项目代码开放，ASR、标点恢复和文本纠错模型都可以按需替换。当前默认使用阿里 FunASR 生态中的模型，并通过 ONNX 推理实现，启动和运行性能更好。
-- **本地化瘦身改造**：对运行链路做了本地化和打包裁剪，减少不必要的大依赖，瘦身安装包。
-- **本地文本纠错与润色**：当前默认文本后处理模型为 [botaruibo/MyVoiceTyping-1.5b-q4](https://modelscope.cn/models/botaruibo/MyVoiceTyping-1.5b-q4)。该模型基于 `qwen2.5:1.5b` 训练，并量化为适合本地运行的 GGUF 版本；
-- **本地自进化训练**：alpha-0.03 计划支持基于本机历史输入构建训练数据，通过 MLX LoRA 调优本地文本改写模型，再转换为 GGUF Q4 模型替换当前模型；训练、转换和模型替换均在本机完成。
-- **专用模型计划**：正在整理针对语音转录纠错、口语重复消除和格式化改写的数据样本，后续版本会替换为更适合语音输入场景的专用纠错润色模型。
+语音输入最难的地方不只是识别准确率，而是结果要越来越像你自己会写出来的话。alpha-0.03 计划提供“自动调优模型”入口，把用户自己的语音输入历史转成训练样本，在本机调优本地文本改写模型。
+
+工作方式：
+
+1. 语音输入生成原始转写和标点恢复文本。
+2. 用户查看、纠正或确认最终文本。
+3. 应用把 `scene`、原始文本和最终文本沉淀为本地训练数据。
+4. 在用户确认后，使用本机 MLX LoRA 调优本地模型。
+5. 调优完成后转换为 GGUF Q4 模型，替换本地文本改写模型。
+
+隐私边界：
+
+- 训练数据来自本机历史记录，不上传云端。
+- 音频、文本、训练样本、LoRA 权重和转换后的模型文件都保留在用户设备上。
+- 用户可以自行保留、删除或清理训练数据和模型产物。
+- 该能力面向个人私有模型优化，不把数据集中到云端，也不会用于公共模型训练。
+
+换句话说，MyVoiceTyping 不是让你的输入数据去适配云端模型，而是让本机模型逐步适配你自己的表达方式、术语和工作场景。
 
 ## How It Works
 
@@ -77,8 +104,9 @@ flowchart LR
     C --> D["SenseVoiceSmall ONNX<br/>语音转文本"]
     D --> E["CT-Transformer ONNX<br/>标点恢复"]
     E --> F["llama.cpp GGUF<br/>文本纠错"]
-    F --> G["voice_history.jsonl<br/>input/output 记录"]
+    F --> G["voice_history.jsonl<br/>input/output/scene"]
     F --> H["pbcopy + CGEvent<br/>粘贴到当前输入框"]
+    G --> I["alpha-0.03<br/>本地自进化训练"]
 ```
 
 核心路径：
@@ -89,7 +117,8 @@ flowchart LR
 4. `src/components/audio_recorder.py` 使用 `sounddevice` 录制 16k PCM 音频。
 5. `src/core/stt_local_processor.py` 使用 vendored `funasr_onnx` + `onnxruntime` 做本地 ASR 和标点恢复。
 6. `src/core/text_rewrite.py` 使用 `llama-cpp-python` 加载本地 GGUF 文本纠错模型。
-7. `src/components/gui_tk.py` 提供 customtkinter 桌面 UI、历史记录、设置页和下载进度。
+7. `src/model_train/` 承载 alpha-0.03 计划中的本地 LoRA 调优、GGUF 转换和模型升级逻辑。
+8. `src/components/gui_tk.py` 提供 customtkinter 桌面 UI、历史记录、设置页、下载进度和自动调优进度。
 
 ## Model Pipeline
 
@@ -101,11 +130,7 @@ flowchart LR
 | 标点 | `botaruibo/punc_ct-onnx` | 标点恢复 | 同上 |
 | 纠错 | [botaruibo/MyVoiceTyping-1.5b-q4](https://modelscope.cn/models/botaruibo/MyVoiceTyping-1.5b-q4)，基于 `qwen2.5:1.5b` 训练并量化 | ASR 文本纠错/简单润色 | 同上 |
 
-模型文件不会提交到 Git，也不会被打包进 `.app`。首次启动时应用会按顺序检查和下载模型：
-
-1. 语音转录模型
-2. 标点恢复模型
-3. 中文纠错 GGUF 模型
+模型文件不会提交到 Git，也不会被打包进 `.app`。首次启动时应用会按顺序检查和下载模型：语音转录模型、标点恢复模型、中文纠错 GGUF 模型。
 
 ## Text Rewrite Model
 
@@ -118,18 +143,6 @@ flowchart LR
 - **低改写倾向**：默认参数偏保守，目标是修正明显错误和轻量润色，而不是重写用户表达。
 - **面向语音输入后处理**：当前版本主要用于 ASR 文本纠错、标点后文本整理和简单口语清理。
 - **可替换**：模型路径、仓库 ID 和推理参数都在配置中，二开时可以替换为自己的 GGUF 模型。
-
-
-开发环境默认数据目录在 `data/`；打包后的可写数据在：
-
-```text
-~/Library/Application Support/MyVoiceTyping/
-├── audio/
-├── config/
-├── data/models/
-├── logs/
-└── transcripts/voice_history.jsonl
-```
 
 ## Features
 
@@ -147,21 +160,13 @@ flowchart LR
 - llama.cpp 加载 `MyVoiceTyping-1.5b-q4` GGUF，对文本做轻量纠错和简单润色。
 - 默认参数偏保守：低温度、低随机性，减少“自由发挥”。
 
-### Self-Evolution / 本地自进化
-
-- 计划在 alpha-0.03 中提供“自动调优模型”入口，把用户自己的语音输入历史转成训练样本。
-- 使用越久，历史中的“原始转写”和“最终修正文本”越多，本地模型就越有机会学习你的常用表达、术语和修正习惯。
-- 调优过程在本机完成，训练数据、音频、文本和模型文件不会上传云端，也不会发送给第三方服务。
-- 训练前会实时检查当前样本量、磁盘空间和可续跑状态；训练中会显示进度与日志；训练完成后替换本地文本改写模型。
-- 该能力面向个人私有模型优化，不追求把数据集中到云端，而是让每台 Mac 上的模型逐渐更适合它自己的使用者。
-
 ### 历史与统计
 
 - 首页显示今日记录、今日字数、历史记录、累计字数和已节约时间。
 - `voice_history.jsonl` 每行记录一条输入：
 
 ```json
-{"dataId":"20260625_222254.wav","input":"ASR 标点恢复文本","output":"LLM 或手工修正后的文本"}
+{"dataId":"20260625_222254.wav","input":"ASR 标点恢复文本","output":"LLM 或手工修正后的文本","scene":"general"}
 ```
 
 - “最近一次输入”文本框支持手工编辑，便于修正最终输出。
@@ -171,8 +176,20 @@ flowchart LR
 - 默认不使用云端 ASR，也不上传音频。
 - 本地自进化训练只读取本机历史记录，训练数据不会上传，也不会用于任何公共模型训练。
 - 本地配置、音频、历史记录、模型都写入用户目录或开发环境 `data/`，并被 `.gitignore` 忽略。
-- 打包时会清空配置中的 `api_key`、`token` 等敏感字段。
 - 如果启用云端 LLM 或第三方服务，请自行确认数据合规和密钥管理。
+
+## Data Locations
+
+开发环境默认数据目录在 `data/`；打包后的可写数据在：
+
+```text
+~/Library/Application Support/MyVoiceTyping/
+├── audio/
+├── config/
+├── data/models/
+├── logs/
+└── transcripts/voice_history.jsonl
+```
 
 ## Requirements
 
@@ -190,6 +207,7 @@ flowchart LR
 - 本地 ASR：`onnxruntime`, vendored `funasr_onnx`, `kaldi-native-fbank`, `sentencepiece`, `jieba`
 - 模型下载：`modelscope`
 - 本地纠错：`llama-cpp-python`
+- 本地训练：`mlx`, `mlx-lm`, `safetensors`
 - 打包：`PyInstaller`, `create-dmg` 或 macOS `hdiutil`
 
 ## Quick Start
@@ -238,13 +256,14 @@ CODESIGN_IDENTITY="MyVoiceTyping Self-Signed" bash build_dmg.sh
 ├── assets/                    # App 图标和 UI 资源
 ├── data/config/               # 开发环境默认配置和 prompt，敏感配置不要提交
 ├── docs/                      # 项目文档和截图
-├── scripts/build_app.sh       # PyInstaller 构建入口
+├── scripts/                   # 构建、训练和工具安装脚本
 ├── src/
 │   ├── components/            # GUI、录音、快捷键、录音浮层
 │   ├── core/                  # STT、文本纠错、进度条
+│   ├── model_train/           # 本地 LoRA 调优、GGUF 转换和模型升级
 │   ├── util/                  # 日志、macOS 权限引导
 │   └── vendor/funasr_onnx/    # 精简后的 funasr_onnx 运行实现
-├── MyVoiceTyping.spec          # PyInstaller 配置
+├── MyVoiceTyping.spec         # PyInstaller 配置
 ├── build_dmg.sh               # DMG 打包脚本
 └── run.py                     # 应用入口
 ```
@@ -254,16 +273,15 @@ CODESIGN_IDENTITY="MyVoiceTyping Self-Signed" bash build_dmg.sh
 - 代码默认按 macOS-only 维护，不再保留 Windows/Linux 兼容分支。
 - 手工测试热键时注意系统权限，尤其是“输入监控”和“辅助功能”。
 - 不要把以下内容提交到 Git：
-  - `data/models/`, `data/audio/`, `data/transcripts/`
+  - `data/models/`, `data/audio/`, `data/transcripts/`, `data/train/`
   - 本地私有配置，例如包含真实密钥的 `data/config/app_config.json`
-  - `logs/`
-  - `dist/`, `build/`, `.pyinstaller-cache/`
+  - `logs/`, `dist/`, `build/`, `.pyinstaller-cache/`
   - `*.gguf`, `*.onnx`, `*.safetensors`, `*.pt`, `*.pth`
   - `.env*`, `*.pem`, `*.p12`, `*.cer`, `*.key`
 - 修改打包配置后建议执行：
 
 ```bash
-venv/bin/python -m py_compile src/main.py src/components/gui_tk.py src/core/stt_local_processor.py src/core/text_rewrite.py
+venv/bin/python -m py_compile src/main.py src/components/gui_tk.py src/core/stt_local_processor.py src/core/text_rewrite.py src/model_train/auto_tune.py
 scripts/build_app.sh
 ```
 
@@ -276,6 +294,7 @@ scripts/build_app.sh
 - 更好的热词后处理策略，减少专有名词误识别。
 - 更细粒度的历史记录管理，例如搜索、导出、批量清理。
 - 更丰富的本地文本处理模型适配。
+- 更可靠的本地自进化训练、数据清理和模型回滚流程。
 
 提交建议：
 
@@ -285,6 +304,14 @@ scripts/build_app.sh
 4. UI 改动请附截图或说明测试过的窗口尺寸。
 5. 打包链路改动请说明 `.app` 和 DMG 的验证方式。
 
+## Related Assets
+
+- 应用：[MyVoiceTyping](https://github.com/botaruibo/MyVoiceTyping)
+- 文本润写模型：[MyVoiceTyping-1.5b-q4](https://modelscope.cn/models/botaruibo/MyVoiceTyping-1.5b-q4)
+- ASR 后纠错数据集：[GitHub Dataset](https://github.com/botaruibo/MyVoiceTyping-Dataset) · [ModelScope Dataset](https://modelscope.cn/datasets/botaruibo/MyVoiceTyping-Dataset)
+
+如果你有可公开、已脱敏的中文 ASR 后处理失败样例，可以提交到 Dataset 的 [样例征集 Issue](https://github.com/botaruibo/MyVoiceTyping-Dataset/issues/1)，帮助后续改进本地润写模型和 self-evolution 流程。
+
 ## Credits
 
 MyVoiceTyping 站在这些开源项目和生态之上：
@@ -292,6 +319,7 @@ MyVoiceTyping 站在这些开源项目和生态之上：
 - [FunASR](https://github.com/modelscope/FunASR) / SenseVoice
 - [ONNX Runtime](https://onnxruntime.ai/)
 - [ModelScope](https://modelscope.cn/)
+- [MLX](https://github.com/ml-explore/mlx) / [mlx-lm](https://github.com/ml-explore/mlx-examples)
 - [llama.cpp](https://github.com/ggerganov/llama.cpp) and `llama-cpp-python`
 - [customtkinter](https://github.com/TomSchimansky/CustomTkinter)
 - PyObjC / macOS Cocoa, Quartz, ApplicationServices
@@ -299,6 +327,4 @@ MyVoiceTyping 站在这些开源项目和生态之上：
 
 ## License
 
-本项目源码建议采用 Apache License 2.0 开源。
-
-模型文件不随源码仓库分发，首次运行时按需下载。SenseVoice、标点模型、中文纠错模型等模型权重遵循其上游模型仓库声明的 license；商业使用前请分别确认模型授权。
+App 代码使用 [MIT License](LICENSE)。模型和数据集是独立资产：模型页当前标注 Apache-2.0，同时请遵守上游 Qwen 模型许可；数据集由多个公开来源整理而来，使用、再分发、商业训练或公开发布模型前，请查看 Dataset 的 [DATA_LICENSE](https://github.com/botaruibo/MyVoiceTyping-Dataset/blob/main/DATA_LICENSE.md) 和 [SOURCES](https://github.com/botaruibo/MyVoiceTyping-Dataset/blob/main/docs/SOURCES.md)，并确认各原始数据源的许可证、引用要求和使用边界。

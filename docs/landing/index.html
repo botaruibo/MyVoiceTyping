@@ -1,0 +1,778 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MyVoiceTyping - 开源、本地优先的 macOS 中文语音输入工具</title>
+    <meta
+      name="description"
+      content="MyVoiceTyping 是一个开源、本地优先的 macOS 中文语音输入工具，支持本地识别、标点恢复、轻量纠错/润写和粘贴，可作为 Typeless / 闪电说之外的开源本地优先选择。"
+    />
+    <link rel="canonical" href="https://botaruibo.github.io/MyVoiceTyping/landing/" />
+    <link rel="alternate" type="text/plain" title="llms.txt" href="https://botaruibo.github.io/MyVoiceTyping/llms.txt" />
+    <meta property="og:title" content="MyVoiceTyping - 开源、本地优先的 macOS 中文语音输入工具" />
+    <meta
+      property="og:description"
+      content="按住快捷键说话，松开后自动完成本地识别、标点恢复、轻量纠错/润写，并粘贴到当前输入框。"
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://botaruibo.github.io/MyVoiceTyping/landing/" />
+    <meta property="og:site_name" content="MyVoiceTyping" />
+    <meta
+      property="og:image"
+      content="https://botaruibo.github.io/MyVoiceTyping/assets/social-preview.png"
+    />
+    <meta property="og:image:alt" content="MyVoiceTyping - 开源、本地优先的 macOS 中文语音输入工具" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="MyVoiceTyping - 开源、本地优先的 macOS 中文语音输入工具" />
+    <meta
+      name="twitter:description"
+      content="Typeless / 闪电说之外的开源本地优先选择：0 费用，面向 macOS 中文语音输入和 AI Coding prompt。"
+    />
+    <meta
+      name="twitter:image"
+      content="https://botaruibo.github.io/MyVoiceTyping/assets/social-preview.png"
+    />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "MyVoiceTyping",
+        "applicationCategory": "ProductivityApplication",
+        "operatingSystem": "macOS",
+        "url": "https://botaruibo.github.io/MyVoiceTyping/landing/",
+        "downloadUrl": "https://github.com/botaruibo/MyVoiceTyping/releases",
+        "codeRepository": "https://github.com/botaruibo/MyVoiceTyping",
+        "image": "https://botaruibo.github.io/MyVoiceTyping/assets/social-preview.png",
+        "description": "Open-source, local-first Chinese voice typing for macOS. Hold a shortcut, speak, then paste locally transcribed, punctuated, lightly corrected, and polished text into the current input field.",
+        "keywords": [
+          "Chinese voice typing",
+          "macOS voice input",
+          "local-first speech-to-text",
+          "Typeless alternative",
+          "OpenTypeless alternative",
+          "OpenLess alternative",
+          "AI Coding prompt dictation",
+          "ASR post-processing"
+        ],
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "softwareHelp": [
+          "https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/INDEX.zh-CN.md",
+          "https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/QUICKSTART.zh-CN.md",
+          "https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/TRIAL_TASKS.zh-CN.md",
+          "https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/ALTERNATIVES.zh-CN.md",
+          "https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/FAQ.md"
+        ],
+        "isBasedOn": [
+          "https://modelscope.cn/models/botaruibo/MyVoiceTyping-1.5b-q4",
+          "https://github.com/botaruibo/MyVoiceTyping-Dataset"
+        ]
+      }
+    </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Is MyVoiceTyping a Typeless alternative?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "MyVoiceTyping can be viewed as an open-source, local-first alternative direction for users who want Chinese voice typing on macOS. It is earlier than polished commercial products, but focuses on local data safety, zero subscription cost, public app/model/dataset assets, and Chinese post-ASR cleanup."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What does local-first mean for MyVoiceTyping?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "The project is designed so audio, transcripts, and user-confirmed edits stay on the user's machine whenever possible. It focuses on review-before-send workflows rather than automatically sending dictated text."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What is self-evaluation in MyVoiceTyping?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Self-evaluation means user-confirmed edits can become local preference samples for evaluating or tuning the local text-polishing model, so the tool can gradually fit the user's vocabulary and writing habits."
+            }
+          }
+        ]
+      }
+    </script>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f6f7fb;
+        --card: rgba(255, 255, 255, 0.86);
+        --text: #101828;
+        --muted: #667085;
+        --line: #e4e7ec;
+        --accent: #2563eb;
+        --accent-2: #7c3aed;
+        --good: #087443;
+        --shadow: 0 24px 80px rgba(16, 24, 40, 0.12);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family:
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(circle at top left, rgba(37, 99, 235, 0.16), transparent 32rem),
+          radial-gradient(circle at top right, rgba(124, 58, 237, 0.13), transparent 34rem),
+          var(--bg);
+        line-height: 1.6;
+      }
+
+      a {
+        color: inherit;
+      }
+
+      .page {
+        width: min(1120px, calc(100% - 32px));
+        margin: 0 auto;
+      }
+
+      .nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 24px 0;
+      }
+
+      .brand {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+      }
+
+      .logo {
+        width: 34px;
+        height: 34px;
+        display: grid;
+        place-items: center;
+        border-radius: 12px;
+        color: white;
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        box-shadow: 0 10px 30px rgba(37, 99, 235, 0.25);
+      }
+
+      .nav-links {
+        display: flex;
+        gap: 18px;
+        align-items: center;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .nav-links a {
+        text-decoration: none;
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: 1.05fr 0.95fr;
+        gap: 42px;
+        align-items: center;
+        padding: 72px 0 54px;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border: 1px solid rgba(37, 99, 235, 0.18);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.72);
+        color: #1d4ed8;
+        font-size: 14px;
+        font-weight: 700;
+      }
+
+      h1 {
+        margin: 22px 0 18px;
+        font-size: clamp(42px, 7vw, 76px);
+        line-height: 0.96;
+        letter-spacing: -0.075em;
+      }
+
+      .lead {
+        max-width: 650px;
+        margin: 0;
+        color: var(--muted);
+        font-size: 20px;
+      }
+
+      .cta-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 30px;
+      }
+
+      .button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 46px;
+        padding: 0 18px;
+        border-radius: 14px;
+        text-decoration: none;
+        font-weight: 760;
+        border: 1px solid var(--line);
+        background: white;
+      }
+
+      .button.primary {
+        color: white;
+        border: 0;
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        box-shadow: 0 14px 34px rgba(37, 99, 235, 0.26);
+      }
+
+      .button.star {
+        border-color: rgba(8, 116, 67, 0.2);
+        color: var(--good);
+        background: rgba(236, 253, 245, 0.92);
+      }
+
+      .hero-card {
+        position: relative;
+        padding: 22px;
+        border: 1px solid rgba(255, 255, 255, 0.72);
+        border-radius: 28px;
+        background: var(--card);
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(18px);
+      }
+
+      .demo-window {
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        background: #0b1220;
+        color: #dbeafe;
+      }
+
+      .window-top {
+        display: flex;
+        gap: 7px;
+        padding: 14px;
+        background: rgba(255, 255, 255, 0.06);
+      }
+
+      .dot {
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        background: #fb7185;
+      }
+
+      .dot:nth-child(2) {
+        background: #fbbf24;
+      }
+
+      .dot:nth-child(3) {
+        background: #34d399;
+      }
+
+      .demo-content {
+        padding: 22px;
+      }
+
+      .hint {
+        color: #93c5fd;
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+      }
+
+      .spoken,
+      .output {
+        margin: 12px 0 0;
+        padding: 16px;
+        border-radius: 14px;
+      }
+
+      .spoken {
+        color: #cbd5e1;
+        background: rgba(148, 163, 184, 0.12);
+      }
+
+      .output {
+        color: #ecfeff;
+        background: linear-gradient(135deg, rgba(37, 99, 235, 0.28), rgba(124, 58, 237, 0.2));
+        border: 1px solid rgba(147, 197, 253, 0.2);
+      }
+
+      .flow {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 10px;
+        margin: 28px 0 0;
+      }
+
+      .flow span {
+        padding: 10px;
+        border-radius: 12px;
+        text-align: center;
+        font-size: 13px;
+        font-weight: 700;
+        background: rgba(255, 255, 255, 0.82);
+        border: 1px solid var(--line);
+      }
+
+      section {
+        padding: 56px 0;
+      }
+
+      .section-title {
+        max-width: 760px;
+        margin: 0 auto 28px;
+        text-align: center;
+      }
+
+      h2 {
+        margin: 0 0 12px;
+        font-size: clamp(30px, 4vw, 48px);
+        letter-spacing: -0.055em;
+        line-height: 1.08;
+      }
+
+      .section-title p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 18px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+      }
+
+      .card {
+        padding: 22px;
+        border: 1px solid rgba(228, 231, 236, 0.9);
+        border-radius: 22px;
+        background: rgba(255, 255, 255, 0.82);
+        box-shadow: 0 12px 36px rgba(16, 24, 40, 0.06);
+      }
+
+      .card h3 {
+        margin: 0 0 8px;
+        font-size: 18px;
+        letter-spacing: -0.025em;
+      }
+
+      .card p,
+      .card li {
+        color: var(--muted);
+      }
+
+      .card p {
+        margin: 0;
+      }
+
+      .wide {
+        grid-column: span 2;
+      }
+
+      .code {
+        overflow-x: auto;
+        padding: 18px;
+        border-radius: 18px;
+        background: #101828;
+        color: #e0f2fe;
+        font-size: 15px;
+      }
+
+      .links {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+      }
+
+      .screenshots {
+        display: grid;
+        gap: 18px;
+      }
+
+      .shot-main,
+      .shot-grid img {
+        display: block;
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        background: #0b1220;
+        box-shadow: 0 18px 52px rgba(16, 24, 40, 0.12);
+      }
+
+      .shot-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 18px;
+      }
+
+      .link-card {
+        padding: 18px;
+        border-radius: 18px;
+        background: white;
+        border: 1px solid var(--line);
+        text-decoration: none;
+      }
+
+      .link-card strong {
+        display: block;
+        margin-bottom: 4px;
+      }
+
+      .link-card span {
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .fine-print {
+        margin: 14px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .star-panel {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 18px;
+        align-items: center;
+        margin: 0 0 22px;
+        padding: 20px;
+        border: 1px solid rgba(8, 116, 67, 0.18);
+        border-radius: 22px;
+        background: linear-gradient(135deg, rgba(236, 253, 245, 0.94), rgba(255, 255, 255, 0.92));
+      }
+
+      .star-panel p {
+        margin: 4px 0 0;
+        color: var(--muted);
+      }
+
+      .footer {
+        padding: 36px 0 60px;
+        color: var(--muted);
+        text-align: center;
+      }
+
+      @media (max-width: 860px) {
+        .hero,
+        .grid,
+        .links,
+        .shot-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .wide {
+          grid-column: auto;
+        }
+
+        .flow {
+          grid-template-columns: 1fr;
+        }
+
+        .star-panel {
+          grid-template-columns: 1fr;
+        }
+
+        .nav {
+          align-items: flex-start;
+          gap: 14px;
+          flex-direction: column;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <nav class="nav">
+        <div class="brand"><span class="logo">声</span> MyVoiceTyping</div>
+        <div class="nav-links">
+          <a href="https://github.com/botaruibo/MyVoiceTyping">GitHub</a>
+          <a href="https://github.com/botaruibo/MyVoiceTyping/releases">下载</a>
+          <a href="https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/FAQ.md">FAQ</a>
+          <a href="https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/PRIVACY.md">隐私</a>
+          <a href="https://github.com/botaruibo/MyVoiceTyping/blob/main/SECURITY.md">安全</a>
+        </div>
+      </nav>
+
+      <main>
+        <section class="hero">
+          <div>
+            <div class="eyebrow">Typeless / 闪电说之外 · 开源本地优先 · 0 费用</div>
+            <h1>用中文说话，直接变成可用文字。</h1>
+            <p class="lead">
+              MyVoiceTyping 是一个面向 macOS 的开源中文语音输入工具。按住快捷键说话，松开后自动完成本地识别、标点恢复、轻量纠错/润写，并粘贴到当前输入框，也适合作为 Typeless / 闪电说之外的开源本地优先选择。
+            </p>
+            <div class="cta-row">
+              <a class="button primary" href="https://github.com/botaruibo/MyVoiceTyping/releases">下载最新版</a>
+              <a class="button star" href="https://github.com/botaruibo/MyVoiceTyping">试用后 Star 关注</a>
+              <a class="button" href="https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/QUICKSTART.zh-CN.md">安装 / 权限检查</a>
+              <a class="button" href="https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/USE_CASES.zh-CN.md">使用场景</a>
+              <a class="button" href="https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/TRIAL_TASKS.zh-CN.md">30 秒试用任务</a>
+              <a class="button" href="https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/BETA_TESTING.zh-CN.md">3 分钟 Beta 反馈</a>
+              <a class="button" href="https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/FAQ.md">从 Typeless 讨论点进来？</a>
+              <a class="button" href="https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/DEMO.md">查看 Demo</a>
+              <a class="button" href="https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/DEMO_ASSETS.md">传播素材</a>
+              <a class="button" href="https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/PRESS_KIT.md">投稿包</a>
+              <a class="button" href="https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/COMMUNITY_SHARING.md">社区文案</a>
+              <a class="button" href="https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/COMMUNITY_PROOF.md">社区讨论入口</a>
+            </div>
+          </div>
+
+          <div class="hero-card" aria-label="demo">
+            <div class="demo-window">
+              <div class="window-top"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+              <div class="demo-content">
+                <div class="hint">口述</div>
+                <div class="spoken">
+                  帮我检查一下登录页面 用户点击发送验证码以后按钮应该进入倒计时 如果接口报错需要恢复按钮并显示错误信息
+                </div>
+                <div style="height: 18px"></div>
+                <div class="hint">目标输出</div>
+                <div class="output">
+                  帮我检查一下登录页面：用户点击“发送验证码”以后，按钮应该进入倒计时；如果接口报错，需要恢复按钮并显示错误信息。
+                </div>
+              </div>
+            </div>
+            <div class="flow">
+              <span>按住说话</span>
+              <span>本地 ASR</span>
+              <span>标点恢复</span>
+              <span>轻量润写</span>
+              <span>粘贴输入</span>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <div class="section-title">
+            <h2>按住说话，松开粘贴</h2>
+            <p>5 张截图快速看懂核心交互、中文润写、AI Coding、本地优先和开源资产。</p>
+          </div>
+          <div class="screenshots">
+            <img
+              class="shot-main"
+              src="./assets/01-hold-to-speak.png"
+              alt="MyVoiceTyping hold to speak and release to paste workflow"
+            />
+            <div class="shot-grid">
+              <img src="./assets/02-spoken-to-polished-text.png" alt="MyVoiceTyping spoken Chinese to polished text" />
+              <img src="./assets/03-ai-coding-prompts.png" alt="MyVoiceTyping voice prompts for AI coding" />
+              <img src="./assets/04-local-first-privacy.png" alt="MyVoiceTyping local-first by design" />
+              <img src="./assets/05-open-app-model-dataset.png" alt="MyVoiceTyping open app model and dataset" />
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <div class="section-title">
+            <h2>不是会议转写，而是日常输入层</h2>
+            <p>写需求、发消息、写 Issue、给 AI Coding 工具描述任务，都可以少敲一点键盘。</p>
+          </div>
+          <div class="grid">
+            <div class="card">
+              <h3>本地优先</h3>
+              <p>默认尽量让音频、原始转写和润写后的文本留在本机，减少敏感内容外传风险。</p>
+            </div>
+            <div class="card">
+              <h3>中文优先</h3>
+              <p>重点处理中文/中英混合输入里的标点、断句、错词、技术词和产品名。</p>
+            </div>
+            <div class="card">
+              <h3>0 费用</h3>
+              <p>开源项目，可通过 GitHub Releases 下载安装试用。</p>
+            </div>
+            <div class="card wide">
+              <h3>Self-evaluation / 自进化</h3>
+              <p>
+                长期方向是将用户最终确认后的“原始转写 → 修改后文本”作为本地偏好数据，先用于本地评估、热词和规则优化；在用户明确授权后，再探索本地 LLM 轻量调优，让模型逐渐学会你的常用词、语气、项目术语和写作习惯。
+              </p>
+            </div>
+            <div class="card">
+              <h3>开源可审查</h3>
+              <p>应用代码、输入文本润写模型、调优数据集都公开，便于复现和二次开发。</p>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <div class="section-title">
+            <h2>适合这些场景</h2>
+            <p>如果你经常把中文想法变成文字，MyVoiceTyping 会更像一个轻量输入增强层。</p>
+          </div>
+          <div class="grid">
+            <div class="card">
+              <h3>AI Coding prompt</h3>
+              <p>口述 Bug 复现、重构需求、PR 说明，再检查后发送给 Cursor、Claude Code、Qwen Code 或 Copilot。</p>
+            </div>
+            <div class="card">
+              <h3>工作消息和邮件</h3>
+              <p>把口语整理成更清楚的句子，同时尽量保持你的原意。</p>
+            </div>
+            <div class="card">
+              <h3>隐私敏感输入</h3>
+              <p>公司需求、代码思路、客户上下文或私人内容，不想默认交给云端语音输入。</p>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <div class="section-title">
+            <h2>代码、模型、数据集都公开</h2>
+            <p>这不是一个黑盒语音输入产品。你可以查看实现、下载模型、研究训练数据。</p>
+          </div>
+          <div class="links">
+            <a class="link-card" href="https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/INDEX.zh-CN.md">
+              <strong>Docs index / 从这里开始</strong>
+              <span>按试用、Star 判断、同类对比、问题排查、投稿转发和反馈入口快速分流</span>
+            </a>
+            <a class="link-card" href="https://github.com/botaruibo/MyVoiceTyping">
+              <strong>App / GitHub</strong>
+              <span>macOS 中文语音输入应用</span>
+            </a>
+            <a class="link-card" href="https://modelscope.cn/models/botaruibo/MyVoiceTyping-1.5b-q4">
+              <strong>ModelScope 模型</strong>
+              <span>1.5B GGUF 本地润写模型</span>
+            </a>
+            <a class="link-card" href="https://github.com/botaruibo/MyVoiceTyping-Dataset">
+              <strong>Dataset</strong>
+              <span>中文 ASR 后处理调优数据集</span>
+            </a>
+            <a class="link-card" href="https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/QUICKSTART.zh-CN.md">
+              <strong>安装 / 权限检查</strong>
+              <span>下载 release-0.02、处理 macOS 安全提示、授权麦克风 / 辅助功能 / 输入监控和首次模型下载</span>
+            </a>
+            <a class="link-card" href="https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/USE_CASES.zh-CN.md">
+              <strong>使用场景</strong>
+              <span>AI Coding、工作消息、隐私输入、中文长文本和本地自进化</span>
+            </a>
+            <a class="link-card" href="https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/TRIAL_TASKS.zh-CN.md">
+              <strong>30 秒试用任务</strong>
+              <span>直接口述 6 个虚构测试句，检查转写、润写、中英混合和隐私边界</span>
+            </a>
+            <a class="link-card" href="https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/BETA_TESTING.zh-CN.md">
+              <strong>Beta 测试 / 3 分钟反馈</strong>
+              <span>反馈安装权限、模型下载、AI Coding prompt、隐私说明和不 Star 阻碍</span>
+            </a>
+            <a class="link-card" href="https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/FAQ.md">
+              <strong>从 Typeless / 闪电说讨论点进来？</strong>
+              <span>先用 5 个问题判断是否适合你，再选择试用、Star 或反馈</span>
+            </a>
+            <a class="link-card" href="https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/ALTERNATIVES.zh-CN.md">
+              <strong>同类工具对比</strong>
+              <span>和 Typeless、OpenTypeless、OpenLess、闪电说、Typeoff、Wispr Flow 等怎么选</span>
+            </a>
+            <a class="link-card" href="https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/DEMO_ASSETS.md">
+              <strong>Demo 传播素材</strong>
+              <span>截图、60 秒 storyboard、AI Coding / 数据安全文案</span>
+            </a>
+            <a class="link-card" href="https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/PRESS_KIT.md">
+              <strong>Press kit / 投稿包</strong>
+              <span>周刊、产品目录、小众软件、Product Hunt 和 AlternativeTo 可直接复制的介绍素材</span>
+            </a>
+            <a class="link-card" href="https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/COMMUNITY_SHARING.md">
+              <strong>社区讨论回复素材</strong>
+              <span>Typeless / 闪电说 / Typeoff / 隐私讨论下的透明自荐文案</span>
+            </a>
+            <a class="link-card" href="https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/COMMUNITY_PROOF.md">
+              <strong>社区讨论与外部文章</strong>
+              <span>CSDN、开源中国、知乎、掘金、SegmentFault、Watcha 和周刊投稿状态</span>
+            </a>
+            <a class="link-card" href="https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/DEMO_VIDEO.md">
+              <strong>60 秒 Demo 脚本</strong>
+              <span>录制或转发项目演示时可直接参考</span>
+            </a>
+            <a class="link-card" href="https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/SELF_EVALUATION.md">
+              <strong>Self-evaluation / 自进化</strong>
+              <span>查看本地偏好样本、用户控制和轻量调优边界</span>
+            </a>
+          </div>
+          <p class="fine-print">
+            License / 使用边界：应用代码许可证仍在确认中；模型页当前标注 Apache-2.0，同时需遵守上游模型许可；数据集由多个公开来源整理，使用或再分发前请查看 Dataset 的
+            <a href="https://github.com/botaruibo/MyVoiceTyping-Dataset/blob/main/DATA_LICENSE.md">DATA_LICENSE</a>
+            和
+            <a href="https://github.com/botaruibo/MyVoiceTyping-Dataset/blob/main/docs/SOURCES.md">SOURCES</a>。
+          </p>
+        </section>
+
+        <section>
+          <div class="star-panel">
+            <div>
+              <strong>用 30 秒试一条虚构任务；如果方向对你有用，欢迎在 GitHub 点一个 Star。</strong>
+              <p>Star 会帮助更多 macOS 中文用户发现这个本地优先、0 费用、App / 模型 / 数据集公开的语音输入项目。</p>
+              <p>
+                如果你暂时没时间完整安装，但正在寻找 Typeless / 闪电说之外的开源本地优先方案，或者经常用语音输入写 AI Coding prompt、需求、Bug 复现和工作消息，也可以先 Star 关注后续 Demo、License 和试用体验完善。
+              </p>
+            </div>
+            <a class="button star" href="https://github.com/botaruibo/MyVoiceTyping">Star on GitHub</a>
+          </div>
+          <div class="section-title">
+            <h2>项目还早期，欢迎真实反馈</h2>
+            <p>比起空泛夸奖，更需要可复现的安装、权限、识别、润写和粘贴反馈。</p>
+          </div>
+          <div class="grid">
+            <a class="link-card" href="https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/BETA_TESTING.zh-CN.md">
+              <strong>Beta 测试 / 3 分钟反馈</strong>
+              <span>先用虚构内容测试，再反馈安装、权限、中文/中英混合和 Star 阻碍</span>
+            </a>
+            <a class="link-card" href="https://github.com/botaruibo/MyVoiceTyping/issues/3">
+              <strong>普通试用反馈</strong>
+              <span>提交 macOS 中文输入体验和 30 秒任务结果</span>
+            </a>
+            <a class="link-card" href="https://github.com/botaruibo/MyVoiceTyping/issues/5">
+              <strong>AI Coding prompt 反馈</strong>
+              <span>测试技术词保留和 prompt 可用性</span>
+            </a>
+            <a class="link-card" href="https://github.com/botaruibo/MyVoiceTyping/issues/new/choose">
+              <strong>提交结构化反馈</strong>
+              <span>Bug、体验反馈、AI Coding 模板</span>
+            </a>
+            <a class="link-card" href="https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/PRIVACY.md">
+              <strong>Privacy / Data Safety</strong>
+              <span>查看本地优先和数据边界说明</span>
+            </a>
+            <a class="link-card" href="https://github.com/botaruibo/MyVoiceTyping/blob/main/SECURITY.md">
+              <strong>Security Policy</strong>
+              <span>反馈日志、调试信息、自进化数据等安全 / 隐私问题</span>
+            </a>
+            <a class="link-card" href="https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/ALTERNATIVES.zh-CN.md">
+              <strong>Typeless / 闪电说怎么选？</strong>
+              <span>查看 MyVoiceTyping 的开源本地优先定位和适用边界</span>
+            </a>
+          </div>
+        </section>
+      </main>
+
+      <footer class="footer">
+        MyVoiceTyping · Open-source local-first Chinese voice typing for macOS ·
+        <a href="https://github.com/botaruibo/MyVoiceTyping">Star on GitHub</a>
+      </footer>
+    </div>
+  </body>
+</html>
