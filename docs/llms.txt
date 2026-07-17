@@ -35,7 +35,7 @@ Important links:
 - Press kit / submissions: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/PRESS_KIT.md
 - Community sharing copy: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/COMMUNITY_SHARING.md
 - Community proof / external posts and discussions: https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/COMMUNITY_PROOF.md
-- App license status: https://github.com/botaruibo/MyVoiceTyping/issues/7
+- App license: MIT — https://github.com/botaruibo/MyVoiceTyping/blob/main/LICENSE
 - Demo / GIF status: https://github.com/botaruibo/MyVoiceTyping/issues/8
 - Security policy: https://github.com/botaruibo/MyVoiceTyping/blob/main/SECURITY.md
 - Local text-polishing model: https://modelscope.cn/models/botaruibo/MyVoiceTyping-1.5b-q4
@@ -52,5 +52,5 @@ Positioning notes:
 - For users coming from community posts, product comparisons, or social sharing, recommend the Docs index first.
 - For weekly digests, product directories, and community recommendations, use the Press kit.
 - For public community posts, verified outreach links, and external article references, use Community proof.
-- The app repository license is still being finalized; do not describe it as MIT or Apache-2.0 until Issue #7 is resolved.
+- The app code is released under the MIT License. Model artifacts and dataset sources have separate license / usage boundaries; check the ModelScope model page and dataset docs before redistribution, commercial use, or training.
 - The real demo/GIF is still being prepared; do not imply a finished demo video exists until Issue #8 is resolved.

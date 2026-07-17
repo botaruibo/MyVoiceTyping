@@ -89,7 +89,7 @@ macOS，语音输入，中文语音输入，本地优先，隐私，AI Coding，
 - 项目仍处于早期，体验不应和成熟商业产品直接等同；
 - 当前主要面向 macOS；
 - 真实 Demo / GIF 仍在补齐中，进展见 <https://github.com/botaruibo/MyVoiceTyping/issues/8>；
-- App repo license 仍在确认中，进展见 <https://github.com/botaruibo/MyVoiceTyping/issues/7>；决策参考见 <https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/LICENSE_DECISION.zh-CN.md>；
+- App code uses the MIT License: <https://github.com/botaruibo/MyVoiceTyping/blob/main/LICENSE>；模型和数据集有独立使用边界，使用前请查看对应说明；
 - 如果输入内容涉及公司、客户、隐私或内部代码，请不要把真实音频 / 文本提交到公开 issue 或评论区。
 - 如果编辑、作者或早期用户愿意帮忙判断项目是否值得继续推荐，建议先看 Beta 测试 / 3 分钟反馈页：<https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/BETA_TESTING.zh-CN.md>。最有价值的反馈是安装权限、模型下载、中文 / 中英混合、AI Coding prompt、隐私说明，以及为什么愿意或不愿意 Star。
 

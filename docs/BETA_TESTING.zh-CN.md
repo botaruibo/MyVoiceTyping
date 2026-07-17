@@ -127,7 +127,7 @@ Self-evaluation：
 如果你看完或试完暂时不想 Star，也很有价值。请直接说最大阻碍：
 
 - 没有真实 Demo/GIF；
-- App repo license 还没确定；
+- 模型 / 数据集的独立使用边界还需要看说明；
 - 安装步骤看起来麻烦；
 - 权限太敏感；
 - 模型下载不清楚；
@@ -164,4 +164,4 @@ Self-evaluation：
 
 如果 MyVoiceTyping 的方向确实解决了你的中文输入问题，或者你也希望看到一个开源、本地优先、0 费用、App / 模型 / 数据集公开的 Typeless / 闪电说之外选择，欢迎 Star 关注后续版本。
 
-Star 对早期项目很重要：它会帮助我判断是否优先补 Demo/GIF、License、中文 / 中英混合质量、AI Coding prompt、安装体验和本地 self-evaluation。
+Star 对早期项目很重要：它会帮助我判断是否优先补 Demo/GIF、中文 / 中英混合质量、AI Coding prompt、安装体验和本地 self-evaluation。
