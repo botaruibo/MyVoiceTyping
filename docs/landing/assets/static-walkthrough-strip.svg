@@ -11,7 +11,7 @@
       <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#101828" flood-opacity="0.14"/>
     </filter>
     <clipPath id="cardClip">
-      <rect x="0" y="0" width="456" height="256.5" rx="22"/>
+      <rect x="0" y="0" width="456" height="220" rx="22"/>
     </clipPath>
   </defs>
 
@@ -29,47 +29,47 @@
     Static walkthrough only · not a real recording / GIF
   </text>
 
-  <g transform="translate(80 230)" filter="url(#shadow)">
-    <rect width="456" height="346" rx="26" fill="#ffffff"/>
+  <g transform="translate(80 220)" filter="url(#shadow)">
+    <rect width="456" height="300" rx="26" fill="#ffffff"/>
     <g clip-path="url(#cardClip)">
-      <image href="01-hold-to-speak.png" width="456" height="256.5" preserveAspectRatio="xMidYMid slice"/>
+      <image href="01-hold-to-speak.png" width="456" height="220" preserveAspectRatio="xMidYMid slice"/>
     </g>
-    <text x="26" y="306" fill="#101828" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="26" font-weight="720">1. Hold to speak</text>
+    <text x="26" y="268" fill="#101828" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="26" font-weight="720">1. Hold to speak</text>
   </g>
 
-  <g transform="translate(572 230)" filter="url(#shadow)">
-    <rect width="456" height="346" rx="26" fill="#ffffff"/>
+  <g transform="translate(572 220)" filter="url(#shadow)">
+    <rect width="456" height="300" rx="26" fill="#ffffff"/>
     <g clip-path="url(#cardClip)">
-      <image href="02-spoken-to-polished-text.png" width="456" height="256.5" preserveAspectRatio="xMidYMid slice"/>
+      <image href="02-spoken-to-polished-text.png" width="456" height="220" preserveAspectRatio="xMidYMid slice"/>
     </g>
-    <text x="26" y="306" fill="#101828" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="26" font-weight="720">2. Spoken → polished</text>
+    <text x="26" y="268" fill="#101828" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="26" font-weight="720">2. Spoken → polished</text>
   </g>
 
-  <g transform="translate(1064 230)" filter="url(#shadow)">
-    <rect width="456" height="346" rx="26" fill="#ffffff"/>
+  <g transform="translate(1064 220)" filter="url(#shadow)">
+    <rect width="456" height="300" rx="26" fill="#ffffff"/>
     <g clip-path="url(#cardClip)">
-      <image href="03-ai-coding-prompts.png" width="456" height="256.5" preserveAspectRatio="xMidYMid slice"/>
+      <image href="03-ai-coding-prompts.png" width="456" height="220" preserveAspectRatio="xMidYMid slice"/>
     </g>
-    <text x="26" y="306" fill="#101828" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="26" font-weight="720">3. AI Coding prompt</text>
+    <text x="26" y="268" fill="#101828" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="26" font-weight="720">3. AI Coding prompt</text>
   </g>
 
-  <g transform="translate(326 610)" filter="url(#shadow)">
-    <rect width="456" height="220" rx="26" fill="#ffffff"/>
+  <g transform="translate(326 550)" filter="url(#shadow)">
+    <rect width="456" height="300" rx="26" fill="#ffffff"/>
     <g clip-path="url(#cardClip)">
-      <image href="04-local-first-privacy.png" width="456" height="256.5" preserveAspectRatio="xMidYMid slice"/>
+      <image href="04-local-first-privacy.png" width="456" height="220" preserveAspectRatio="xMidYMid slice"/>
     </g>
-    <text x="26" y="190" fill="#101828" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="25" font-weight="720">4. Local-first boundary</text>
+    <text x="26" y="268" fill="#101828" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="25" font-weight="720">4. Local-first boundary</text>
   </g>
 
-  <g transform="translate(818 610)" filter="url(#shadow)">
-    <rect width="456" height="220" rx="26" fill="#ffffff"/>
+  <g transform="translate(818 550)" filter="url(#shadow)">
+    <rect width="456" height="300" rx="26" fill="#ffffff"/>
     <g clip-path="url(#cardClip)">
-      <image href="05-open-app-model-dataset.png" width="456" height="256.5" preserveAspectRatio="xMidYMid slice"/>
+      <image href="05-open-app-model-dataset.png" width="456" height="220" preserveAspectRatio="xMidYMid slice"/>
     </g>
-    <text x="26" y="190" fill="#101828" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="25" font-weight="720">5. App / model / dataset</text>
+    <text x="26" y="268" fill="#101828" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="25" font-weight="720">5. App / model / dataset</text>
   </g>
 
-  <text x="80" y="858" fill="#475467" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="22" font-weight="560">
+  <text x="80" y="880" fill="#475467" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="20" font-weight="560">
     github.com/botaruibo/MyVoiceTyping · macOS Chinese / mixed Chinese-English · local polishing model · Self-Evolution
   </text>
 </svg>

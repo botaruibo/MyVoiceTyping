@@ -26,6 +26,11 @@ MyVoiceTyping is a local-first Chinese voice typing tool for macOS: hold a hotke
 
 这些截图可以按顺序用于 README、社交媒体长图、Product Hunt gallery、Appinn 投稿补充或周刊编辑预览。
 
+0. Static walkthrough strip  
+   ![MyVoiceTyping static walkthrough strip](landing/assets/static-walkthrough-strip.png)
+
+   PNG 版适合社区帖子、社交平台和私信预览；SVG 源文件保留在 `landing/assets/static-walkthrough-strip.svg`。它是静态 walkthrough，不是真实录屏 / GIF。
+
 1. Core interaction  
    ![Hold to speak, release to paste](landing/assets/01-hold-to-speak.png)
 
@@ -188,5 +193,5 @@ https://github.com/botaruibo/MyVoiceTyping/blob/main/docs/ALTERNATIVES.zh-CN.md
 - [ ] 标题里使用“开源平替方向”而不是“完全替代”；
 - [ ] 正文明确当前项目仍处于早期；
 - [ ] 如果提到隐私，用“本地优先”而不是“绝对隐私”；
-- [ ] 如果提到 self-evaluation，说明数据应本地保存、用户可控；
+- [ ] 如果提到 Self-Evolution，说明数据应本地保存、用户可控；
 - [ ] 最后附上 GitHub repo 或 landing 链接，并邀请真实试用反馈。

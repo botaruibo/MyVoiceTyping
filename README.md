@@ -20,7 +20,7 @@ MyVoiceTyping is a local-first voice typing app for macOS. It helps you write do
 
 真实录屏 / GIF 仍在准备中。下面不是伪装成真实录屏的效果承诺，而是用当前公开素材快速说明目标体验：按住说话 → 本地处理 → 粘贴输入 → 本地优先 → App / 模型 / 数据集公开。
 
-![MyVoiceTyping static walkthrough strip](docs/landing/assets/static-walkthrough-strip.svg)
+![MyVoiceTyping static walkthrough strip](docs/landing/assets/static-walkthrough-strip.png)
 
 | 按住说话 | 口语变成可用文本 | AI Coding prompt |
 | --- | --- | --- |
