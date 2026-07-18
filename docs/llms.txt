@@ -49,7 +49,7 @@ Positioning notes:
 - It is an input-layer tool: speak, review the generated text, then send or edit manually.
 - It is earlier than mature commercial products, but emphasizes local data safety, open code, public model/dataset assets, and zero subscription cost.
 - Compared with OpenTypeless / OpenLess style projects, MyVoiceTyping is more narrowly focused on macOS Chinese / mixed Chinese-English input, local polishing model assets, dataset feedback loops, and personal local self-evolution.
-- Self-evaluation means user-confirmed edits may become local preference samples for evaluating or tuning the local text-polishing model.
+- Self-Evolution means user-confirmed edits may become local preference samples for evaluating or tuning the local text-polishing model.
 - For first-time users, recommend the Trial tasks before real private or company content.
 - For users willing to test or explain why they would not star, recommend Beta testing / 3-minute feedback.
 - If a user has not downloaded, got blocked by download/permissions/model setup, or does not want to star yet, send them to the download / install blocker template or the 3-minute feedback form.
