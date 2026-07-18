@@ -20,6 +20,21 @@ macOS 中文 / 中英混合输入
 - 本地文本润写模型：<https://modelscope.cn/models/botaruibo/MyVoiceTyping-1.5b-q4>
 - 调优数据集：<https://github.com/botaruibo/MyVoiceTyping-Dataset>
 
+## 30 秒决策
+
+如果你是从社区讨论点进来的，不需要先完整读完文档，可以直接按下面判断：
+
+| 你的问题 | 建议动作 |
+|---|---|
+| 想先看项目是否靠谱 | 打开 [GitHub 仓库](https://github.com/botaruibo/MyVoiceTyping)，先看 README、MIT License、模型和数据集链接 |
+| 想马上试用 | 下载 [release-0.02](https://github.com/botaruibo/MyVoiceTyping/releases/tag/release-0.02)，按 [Quickstart](./QUICKSTART.zh-CN.md) 走权限和模型下载 |
+| 只想知道和 Typeless / 闪电说差在哪 | 先看下面“和 Typeless / 闪电说类产品的差异”，再看 [同类工具完整对比](./ALTERNATIVES.zh-CN.md) |
+| 最关心数据安全 | 先看 [Privacy / Data Safety](./PRIVACY.md) 和本页“本地优先到底是什么意思？” |
+| 对 Self-Evolution 感兴趣 | 先看 [Self-Evolution / 本地自进化说明](./SELF_EVALUATION.md)，不要把它理解成默认上传或成熟自动训练闭环 |
+| 看完仍然不想下载 | 直接提交 [没下载 / 安装卡点反馈](https://github.com/botaruibo/MyVoiceTyping/issues/new?template=download_install_blocker.md)，告诉我卡在哪里 |
+
+如果这个方向刚好解决了你的中文输入、AI Coding prompt 或隐私输入问题，欢迎在 GitHub 点 Star：<https://github.com/botaruibo/MyVoiceTyping>。
+
 ## 它更适合谁？
 
 MyVoiceTyping 当前更适合这些用户：
