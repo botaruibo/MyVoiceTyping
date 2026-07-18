@@ -12,7 +12,7 @@
 | 想马上安装试用 | [快速上手](./QUICKSTART.zh-CN.md) | 下载 release-0.02、处理 macOS 安全提示、授予麦克风 / 辅助功能 / 输入监控权限 |
 | 想看适用场景 | [使用场景](./USE_CASES.zh-CN.md) | 写 prompt、写消息、写 issue、写 PR note、整理想法 |
 | 愿意帮忙试用 / 挑毛病 | [Beta 测试 / 3 分钟反馈](./BETA_TESTING.zh-CN.md) | 反馈安装权限、模型下载、中文 / 中英混合、AI Coding prompt、隐私说明和不 Star 阻碍 |
-| 正在比较 Typeless / 闪电说 / Typeoff / OpenTypeless / OpenLess / SayIt | [同类工具对比](./ALTERNATIVES.zh-CN.md) | 判断 MyVoiceTyping 作为开源、本地优先、0 费用路线是否适合你 |
+| 正在比较 Typeless / 闪电说 / Typeoff / OpenTypeless / OpenLess / SayIt | [Typeless 平替快速判断](./TYPELESS_ALTERNATIVE.zh-CN.md) · [同类工具对比](./ALTERNATIVES.zh-CN.md) | 判断 MyVoiceTyping 作为开源、本地优先、0 费用、本地自进化路线是否适合你 |
 | 遇到权限、模型下载、粘贴或转写问题 | [FAQ / Troubleshooting](./FAQ.md) | 排查首次启动、权限配置、模型下载、转写质量、粘贴失败 |
 
 ## 项目定位

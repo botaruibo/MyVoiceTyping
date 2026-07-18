@@ -53,7 +53,7 @@ MyVoiceTyping is a local-first voice typing app for macOS. It helps you write do
 | 30 秒判断是否适合自己 | [Trial tasks / 30 秒试用任务](docs/TRIAL_TASKS.zh-CN.md) |
 | 想理解 AI Coding 语音输入场景 | [为什么 AI Coding 时代，语音输入会变成新的 Prompt 入口？](https://juejin.cn/post/7663165474498740262) |
 | 担心权限、隐私或模型下载 | [Privacy / Data Safety](docs/PRIVACY.md) · [FAQ](docs/FAQ.md) |
-| 比较 Typeless / OpenTypeless / 闪电说 / 豆包 | [同类工具对比](docs/ALTERNATIVES.zh-CN.md) |
+| 比较 Typeless / OpenTypeless / 闪电说 / 豆包 | [Typeless 平替快速判断](docs/TYPELESS_ALTERNATIVE.zh-CN.md) · [同类工具对比](docs/ALTERNATIVES.zh-CN.md) |
 | 想看公开社区讨论和外部文章 | [Community proof / 社区讨论](docs/COMMUNITY_PROOF.md) |
 | 愿意帮忙试用 3 分钟 / 挑毛病 | [Beta testing / 3 分钟反馈](docs/BETA_TESTING.zh-CN.md) |
 | 看完但不想下载 / 安装卡住 | [没下载 / 安装卡点反馈](https://github.com/botaruibo/MyVoiceTyping/issues/new?template=download_install_blocker.md) |
